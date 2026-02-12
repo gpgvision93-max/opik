@@ -55,5 +55,5 @@ public class ServiceTogglesConfig {
     @JsonProperty
     @NotNull boolean agentConfigurationEnabled;
     @JsonProperty
-    @NotNull boolean llmJudgeDirectJsonpathEnabled;
+    @NotNull boolean onlineScoringDirectDataEnabled;
 }
