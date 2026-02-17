@@ -879,7 +879,7 @@ def get_fast_api_app(
             app_name=COPILOT_APP_NAME, user_id=current_user.user_id, session_id=session_id
         )
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            return HistoryResponse(content=[])
 
         messages = extract_messages_from_session(session)
 

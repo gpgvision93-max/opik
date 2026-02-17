@@ -26,6 +26,7 @@ export default function useCopilotHistory(
   return useQuery({
     queryKey: [COPILOT_KEY, {}],
     queryFn: getCopilotHistory,
+    gcTime: 0,
     ...options,
   });
 }

@@ -49,8 +49,8 @@ const OllieChatView: React.FC = () => {
   } = useOllieStore();
 
   const [isThinking, setIsThinking] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const abortControllerRef = useRef<AbortController>();
+  const historyLoadedRef = useRef(false);
 
   const searchParams = new URLSearchParams(location.search);
   const {
@@ -59,9 +59,11 @@ const OllieChatView: React.FC = () => {
     params,
   } = derivePageContext(location.pathname, searchParams);
   const runStreaming = useCopilotRunStreaming();
-  const { data: historyData } = useCopilotHistory({
-    enabled: isLoadingHistory,
-  });
+  const {
+    data: historyData,
+    isLoading: isLoadingHistory,
+    isError: isHistoryError,
+  } = useCopilotHistory();
   const { mutate: deleteSession, isPending: isDeletingSession } =
     useCopilotDeleteSession();
 
@@ -100,10 +102,15 @@ const OllieChatView: React.FC = () => {
     setIsThinking(false);
   }, [setIsStreaming]);
 
-  // Load conversation history on mount
+  // Clear Zustand messages on mount to prevent showing stale data
   useEffect(() => {
-    if (historyData?.content && isLoadingHistory) {
-      clearMessages();
+    clearMessages();
+    historyLoadedRef.current = false;
+  }, [clearMessages]);
+
+  // Load conversation history when data arrives
+  useEffect(() => {
+    if (historyData?.content && !historyLoadedRef.current) {
       historyData.content.forEach((msg) => {
         addMessage({
           id: msg.id,
@@ -112,9 +119,9 @@ const OllieChatView: React.FC = () => {
           toolCalls: msg.toolCalls,
         });
       });
-      setIsLoadingHistory(false);
+      historyLoadedRef.current = true;
     }
-  }, [historyData, isLoadingHistory, clearMessages, addMessage]);
+  }, [historyData, addMessage]);
 
   useEffect(() => {
     return () => {
@@ -450,12 +457,21 @@ const OllieChatView: React.FC = () => {
 
   const noMessages = messages.length === 0;
   const isDisabledButton = !inputValue && !isStreaming;
+  const showEmptyState = noMessages && !isLoadingHistory && !isHistoryError;
+  const showLoadingState = isLoadingHistory;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4" ref={scrollContainerRef}>
-        {noMessages ? (
+        {showLoadingState ? (
+          <div className="flex min-h-full flex-col items-center justify-center gap-3 px-4 py-2">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            <div className="comet-body-s text-muted-slate">
+              Loading conversation...
+            </div>
+          </div>
+        ) : showEmptyState ? (
           renderEmptyState()
         ) : (
           <div className="flex w-full flex-col gap-2 py-4">
