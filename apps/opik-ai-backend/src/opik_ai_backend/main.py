@@ -121,6 +121,38 @@ def get_text_from_event(
     return None, None
 
 
+def get_display_text_from_event(
+    event: Event,
+) -> Tuple[Optional[str], Optional[Literal["user", "model"]]]:
+    """
+    Extract textual content from an event for display purposes.
+
+    Page context parts (starting with "[Current page:") are injected by the
+    backend as a separate part and are excluded from user-facing history.
+    """
+    if event.partial:
+        return None, None
+
+    if not (
+        event.content
+        and event.content.parts
+        and event.content.role in ["user", "model"]
+    ):
+        return None, None
+
+    role = event.content.role
+
+    if role == "user":
+        user_parts = [
+            p.text for p in event.content.parts
+            if p.text and not p.text.startswith("[Current page:")
+        ]
+        return ("\n".join(user_parts), role) if user_parts else (None, None)
+
+    text_parts = [p.text for p in event.content.parts if p.text]
+    return ("\n".join(text_parts), role) if text_parts else (None, None)
+
+
 def extract_messages_from_session(session: Session) -> list[LLMMessage]:
     """
     Extracts the messages from the session.
@@ -134,7 +166,7 @@ def extract_messages_from_session(session: Session) -> list[LLMMessage]:
 
     messages = []
     for event in session.events:
-        content, role = get_text_from_event(event)
+        content, role = get_display_text_from_event(event)
 
         if content and role:
             opik_role = {"model": "assistant", "user": "user"}[role]
@@ -1038,11 +1070,14 @@ def get_fast_api_app(
                     req.page_id, req.page_params, req.page_description, opik_client,
                     table_state=req.table_state or None,
                 )
-                user_text = f"[Current page: {resolved_context}]\n{req.message}"
                 logger.debug(f"[COPILOT] Injected page context: {resolved_context}")
 
                 message = types.Content(
-                    role="user", parts=[types.Part(text=user_text)]
+                    role="user",
+                    parts=[
+                        types.Part(text=f"[Current page: {resolved_context}]"),
+                        types.Part(text=req.message),
+                    ],
                 )
                 logger.info(f"[COPILOT] Starting runner.run_async for user {current_user.user_id}")
                 event_count = 0
