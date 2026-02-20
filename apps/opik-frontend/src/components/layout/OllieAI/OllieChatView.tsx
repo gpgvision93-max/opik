@@ -31,6 +31,7 @@ import { LLM_MESSAGE_ROLE } from "@/types/llm";
 import { MESSAGE_TYPE } from "@/types/ai-assistant";
 import { cn } from "@/lib/utils";
 import { derivePageContext } from "@/constants/pageIds";
+import OllieContextBar from "./OllieContextBar";
 
 const RUN_HOT_KEYS = ["⌘", "⏎"];
 
@@ -493,8 +494,16 @@ const OllieChatView: React.FC = () => {
         )}
       </div>
 
+      {/* Context bar */}
+      <OllieContextBar
+        pageId={pageId}
+        pageDescription={pageDescription}
+        params={params}
+        tableState={tableState}
+      />
+
       {/* Input area */}
-      <div className="border-t bg-background px-4 py-3">
+      <div className="bg-background px-4 py-3">
         <div className="relative">
           <TextareaAutosize
             placeholder="Ask me anything about Opik..."
