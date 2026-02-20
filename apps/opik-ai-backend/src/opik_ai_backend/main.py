@@ -846,6 +846,7 @@ def get_fast_api_app(
                 )
                 logger.debug(f"Starting runner.run_async for trace {trace_id}")
                 event_count = 0
+                has_yielded_content = False
                 async for event in runner.run_async(
                     user_id=current_user.user_id,
                     session_id=session_id,
@@ -853,10 +854,29 @@ def get_fast_api_app(
                     run_config=RunConfig(streaming_mode=stream_mode),
                 ):
                     event_count += 1
+
+                    if event.error_code or event.error_message:
+                        logger.error(
+                            "LLM error event for trace %s: code=%s, message=%s",
+                            trace_id, event.error_code, event.error_message,
+                        )
+                        has_yielded_content = True
+                        yield f"data: {json.dumps({'error': event.error_message or 'An error occurred while generating a response.'})}\n\n"
+                        break
+
                     # Process the event for SSE streaming
                     sse_event_str = process_event_for_sse(event)
                     if sse_event_str:
+                        has_yielded_content = True
                         yield sse_event_str
+
+                if not has_yielded_content:
+                    logger.error("No content yielded for trace %s", trace_id)
+                    yield f"data: {json.dumps({'error': 'Failed to generate a response. Please try again or clear the chat history.'})}\n\n"
+
+            except litellm.ContextWindowExceededError as e:
+                logger.warning("Context window exceeded for trace %s: %s", trace_id, e)
+                yield f"data: {json.dumps({'error': 'The conversation has become too long. Please clear the chat history and start a new conversation.'})}\n\n"
             except openai.OpenAIError as e:
                 logger.exception("LLM provider error in event_generator: %s", e)
                 error_msg = json.dumps({"error": str(e)})
@@ -1081,6 +1101,7 @@ def get_fast_api_app(
                 )
                 logger.info(f"[COPILOT] Starting runner.run_async for user {current_user.user_id}")
                 event_count = 0
+                has_yielded_content = False
                 async for event in runner.run_async(
                     user_id=current_user.user_id,
                     session_id=session_id,
@@ -1092,15 +1113,32 @@ def get_fast_api_app(
                         f"[COPILOT] Event #{event_count}: author={event.author}, "
                         f"partial={event.partial}, has_content={event.content is not None}"
                     )
-                    
+
+                    if event.error_code or event.error_message:
+                        logger.error(
+                            "[COPILOT] LLM error event: code=%s, message=%s",
+                            event.error_code, event.error_message,
+                        )
+                        has_yielded_content = True
+                        yield f"data: {json.dumps({'error': event.error_message or 'An error occurred while generating a response.'})}\n\n"
+                        break
+
                     # Process the event for SSE streaming
                     sse_event_str = process_event_for_sse(event)
                     if sse_event_str:
                         logger.debug(f"[COPILOT] Yielding SSE event: {sse_event_str[:200]}...")
+                        has_yielded_content = True
                         yield sse_event_str
                     else:
                         logger.debug(f"[COPILOT] Event #{event_count} produced no SSE output (filtered)")
-                        
+
+                if not has_yielded_content:
+                    logger.error("[COPILOT] No content yielded for user %s", current_user.user_id)
+                    yield f"data: {json.dumps({'error': 'Failed to generate a response. Please try again or clear the chat history.'})}\n\n"
+
+            except litellm.ContextWindowExceededError as e:
+                logger.warning("[COPILOT] Context window exceeded: %s", e)
+                yield f"data: {json.dumps({'error': 'The conversation has become too long. Please clear the chat history and start a new conversation.'})}\n\n"
             except openai.OpenAIError as e:
                 logger.exception("[COPILOT] LLM provider error in event_generator: %s", e)
                 error_msg = json.dumps({"error": str(e)})

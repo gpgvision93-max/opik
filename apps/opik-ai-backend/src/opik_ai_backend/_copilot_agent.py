@@ -577,14 +577,15 @@ async def get_copilot_agent(
     else:
         logger.debug("[COPILOT_AGENT] OpikTracer disabled (no internal URL configured)")
 
-    model_name = settings.agent_model
+    model_name = settings.copilot_agent_model or settings.agent_model
     logger.info(f"[COPILOT_AGENT] Using model: {model_name}")
 
     # Configure model with optional reasoning_effort
     model_kwargs = {}
-    if settings.agent_reasoning_effort:
-        model_kwargs["reasoning_effort"] = settings.agent_reasoning_effort
-        logger.debug(f"[COPILOT_AGENT] Reasoning effort: {settings.agent_reasoning_effort}")
+    reasoning_effort = settings.copilot_agent_reasoning_effort or settings.agent_reasoning_effort
+    if reasoning_effort:
+        model_kwargs["reasoning_effort"] = reasoning_effort
+        logger.debug(f"[COPILOT_AGENT] Reasoning effort: {reasoning_effort}")
 
     # Forward user's auth credentials to the Opik AI proxy
     extra_headers = {}

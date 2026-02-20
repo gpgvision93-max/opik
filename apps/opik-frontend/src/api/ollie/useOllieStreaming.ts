@@ -69,6 +69,7 @@ const isOpikError = (
 ): response is ChatCompletionOpikErrorMessageType => {
   return (
     "errors" in response ||
+    "error" in response ||
     ("code" in response && !isValidJsonObject(response.message))
   );
 };
@@ -203,6 +204,11 @@ const useOllieStreaming = ({
         const handleOpikErrorMessage = (
           parsedMessage: ChatCompletionOpikErrorMessageType,
         ) => {
+          if ("error" in parsedMessage) {
+            opikError = parsedMessage.error.message;
+            return;
+          }
+
           if ("code" in parsedMessage && "message" in parsedMessage) {
             opikError = parsedMessage.message;
             return;

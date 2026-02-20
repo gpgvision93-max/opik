@@ -36,6 +36,13 @@ const PageLayout = () => {
   const { isOpen: ollieIsOpen, mode: ollieMode } = useOllieStore();
   const ollieWideOpen = ollieIsOpen && ollieMode === "wide";
 
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--ollie-width",
+      ollieWideOpen ? "500px" : "0px",
+    );
+  }, [ollieWideOpen]);
+
   // Force sidebar collapsed on mobile, use stored preference on desktop
   const isMobile =
     typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;

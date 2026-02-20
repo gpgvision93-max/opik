@@ -59,6 +59,18 @@ class Settings(BaseSettings):
         alias="AGENT_REASONING_EFFORT",
     )
 
+    # Copilot (OllieAI) LLM configuration — overrides the shared agent settings above
+    copilot_agent_model: Optional[str] = Field(
+        default="openai/gpt-5-mini",
+        description="LLM model for the copilot agent (falls back to AGENT_MODEL if unset)",
+        alias="COPILOT_AGENT_MODEL",
+    )
+    copilot_agent_reasoning_effort: Optional[str] = Field(
+        default="minimal",
+        description="Reasoning effort for the copilot model (falls back to AGENT_REASONING_EFFORT if unset)",
+        alias="COPILOT_AGENT_REASONING_EFFORT",
+    )
+
     # CORS configuration
     allowed_origins: list[str] = Field(
         default=[

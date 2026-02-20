@@ -12,6 +12,13 @@ const INITIAL_WIDTH = 0.75;
 const MIN_LEFT_POSITION = 0.1;
 const MAX_LEFT_POSITION = 0.8;
 
+const getOllieWidth = () => {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(
+    "--ollie-width",
+  );
+  return parseFloat(raw) || 0;
+};
+
 type ArrowNavigationConfig = {
   hasPrevious: boolean;
   hasNext: boolean;
@@ -42,13 +49,11 @@ const RIGHT_HOTKEYS = ["→"];
 const ESC_HOTKEYS = ["Esc"];
 
 const calculateLeftPosition = (percentage: number, minWidth?: number) => {
+  const availableWidth = window.innerWidth - getOllieWidth();
   if (minWidth) {
-    return Math.min(
-      window.innerWidth * percentage,
-      window.innerWidth - minWidth,
-    );
+    return Math.min(availableWidth * percentage, availableWidth - minWidth);
   } else {
-    return window.innerWidth * percentage;
+    return availableWidth * percentage;
   }
 };
 
@@ -125,7 +130,8 @@ const ResizableSidePanel: React.FunctionComponent<ResizableSidePanelProps> = ({
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       if (resizeHandleRef.current) {
-        leftRef.current = event.pageX / window.innerWidth;
+        const availableWidth = window.innerWidth - getOllieWidth();
+        leftRef.current = event.pageX / availableWidth;
         const left = Math.max(
           MIN_LEFT_POSITION,
           Math.min(MAX_LEFT_POSITION, leftRef.current),
@@ -246,12 +252,17 @@ const ResizableSidePanel: React.FunctionComponent<ResizableSidePanelProps> = ({
   return createPortal(
     <div className="relative z-10">
       {open && closeOnClickOutside && (
-        <div className="fixed inset-0 bg-black/10" onClick={onClose} />
+        <div
+          className="fixed inset-0 bg-black/10"
+          style={{ right: "var(--ollie-width, 0px)" }}
+          onClick={onClose}
+        />
       )}
       <div
         className="fixed inset-0 bg-background shadow-xl transition-transform duration-150 will-change-transform"
         style={{
           left: left + "px",
+          right: "var(--ollie-width, 0px)",
           transform: open ? "translateX(0)" : "translateX(100%)",
         }}
         data-testid={panelId}

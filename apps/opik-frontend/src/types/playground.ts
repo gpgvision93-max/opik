@@ -57,6 +57,13 @@ export type ChatCompletionOpikErrorMessageType =
   | {
       message: string;
       code: string;
+    }
+  | {
+      error: {
+        message: string;
+        type: string;
+        code: string;
+      };
     };
 
 export type ChatCompletionPythonProxyErrorMessageType = {

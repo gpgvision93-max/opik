@@ -41,10 +41,23 @@ public class ChunkedOutputHandlers {
 
     public void handleError(@NonNull ErrorMessage errorMessage) {
         try {
-            handleMessage(errorMessage);
+            // Wrap in OpenAI SSE error format so LiteLLM and other OpenAI-compatible clients
+            // can detect and raise the error rather than silently dropping the chunk.
+            // LiteLLM's streaming_handler raises when it sees a chunk with an "error" key.
+            var code = errorMessage.getCode() != null ? String.valueOf(errorMessage.getCode()) : "500";
+            var sseError = new SseError(new SseError.SseErrorDetail(
+                    errorMessage.getMessage(),
+                    "server_error",
+                    code));
+            handleMessage(sseError);
         } catch (UncheckedIOException uncheckedIOException) {
             log.error("Failed to stream error message to client", uncheckedIOException);
         }
         handleClose();
+    }
+
+    private record SseError(SseErrorDetail error) {
+        private record SseErrorDetail(String message, String type, String code) {
+        }
     }
 }
