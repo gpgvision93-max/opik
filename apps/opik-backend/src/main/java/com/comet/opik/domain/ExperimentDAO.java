@@ -469,6 +469,53 @@ class ExperimentDAO {
                     GROUP BY entity_id
                 ) AS tc ON ei.trace_id = tc.entity_id
                 GROUP BY ei.experiment_id
+            ),
+            pass_rate_eval_items AS (
+                SELECT
+                    ei.id AS item_id,
+                    ei.experiment_id,
+                    ei.trace_id,
+                    eif.dataset_item_id
+                FROM experiment_items_final ei
+                INNER JOIN (
+                    SELECT id, dataset_item_id
+                    FROM experiment_items
+                    WHERE workspace_id = :workspace_id
+                    AND experiment_id IN (
+                        SELECT id FROM experiments_final WHERE evaluation_method = 'evaluation_suite'
+                    )
+                ) eif ON ei.id = eif.id
+            ),
+            pass_rate_runs AS (
+                SELECT
+                    prei.experiment_id,
+                    prei.dataset_item_id,
+                    prei.trace_id,
+                    if(
+                        countIf(fs.name != '') = 0,
+                        1,
+                        if(minIf(fs.value, fs.name != '') >= 1.0, 1, 0)
+                    ) AS run_passed
+                FROM pass_rate_eval_items prei
+                LEFT JOIN feedback_scores_final fs ON fs.entity_id = prei.trace_id
+                GROUP BY prei.experiment_id, prei.dataset_item_id, prei.trace_id
+            ),
+            pass_rate_item_results AS (
+                SELECT
+                    experiment_id,
+                    dataset_item_id,
+                    if(sum(run_passed) >= 1, 1, 0) AS item_passed
+                FROM pass_rate_runs
+                GROUP BY experiment_id, dataset_item_id
+            ),
+            pass_rate_agg AS (
+                SELECT
+                    experiment_id,
+                    sum(item_passed) AS passed_count,
+                    count(*) AS total_count,
+                    if(count(*) = 0, toFloat64(1.0), toFloat64(sum(item_passed)) / toFloat64(count(*))) AS pass_rate
+                FROM pass_rate_item_results
+                GROUP BY experiment_id
             )
             SELECT
                 e.workspace_id as workspace_id,
@@ -498,12 +545,16 @@ class ExperimentDAO {
                 ed.usage as usage,
                 ed.total_estimated_cost_sum as total_estimated_cost,
                 ed.total_estimated_cost_avg as total_estimated_cost_avg,
-                ca.comments_array_agg as comments_array_agg
+                ca.comments_array_agg as comments_array_agg,
+                pra.pass_rate as pass_rate,
+                pra.passed_count as passed_count,
+                pra.total_count as total_count
             FROM experiments_final AS e
             LEFT JOIN experiment_durations AS ed ON e.id = ed.experiment_id
             LEFT JOIN feedback_scores_agg AS fs ON e.id = fs.experiment_id
             LEFT JOIN experiment_scores_agg AS es ON e.id = es.experiment_id
             LEFT JOIN comments_agg AS ca ON e.id = ca.experiment_id
+            LEFT JOIN pass_rate_agg AS pra ON e.id = pra.experiment_id
             WHERE 1=1
             <if(feedback_scores_filters)>
             AND id in (
@@ -853,7 +904,7 @@ class ExperimentDAO {
     private static final String FIND_GROUPS_AGGREGATIONS = """
             WITH experiments_final AS (
                 SELECT
-                    id, dataset_id, metadata, tags, experiment_scores, arrayConcat([prompt_id], mapKeys(prompt_versions)) AS prompt_ids
+                    id, dataset_id, metadata, tags, experiment_scores, evaluation_method, arrayConcat([prompt_id], mapKeys(prompt_versions)) AS prompt_ids
                 FROM experiments final
                 WHERE workspace_id = :workspace_id
                 <if(types)> AND type IN :types <endif>
@@ -1020,6 +1071,53 @@ class ExperimentDAO {
                       AND length(JSON_VALUE(score, '$.name')) > 0
                 ) AS es
                 GROUP BY experiment_id
+            ),
+            pass_rate_eval_items AS (
+                SELECT
+                    ei.id AS item_id,
+                    ei.experiment_id,
+                    ei.trace_id,
+                    eif.dataset_item_id
+                FROM experiment_items_final ei
+                INNER JOIN (
+                    SELECT id, dataset_item_id
+                    FROM experiment_items
+                    WHERE workspace_id = :workspace_id
+                    AND experiment_id IN (
+                        SELECT id FROM experiments_final WHERE evaluation_method = 'evaluation_suite'
+                    )
+                ) eif ON ei.id = eif.id
+            ),
+            pass_rate_runs AS (
+                SELECT
+                    prei.experiment_id,
+                    prei.dataset_item_id,
+                    prei.trace_id,
+                    if(
+                        countIf(fs.name != '') = 0,
+                        1,
+                        if(minIf(fs.value, fs.name != '') >= 1.0, 1, 0)
+                    ) AS run_passed
+                FROM pass_rate_eval_items prei
+                LEFT JOIN feedback_scores_final fs ON fs.entity_id = prei.trace_id
+                GROUP BY prei.experiment_id, prei.dataset_item_id, prei.trace_id
+            ),
+            pass_rate_item_results AS (
+                SELECT
+                    experiment_id,
+                    dataset_item_id,
+                    if(sum(run_passed) >= 1, 1, 0) AS item_passed
+                FROM pass_rate_runs
+                GROUP BY experiment_id, dataset_item_id
+            ),
+            pass_rate_agg AS (
+                SELECT
+                    experiment_id,
+                    sum(item_passed) AS passed_count,
+                    count(*) AS total_count,
+                    if(count(*) = 0, toFloat64(1.0), toFloat64(sum(item_passed)) / toFloat64(count(*))) AS pass_rate
+                FROM pass_rate_item_results
+                GROUP BY experiment_id
             ), experiments_full AS (
                 SELECT
                     e.id as id,
@@ -1033,11 +1131,15 @@ class ExperimentDAO {
                     ed.total_estimated_cost_sum as total_estimated_cost,
                     ed.total_estimated_cost_avg as total_estimated_cost_avg,
                     ed.project_ids as project_ids,
-                    if(empty(ed.project_ids), '', ed.project_ids[1]) as project_id
+                    if(empty(ed.project_ids), '', ed.project_ids[1]) as project_id,
+                    pra.pass_rate as pass_rate,
+                    pra.passed_count as passed_count,
+                    pra.total_count as total_count
                 FROM experiments_final AS e
                 LEFT JOIN experiment_durations AS ed ON e.id = ed.experiment_id
                 LEFT JOIN feedback_scores_agg AS fs ON e.id = fs.experiment_id
                 LEFT JOIN experiment_scores_agg AS es ON e.id = es.experiment_id
+                LEFT JOIN pass_rate_agg AS pra ON e.id = pra.experiment_id
             )
             SELECT
                 count(DISTINCT id) as experiment_count,
@@ -1047,6 +1149,9 @@ class ExperimentDAO {
                 avgMap(feedback_scores) as feedback_scores,
                 avgMap(experiment_scores) as experiment_scores,
                 avgMap(duration) as duration,
+                avg(pass_rate) as pass_rate_avg,
+                sum(passed_count) as passed_count_sum,
+                sum(total_count) as total_count_sum,
                 <groupSelects>
             FROM experiments_full
             WHERE 1=1
@@ -1070,7 +1175,10 @@ class ExperimentDAO {
                 null AS total_estimated_cost,
                 null AS total_estimated_cost_avg,
                 null AS usage,
-                null AS comments_array_agg
+                null AS comments_array_agg,
+                null AS pass_rate,
+                null AS passed_count,
+                null AS total_count
             FROM experiments
             WHERE workspace_id = :workspace_id
             AND ilike(name, CONCAT('%', :name, '%'))
@@ -1362,8 +1470,43 @@ class ExperimentDAO {
                             .filter(str -> !str.isBlank())
                             .map(UUID::fromString)
                             .orElse(null))
+                    .passRate(getPassRateValue(row, "pass_rate"))
+                    .passedCount(row.get("passed_count", Long.class))
+                    .totalCount(row.get("total_count", Long.class))
                     .build();
         });
+    }
+
+    private static BigDecimal getCostValue(Row row, String fieldName) {
+        return Optional.ofNullable(row.get(fieldName, BigDecimal.class))
+                .filter(value -> value.compareTo(BigDecimal.ZERO) > 0)
+                .orElse(null);
+    }
+
+    private static BigDecimal getPassRateValue(Row row, String fieldName) {
+        return Optional.ofNullable(row.get(fieldName, Number.class))
+                .map(value -> BigDecimal.valueOf(value.doubleValue()).setScale(SCALE, RoundingMode.HALF_EVEN))
+                .orElse(null);
+    }
+
+    private static PercentageValues getDuration(Row row) {
+        return Optional.ofNullable(row.get("duration", Map.class))
+                .map(map -> (Map<String, ? extends Number>) map)
+                .map(durations -> new PercentageValues(
+                        convertToBigDecimal(durations.get("p50")),
+                        convertToBigDecimal(durations.get("p90")),
+                        convertToBigDecimal(durations.get("p99"))))
+                .orElse(null);
+    }
+
+    private static BigDecimal convertToBigDecimal(Number value) {
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        } else if (value instanceof Double) {
+            return BigDecimal.valueOf((Double) value);
+        } else {
+            return BigDecimal.ZERO;
+        }
     }
 
     private static BigDecimal getP(List<BigDecimal> durations, int index) {
@@ -1910,8 +2053,39 @@ class ExperimentDAO {
 
     private Publisher<ExperimentGroupAggregationItem> mapExperimentGroupAggregationItem(Result result,
             int groupsCount) {
-        return result.map(
-                (row, rowMetadata) -> ExperimentGroupMappers.toExperimentGroupAggregationItem(row, groupsCount));
+        return result.map((row, rowMetadata) -> {
+
+            var groupValues = IntStream.range(0, groupsCount)
+                    .mapToObj(i -> "group_" + i)
+                    .map(columnName -> row.get(columnName, String.class))
+                    .toList();
+
+            var experimentCount = row.get("experiment_count", Long.class);
+            var traceCount = row.get("trace_count", Long.class);
+            var totalEstimatedCost = getCostValue(row, "total_estimated_cost");
+            var totalEstimatedCostAvg = getCostValue(row, "total_estimated_cost_avg");
+            var duration = getDuration(row);
+            var feedbackScores = getFeedbackScores(row, "feedback_scores");
+            var experimentScores = getFeedbackScores(row, "experiment_scores");
+
+            var passRateAvg = getPassRateValue(row, "pass_rate_avg");
+            var passedCountSum = row.get("passed_count_sum", Long.class);
+            var totalCountSum = row.get("total_count_sum", Long.class);
+
+            return ExperimentGroupAggregationItem.builder()
+                    .groupValues(groupValues)
+                    .experimentCount(experimentCount)
+                    .traceCount(traceCount)
+                    .totalEstimatedCost(totalEstimatedCost)
+                    .totalEstimatedCostAvg(totalEstimatedCostAvg)
+                    .duration(duration)
+                    .feedbackScores(feedbackScores)
+                    .experimentScores(experimentScores)
+                    .passRateAvg(passRateAvg)
+                    .passedCountSum(passedCountSum)
+                    .totalCountSum(totalCountSum)
+                    .build();
+        });
     }
 
     @WithSpan
