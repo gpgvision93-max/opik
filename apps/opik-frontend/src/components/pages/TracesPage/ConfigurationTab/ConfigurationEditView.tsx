@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import {
   BlueprintType,
   BlueprintValue,
+  BlueprintValueType,
   ConfigHistoryItem,
 } from "@/types/agent-configs";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,7 +38,6 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
   const { data: agentConfig, isPending } = useAgentConfigById({
     blueprintId: item.id,
   });
-  const queryClient = useQueryClient();
   const { mutate: createConfig, isPending: isSaving } =
     useAgentConfigCreateMutation();
 
@@ -58,7 +58,7 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
       initialized.current = true;
       const initial: Record<string, string> = {};
       agentConfig.values
-        .filter((v) => v.type !== "prompt")
+        .filter((v) => v.type !== BlueprintValueType.PROMPT)
         .forEach((v) => {
           initial[v.key] = v.value;
         });
@@ -68,10 +68,10 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
   }, [agentConfig]);
 
   const validateField = (type: string, value: string): string => {
-    if (type === "int") {
+    if (type === BlueprintValueType.INT) {
       return /^-?\d+$/.test(value.trim()) ? "" : "Must be an integer";
     }
-    if (type === "float") {
+    if (type === BlueprintValueType.FLOAT) {
       return value.trim() !== "" && !isNaN(Number(value))
         ? ""
         : "Must be a valid number";
@@ -91,7 +91,11 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
 
     const newErrors: Record<string, string> = {};
     agentConfig.values
-      .filter((v) => v.type !== "prompt" && v.type !== "boolean")
+      .filter(
+        (v) =>
+          v.type !== BlueprintValueType.PROMPT &&
+          v.type !== BlueprintValueType.BOOLEAN,
+      )
       .forEach((v) => {
         const err = validateField(v.type, draftValues[v.key] ?? "");
         if (err) newErrors[v.key] = err;
@@ -111,7 +115,7 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
     const values: BlueprintValue[] = agentConfig.values.map((v) => ({
       key: v.key,
       type: v.type,
-      value: v.type !== "prompt" ? draftValues[v.key] ?? v.value : v.value,
+      value: v.type !== BlueprintValueType.PROMPT ? draftValues[v.key] ?? v.value : v.value,
       ...(v.description ? { description: v.description } : {}),
     }));
 
@@ -177,7 +181,7 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
       <div className="flex flex-col divide-y">
         {(agentConfig?.values ?? []).map((v) => {
           const isChanged =
-            v.type === "prompt"
+            v.type === BlueprintValueType.PROMPT
               ? !!dirtyPromptKeys[v.key]
               : draftValues[v.key] !== undefined &&
                 draftValues[v.key] !== originalValues.current[v.key];
@@ -197,7 +201,7 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
                   {v.description}
                 </span>
               )}
-              {v.type === "prompt" ? (
+              {v.type === BlueprintValueType.PROMPT ? (
                 <BlueprintValuePrompt
                   value={v}
                   isEditing
@@ -211,7 +215,7 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
                     }))
                   }
                 />
-              ) : v.type === "boolean" ? (
+              ) : v.type === BlueprintValueType.BOOLEAN ? (
                 <Switch
                   checked={draftValues[v.key] === "true"}
                   onCheckedChange={(checked) =>
@@ -225,7 +229,10 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
                 <div className="flex flex-col gap-1">
                   <Input
                     type={
-                      v.type === "int" || v.type === "float" ? "number" : "text"
+                      v.type === BlueprintValueType.INT ||
+                      v.type === BlueprintValueType.FLOAT
+                        ? "number"
+                        : "text"
                     }
                     value={draftValues[v.key] ?? ""}
                     onChange={(e) =>

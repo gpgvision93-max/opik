@@ -6,11 +6,11 @@ const TYPE_CONFIG: Record<
   BlueprintValueType,
   { icon: React.ComponentType<{ className?: string }>; color: string }
 > = {
-  int: { icon: Hash, color: "var(--color-blue)" },
-  float: { icon: Hash, color: "var(--color-blue)" },
-  boolean: { icon: ToggleLeft, color: "var(--color-green)" },
-  prompt: { icon: FileTerminal, color: "var(--color-burgundy)" },
-  string: { icon: Type, color: "var(--color-violet)" },
+  [BlueprintValueType.INT]: { icon: Hash, color: "var(--color-blue)" },
+  [BlueprintValueType.FLOAT]: { icon: Hash, color: "var(--color-blue)" },
+  [BlueprintValueType.BOOLEAN]: { icon: ToggleLeft, color: "var(--color-green)" },
+  [BlueprintValueType.PROMPT]: { icon: FileTerminal, color: "var(--color-burgundy)" },
+  [BlueprintValueType.STRING]: { icon: Type, color: "var(--color-violet)" },
 };
 
 const FALLBACK_TYPE_CONFIG = { icon: Type, color: "var(--color-gray)" };

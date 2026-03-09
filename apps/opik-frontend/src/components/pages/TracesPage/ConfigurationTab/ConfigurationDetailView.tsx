@@ -4,6 +4,7 @@ import { Clock, CopyPlus, FilePen, Rocket, User } from "lucide-react";
 import {
   BlueprintType,
   BlueprintValue,
+  BlueprintValueType,
   ConfigHistoryItem,
 } from "@/types/agent-configs";
 import { getTimeFromNow } from "@/lib/date";
@@ -65,7 +66,7 @@ const ConfigurationDetailView: React.FC<ConfigurationDetailViewProps> = ({
   const handleConfirmDuplicate = () => {
     if (!agentConfig) return;
     const values: BlueprintValue[] = agentConfig.values
-      .filter((v) => v.type !== "prompt")
+      .filter((v) => v.type !== BlueprintValueType.PROMPT)
       .map((v) => ({
         key: v.key,
         type: v.type,

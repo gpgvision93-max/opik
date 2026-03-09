@@ -1,4 +1,10 @@
-export type BlueprintValueType = "string" | "int" | "float" | "boolean" | "prompt";
+export enum BlueprintValueType {
+  STRING = "string",
+  INT = "int",
+  FLOAT = "float",
+  BOOLEAN = "boolean",
+  PROMPT = "prompt",
+}
 
 export interface BlueprintValue {
   key: string;
