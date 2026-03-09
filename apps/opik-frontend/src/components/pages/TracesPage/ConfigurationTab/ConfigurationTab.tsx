@@ -131,6 +131,4 @@ export default ConfigurationTab;
 // add tooltips
 // edit value problem
 // test metadata
-// change
-// empty state
 // red inputs for numbers

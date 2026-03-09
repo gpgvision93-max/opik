@@ -1,14 +1,14 @@
 import React from "react";
 
-import { BlueprintValue, EnrichedBlueprintValue } from "@/types/agent-configs";
+import { BlueprintValue, BlueprintValueType, EnrichedBlueprintValue } from "@/types/agent-configs";
 import { formatNumericData } from "@/lib/utils";
 import BlueprintTypeIcon from "./BlueprintTypeIcon";
 import BlueprintValuePrompt from "./BlueprintValuePrompt";
 
 const renderValue = (v: BlueprintValue) => {
   switch (v.type) {
-    case "int":
-    case "float": {
+    case BlueprintValueType.INT:
+    case BlueprintValueType.FLOAT: {
       const num = Number(v.value);
       return (
         <div className="comet-body-s whitespace-pre-wrap break-words rounded-md border bg-primary-foreground p-3 text-foreground">
@@ -16,13 +16,13 @@ const renderValue = (v: BlueprintValue) => {
         </div>
       );
     }
-    case "boolean":
+    case BlueprintValueType.BOOLEAN:
       return (
         <div className="comet-body-s whitespace-pre-wrap break-words rounded-md border bg-primary-foreground p-3 text-foreground">
           {v.value === "true" ? "true" : "false"}
         </div>
       );
-    case "prompt":
+    case BlueprintValueType.PROMPT:
       return <BlueprintValuePrompt value={v as EnrichedBlueprintValue} />;
     default:
       return (
