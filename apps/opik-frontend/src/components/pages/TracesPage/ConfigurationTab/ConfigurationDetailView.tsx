@@ -191,7 +191,7 @@ const ConfigurationDetailView: React.FC<ConfigurationDetailViewProps> = ({
           >
             <span>{getTimeFromNow(item.created_at)}</span>
           </TooltipWrapper>
-          <User className="size-3.5 ml-1.5 shrink-0" />
+          <User className="ml-1.5 size-3.5 shrink-0" />
           <span>{item.created_by}</span>
         </div>
 
