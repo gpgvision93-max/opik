@@ -11,7 +11,11 @@
  * arrays, but only if the column is currently visible (in selectedColumns).
  */
 
-import { includes, isArray, isEmpty, last, without } from "lodash";
+import includes from "lodash/includes";
+import isArray from "lodash/isArray";
+import isEmpty from "lodash/isEmpty";
+import last from "lodash/last";
+import without from "lodash/without";
 
 import type { Migration } from "./engine";
 
