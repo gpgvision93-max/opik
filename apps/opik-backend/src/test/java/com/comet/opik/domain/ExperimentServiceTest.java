@@ -5,6 +5,8 @@ import com.comet.opik.api.ExperimentStatus;
 import com.comet.opik.api.ExperimentType;
 import com.comet.opik.api.ExperimentUpdate;
 import com.comet.opik.api.sorting.ExperimentSortingFactory;
+import com.comet.opik.domain.experiments.aggregations.ExperimentAggregatesService;
+import com.comet.opik.domain.experiments.aggregations.ExperimentAggregationPublisher;
 import com.comet.opik.infrastructure.FeatureFlags;
 import com.comet.opik.infrastructure.auth.RequestContext;
 import com.comet.opik.podam.PodamFactoryUtils;
@@ -77,6 +79,12 @@ class ExperimentServiceTest {
     @Mock
     private ExperimentGroupEnricher experimentGroupEnricher;
 
+    @Mock
+    private ExperimentAggregatesService experimentAggregatesService;
+
+    @Mock
+    private ExperimentAggregationPublisher experimentAggregationPublisher;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final PodamFactory podamFactory = PodamFactoryUtils.newPodamFactory();
 
@@ -95,7 +103,9 @@ class ExperimentServiceTest {
                 sortingFactory,
                 responseBuilder,
                 featureFlags,
-                experimentGroupEnricher);
+                experimentGroupEnricher,
+                experimentAggregatesService,
+                experimentAggregationPublisher);
     }
 
     @Nested

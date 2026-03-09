@@ -58,7 +58,7 @@ public interface ExperimentAggregationPublisher {
                         return index.add(expiryTimestamp.toEpochMilli(), member)
                                 .then(bucket.put(ExperimentDenormalizationConfig.USER_NAME_FIELD, userName))
                                 .then(bucket.expire(Duration.ofMillis(config.getDebounceDelay().toMilliseconds() * 2)))
-                                .doOnSuccess(__ -> log.debug(
+                                .doOnSuccess(__ -> log.info(
                                         "Enqueued experiment '{}' for workspace '{}' in pending bucket with expiryTimestamp='{}'",
                                         experimentId, workspaceId, expiryTimestamp));
                     })
