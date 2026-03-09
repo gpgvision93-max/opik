@@ -47,18 +47,19 @@ const VerticallySplitCellWrapper = <TData,>({
   const { experimentsIds } = (custom ?? {}) as CustomMeta;
   const rowHeight = tableMetadata?.rowHeight ?? ROW_HEIGHT.small;
 
-  const items = React.useMemo(
-    () =>
-      experimentsIds.map((experimentId) => {
-        const matchingItems = (experimentCompare.experiment_items || []).filter(
-          (item) => item.experiment_id === experimentId,
-        );
-        if (matchingItems.length === 0) return undefined;
-        if (matchingItems.length === 1) return matchingItems[0];
-        return aggregateTrialItems(matchingItems);
-      }),
-    [experimentsIds, experimentCompare.experiment_items],
-  );
+  const items = React.useMemo(() => {
+    const itemsByExperiment = Map.groupBy(
+      experimentCompare.experiment_items || [],
+      (item) => item.experiment_id,
+    );
+
+    return experimentsIds.map((experimentId) => {
+      const matchingItems = itemsByExperiment.get(experimentId);
+      if (!matchingItems) return undefined;
+      if (matchingItems.length === 1) return matchingItems[0];
+      return aggregateTrialItems(matchingItems);
+    });
+  }, [experimentsIds, experimentCompare.experiment_items]);
 
   if (items.every((item) => !item || !traceExist(item))) {
     return null;
