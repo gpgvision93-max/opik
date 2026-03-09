@@ -42,7 +42,7 @@ const BlueprintDiffRow: React.FC<{ pair: DiffPair }> = ({ pair }) => {
 
   return (
     <TableRow>
-      <TableCell className="w-[240px] py-3 px-1 align-top">
+      <TableCell className="w-[240px] px-1 py-3 align-top">
         <TooltipWrapper content={key}>
           <div className="flex min-w-0 items-center gap-2">
             <BlueprintTypeIcon type={type} />

@@ -69,7 +69,7 @@ const AgentConfigurationTab: React.FC<AgentConfigurationTabProps> = ({
         <div className="flex items-center gap-2">
           <span className="comet-body-s-accented">Agent configuration</span>
           <TooltipWrapper content="Shows only the configuration used in this trace">
-            <Info className="text-muted-slate size-3.5" />
+            <Info className="size-3.5 text-muted-slate" />
           </TooltipWrapper>
           {version !== undefined && (
             <Tag className="flex items-center gap-1" variant="gray" size="md">
