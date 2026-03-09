@@ -12,6 +12,7 @@ import { CommentItem } from "@/types/comment";
 import useCreateThreadCommentMutation from "@/api/traces/useCreateThreadCommentMutation";
 import useThreadCommentsBatchDeleteMutation from "@/api/traces/useThreadCommentsBatchDeleteMutation";
 import useUpdateThreadCommentMutation from "@/api/traces/useUpdateThreadCommentMutation";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 export type ThreadCommentsProps = {
   activeSection?: DetailsActionSectionValue | null;
@@ -28,6 +29,10 @@ const ThreadComments: React.FC<ThreadCommentsProps> = ({
   threadId,
   projectId,
 }) => {
+  const {
+    permissions: { canWriteComments },
+  } = usePermissions();
+
   const threadCommentsBatchDeleteMutation =
     useThreadCommentsBatchDeleteMutation();
   const createThreadCommentMutation = useCreateThreadCommentMutation();
@@ -66,17 +71,19 @@ const ThreadComments: React.FC<ThreadCommentsProps> = ({
       setActiveSection={setActiveSection}
       activeSection={activeSection}
     >
-      <UserCommentForm
-        onSubmit={(data) => onSubmit(data.commentText)}
-        className="mt-4 px-6"
-        actions={
-          <TooltipWrapper content={"Submit"} hotkeys={["⌘", "⏎"]}>
-            <UserCommentForm.SubmitButton />
-          </TooltipWrapper>
-        }
-      >
-        <UserCommentForm.TextareaField placeholder="Add a comment..." />
-      </UserCommentForm>
+      {canWriteComments && (
+        <UserCommentForm
+          onSubmit={(data) => onSubmit(data.commentText)}
+          className="mt-4 px-6"
+          actions={
+            <TooltipWrapper content={"Submit"} hotkeys={["⌘", "⏎"]}>
+              <UserCommentForm.SubmitButton />
+            </TooltipWrapper>
+          }
+        >
+          <UserCommentForm.TextareaField placeholder="Add a comment..." />
+        </UserCommentForm>
+      )}
       <div className="mt-3 h-full overflow-auto pb-3">
         {comments?.length ? (
           orderBy(comments, "created_at", "desc").map((comment) => (

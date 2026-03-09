@@ -15,6 +15,7 @@ import {
   DetailsActionSectionValue,
   DetailsActionSectionLayout,
 } from "@/components/pages-shared/traces/DetailsActionSection";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 export type CommentsViewerProps = {
   data: Trace | Span;
@@ -43,6 +44,10 @@ const CommentsViewer: React.FC<CommentsViewerProps> = ({
   const updateTraceMutation = useUpdateTraceCommentMutation();
 
   const userName = useLoggedInUserName();
+
+  const {
+    permissions: { canWriteComments },
+  } = usePermissions();
 
   const onSubmit = (text: string) => {
     if (!spanId) {
@@ -99,19 +104,21 @@ const CommentsViewer: React.FC<CommentsViewerProps> = ({
       setActiveSection={setActiveSection}
       activeSection={activeSection}
     >
-      <UserCommentForm
-        onSubmit={(data) => onSubmit(data.commentText)}
-        className="mt-4 px-6"
-        actions={
-          <>
-            <TooltipWrapper content={"Submit"} hotkeys={["⌘", "⏎"]}>
-              <UserCommentForm.SubmitButton />
-            </TooltipWrapper>
-          </>
-        }
-      >
-        <UserCommentForm.TextareaField placeholder="Add a comment..." />
-      </UserCommentForm>
+      {canWriteComments && (
+        <UserCommentForm
+          onSubmit={(data) => onSubmit(data.commentText)}
+          className="mt-4 px-6"
+          actions={
+            <>
+              <TooltipWrapper content={"Submit"} hotkeys={["⌘", "⏎"]}>
+                <UserCommentForm.SubmitButton />
+              </TooltipWrapper>
+            </>
+          }
+        >
+          <UserCommentForm.TextareaField placeholder="Add a comment..." />
+        </UserCommentForm>
+      )}
       <div className="mt-3 h-full overflow-auto pb-3">
         {data.comments?.length ? (
           orderBy(data.comments, "created_at", "desc").map((comment) => (

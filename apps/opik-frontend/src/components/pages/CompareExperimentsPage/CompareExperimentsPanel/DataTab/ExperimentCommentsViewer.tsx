@@ -10,6 +10,7 @@ import UserComment from "@/components/pages-shared/traces/UserComment/UserCommen
 import { MessageSquareMore } from "lucide-react";
 import { useLoggedInUserName } from "@/store/AppStore";
 import ExpandableSection from "@/components/shared/ExpandableSection/ExpandableSection";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 export type ExperimentCommentsViewerProps = {
   comments?: CommentItems;
@@ -23,6 +24,10 @@ const ExperimentCommentsViewer: React.FC<ExperimentCommentsViewerProps> = ({
   sectionIdx,
 }) => {
   const userName = useLoggedInUserName();
+
+  const {
+    permissions: { canWriteComments },
+  } = usePermissions();
 
   const traceDeleteMutation = useTraceCommentsBatchDeleteMutation();
   const createTraceMutation = useCreateTraceCommentMutation();
@@ -58,17 +63,19 @@ const ExperimentCommentsViewer: React.FC<ExperimentCommentsViewerProps> = ({
       sectionIdx={sectionIdx}
       count={comments.length}
     >
-      <UserCommentForm
-        onSubmit={(data) => onSubmit(data.commentText)}
-        className="px-3"
-        actions={
-          <TooltipWrapper content="Submit" hotkeys={["⌘", "⏎"]}>
-            <UserCommentForm.SubmitButton />
-          </TooltipWrapper>
-        }
-      >
-        <UserCommentForm.TextareaField placeholder="Add a comment..." />
-      </UserCommentForm>
+      {canWriteComments && (
+        <UserCommentForm
+          onSubmit={(data) => onSubmit(data.commentText)}
+          className="px-3"
+          actions={
+            <TooltipWrapper content="Submit" hotkeys={["⌘", "⏎"]}>
+              <UserCommentForm.SubmitButton />
+            </TooltipWrapper>
+          }
+        >
+          <UserCommentForm.TextareaField placeholder="Add a comment..." />
+        </UserCommentForm>
+      )}
       <div className="mt-2 pb-3">
         {comments?.length ? (
           orderBy(comments, "created_at", "desc").map((comment) => (
