@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from "react";
 import isUndefined from "lodash/isUndefined";
 import { JsonParam, NumberParam, useQueryParam } from "use-query-params";
-import { BarChart3, Settings } from "lucide-react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import TrialItemsTab from "@/components/pages/CompareTrialsPage/TrialsItemsTab/TrialItemsTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TrialItemsTab from "@/components/pages/TrialPage/TrialsItemsTab/TrialItemsTab";
 import TrialConfigurationSection from "@/components/pages-shared/experiments/TrialConfigurationSection";
-import TrialKPICards from "@/components/pages/CompareTrialsPage/TrialKPICards";
-import CompareTrialsDetails from "@/components/pages/CompareTrialsPage/CompareTrialsDetails/CompareTrialsDetails";
+import TrialKPICards from "@/components/pages/TrialPage/TrialKPICards";
+import TrialDetails from "@/components/pages/TrialPage/TrialDetails/TrialDetails";
 import PageBodyScrollContainer from "@/components/layout/PageBodyScrollContainer/PageBodyScrollContainer";
 import PageBodyStickyContainer from "@/components/layout/PageBodyStickyContainer/PageBodyStickyContainer";
 import useExperimentsByIds from "@/api/datasets/useExperimenstByIds";
@@ -22,7 +21,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { usePermissions } from "@/contexts/PermissionsContext";
 
-const CompareTrialsPage: React.FunctionComponent = () => {
+const TrialPage: React.FunctionComponent = () => {
   const workspaceName = useAppStore((state) => state.activeWorkspaceName);
   const {
     permissions: { canViewDatasets },
@@ -33,9 +32,9 @@ const CompareTrialsPage: React.FunctionComponent = () => {
   });
   const [trialNumber] = useQueryParam("trialNumber", NumberParam);
 
-  const { datasetId, optimizationId } = useParams({
+  const { optimizationId } = useParams({
     select: (params) => params,
-    from: "/workspaceGuard/$workspaceName/optimizations/$datasetId/$optimizationId/compare",
+    from: "/workspaceGuard/$workspaceName/optimizations/$optimizationId/trials",
   });
 
   const response = useExperimentsByIds({
@@ -108,12 +107,12 @@ const CompareTrialsPage: React.FunctionComponent = () => {
     return allExperiments.find((exp) => exp.id === baselineExperimentId);
   }, [baselineExperimentId, optimizationExperimentsData?.content]);
 
-  const [tab, setTab] = useState<"results" | "configuration">("results");
+  const [tab, setTab] = useState<string>("results");
 
   return (
     <PageBodyScrollContainer>
       <PageBodyStickyContainer direction="horizontal" limitWidth>
-        <CompareTrialsDetails
+        <TrialDetails
           optimization={optimization}
           experiments={memorizedExperiments}
           baselineExperimentId={baselineExperimentId}
@@ -123,35 +122,23 @@ const CompareTrialsPage: React.FunctionComponent = () => {
       </PageBodyStickyContainer>
 
       {!isPending && memorizedExperiments.length > 0 && (
-        <PageBodyStickyContainer
-          direction="horizontal"
-          limitWidth
-          className="mb-6"
-        >
-          <ToggleGroup
-            type="single"
-            value={tab}
-            onValueChange={(val) =>
-              val && setTab(val as "results" | "configuration")
-            }
-            variant="ghost"
-            className="w-fit"
+        <Tabs value={tab} onValueChange={setTab} className="min-w-min">
+          <PageBodyStickyContainer
+            direction="horizontal"
+            limitWidth
+            className="mb-6"
           >
-            <ToggleGroupItem value="results" size="sm" className="gap-2">
-              <BarChart3 className="size-3" />
-              Results
-            </ToggleGroupItem>
-            <ToggleGroupItem value="configuration" size="sm" className="gap-2">
-              <Settings className="size-3" />
-              Configuration
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </PageBodyStickyContainer>
-      )}
+            <TabsList variant="underline">
+              <TabsTrigger variant="underline" value="results">
+                Results
+              </TabsTrigger>
+              <TabsTrigger variant="underline" value="configuration">
+                Configuration
+              </TabsTrigger>
+            </TabsList>
+          </PageBodyStickyContainer>
 
-      {tab === "results" && (
-        <>
-          {!isPending && memorizedExperiments.length > 0 && (
+          <TabsContent value="results" className="mt-0">
             <PageBodyStickyContainer
               direction="horizontal"
               limitWidth
@@ -166,42 +153,40 @@ const CompareTrialsPage: React.FunctionComponent = () => {
                 isEvaluationSuite={isEvaluationSuite}
               />
             </PageBodyStickyContainer>
-          )}
 
-          {canViewDatasets && (
-            <>
-              <PageBodyStickyContainer direction="horizontal" limitWidth>
-                <h2 className="comet-title-s mb-4">Evaluation results</h2>
-              </PageBodyStickyContainer>
-              <TrialItemsTab
-                objectiveName={optimization?.objective_name}
-                datasetId={datasetId}
-                experimentsIds={experimentsIds}
+            {canViewDatasets && (
+              <>
+                <PageBodyStickyContainer direction="horizontal" limitWidth>
+                  <h2 className="comet-title-s mb-4">Evaluation results</h2>
+                </PageBodyStickyContainer>
+                <TrialItemsTab
+                  objectiveName={optimization?.objective_name}
+                  datasetId={optimization?.dataset_id ?? ""}
+                  experimentsIds={experimentsIds}
+                  experiments={memorizedExperiments}
+                  isEvaluationSuite={isEvaluationSuite}
+                />
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="configuration" className="mt-0">
+            <PageBodyStickyContainer
+              direction="horizontal"
+              limitWidth
+              className="mb-6"
+            >
+              <TrialConfigurationSection
                 experiments={memorizedExperiments}
-                isEvaluationSuite={isEvaluationSuite}
+                referenceExperiment={baselineExperiment}
+                studioConfig={optimization?.studio_config}
               />
-            </>
-          )}
-        </>
+            </PageBodyStickyContainer>
+          </TabsContent>
+        </Tabs>
       )}
-
-      {tab === "configuration" &&
-        !isPending &&
-        memorizedExperiments.length > 0 && (
-          <PageBodyStickyContainer
-            direction="horizontal"
-            limitWidth
-            className="mb-6"
-          >
-            <TrialConfigurationSection
-              experiments={memorizedExperiments}
-              referenceExperiment={baselineExperiment}
-              studioConfig={optimization?.studio_config}
-            />
-          </PageBodyStickyContainer>
-        )}
     </PageBodyScrollContainer>
   );
 };
 
-export default CompareTrialsPage;
+export default TrialPage;

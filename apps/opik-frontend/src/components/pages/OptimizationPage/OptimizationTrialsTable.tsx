@@ -31,7 +31,7 @@ const StickyTableWrapperWithBorder: React.FC<DataTableWrapperProps> = ({
   );
 };
 
-interface CompareOptimizationsTrialsTableProps {
+interface OptimizationTrialsTableProps {
   columns: ColumnDef<AggregatedCandidate>[];
   rows: AggregatedCandidate[];
   onRowClick: (row: AggregatedCandidate) => void;
@@ -45,9 +45,7 @@ interface CompareOptimizationsTrialsTableProps {
   showLoadingOverlay?: boolean;
 }
 
-const CompareOptimizationsTrialsTable: React.FC<
-  CompareOptimizationsTrialsTableProps
-> = ({
+const OptimizationTrialsTable: React.FC<OptimizationTrialsTableProps> = ({
   columns,
   rows,
   onRowClick,
@@ -99,4 +97,4 @@ const CompareOptimizationsTrialsTable: React.FC<
   );
 };
 
-export default CompareOptimizationsTrialsTable;
+export default OptimizationTrialsTable;

@@ -18,7 +18,7 @@ const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
   pruned: "pink",
 };
 
-type CompareTrialsDetailsProps = {
+type TrialDetailsProps = {
   optimization?: Optimization;
   experiments: Experiment[];
   baselineExperimentId?: string;
@@ -26,7 +26,7 @@ type CompareTrialsDetailsProps = {
   trialNumber?: number;
 };
 
-const CompareTrialsDetails: React.FC<CompareTrialsDetailsProps> = ({
+const TrialDetails: React.FC<TrialDetailsProps> = ({
   optimization,
   experiments,
   baselineExperimentId,
@@ -41,7 +41,7 @@ const CompareTrialsDetails: React.FC<CompareTrialsDetailsProps> = ({
 
   const experiment = experiments[0];
 
-  const title = trialNumber ? `Trial #${trialNumber}` : experiment?.name;
+  const title = trialNumber ? `Trial #${trialNumber}` : "Trial";
 
   const trialStatus: TrialStatus | undefined = useMemo(() => {
     if (!experiment) return undefined;
@@ -63,14 +63,10 @@ const CompareTrialsDetails: React.FC<CompareTrialsDetailsProps> = ({
 
   useEffect(() => {
     if (title) {
-      setBreadcrumbParam("trialsCompare", "trialsCompare", title);
+      setBreadcrumbParam("trial", "trials", title);
     }
-
-    if (optimization?.name && optimization?.id) {
-      setBreadcrumbParam("optimizationId", optimization.id, optimization.name);
-    }
-    return () => setBreadcrumbParam("trialsCompare", "trialsCompare", "");
-  }, [title, setBreadcrumbParam, optimization?.name, optimization?.id]);
+    return () => setBreadcrumbParam("trial", "trials", "");
+  }, [title, setBreadcrumbParam]);
 
   return (
     <div className="pb-4 pt-6">
@@ -101,4 +97,4 @@ const CompareTrialsDetails: React.FC<CompareTrialsDetailsProps> = ({
     </div>
   );
 };
-export default CompareTrialsDetails;
+export default TrialDetails;

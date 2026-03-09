@@ -1,8 +1,13 @@
 import React from "react";
-import { LucideIcon } from "lucide-react";
+import { Clock, Coins, LucideIcon, PenLine } from "lucide-react";
 
 import MetricComparisonCell from "@/components/pages-shared/experiments/MetricComparisonCell/MetricComparisonCell";
 import { PercentageTrendType } from "@/components/shared/PercentageTrend/PercentageTrend";
+import {
+  formatAsPercentage,
+  formatAsDuration,
+  formatAsCurrency,
+} from "@/lib/optimization-formatters";
 
 type KPICardProps = {
   icon: LucideIcon;
@@ -50,3 +55,39 @@ export const MetricKPICard: React.FunctionComponent<MetricKPICardProps> = ({
     />
   </KPICard>
 );
+
+export type MetricKPICardConfig = {
+  key: string;
+  icon: LucideIcon;
+  label: string;
+  formatter: (value: number) => string;
+  trend?: PercentageTrendType;
+};
+
+export const getMetricKPICardConfigs = (options?: {
+  isEvaluationSuite?: boolean;
+  objectiveName?: string;
+}): MetricKPICardConfig[] => [
+  {
+    key: "score",
+    icon: PenLine,
+    label: options?.isEvaluationSuite
+      ? "Pass rate"
+      : options?.objectiveName ?? "Accuracy",
+    formatter: formatAsPercentage,
+  },
+  {
+    key: "latency",
+    icon: Clock,
+    label: "Latency",
+    formatter: formatAsDuration,
+    trend: "inverted",
+  },
+  {
+    key: "cost",
+    icon: Coins,
+    label: "Runtime cost",
+    formatter: formatAsCurrency,
+    trend: "inverted",
+  },
+];

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useCallback, useMemo } from "react";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { keepPreviousData } from "@tanstack/react-query";
 import { ColumnSort } from "@tanstack/react-table";
 import useLocalStorageState from "use-local-storage-state";
-import { JsonParam, StringParam, useQueryParam } from "use-query-params";
+import { StringParam, useQueryParam } from "use-query-params";
 import isArray from "lodash/isArray";
 
 import {
@@ -20,7 +20,7 @@ import {
   checkIsEvaluationSuite,
 } from "@/lib/optimizations";
 import useAppStore from "@/store/AppStore";
-import useBreadcrumbsStore from "@/store/BreadcrumbsStore";
+
 import useOptimizationById from "@/api/optimizations/useOptimizationById";
 import useExperimentsList from "@/api/datasets/useExperimentsList";
 import { useOptimizationScores } from "@/components/pages-shared/experiments/useOptimizationScores";
@@ -184,16 +184,16 @@ const mergeExperimentScores = (
   return experimentScores.filter((s) => !existingNames.has(s.name));
 };
 
-export const useCompareOptimizationsData = () => {
+export const useOptimizationData = () => {
   const navigate = useNavigate();
   const workspaceName = useAppStore((state) => state.activeWorkspaceName);
-  const setBreadcrumbParam = useBreadcrumbsStore((state) => state.setParam);
 
-  const [search = "", setSearch] = useQueryParam("search", StringParam, {
-    updateType: "replaceIn",
+  const { optimizationId } = useParams({
+    select: (params) => params,
+    from: "/workspaceGuard/$workspaceName/optimizations/$optimizationId",
   });
 
-  const [optimizationsIds = []] = useQueryParam("optimizations", JsonParam, {
+  const [search = "", setSearch] = useQueryParam("search", StringParam, {
     updateType: "replaceIn",
   });
 
@@ -227,8 +227,6 @@ export const useCompareOptimizationsData = () => {
   const [height, setHeight] = useLocalStorageState<ROW_HEIGHT>(ROW_HEIGHT_KEY, {
     defaultValue: ROW_HEIGHT.small,
   });
-
-  const optimizationId = optimizationsIds?.[0];
 
   const {
     data: optimization,
@@ -341,13 +339,6 @@ export const useCompareOptimizationsData = () => {
     });
   }, [data?.content, isEvaluationSuite, optimization?.objective_name]);
 
-  useEffect(() => {
-    title &&
-      setBreadcrumbParam("optimizationsCompare", "optimizationsCompare", title);
-    return () =>
-      setBreadcrumbParam("optimizationsCompare", "optimizationsCompare", "");
-  }, [title, setBreadcrumbParam]);
-
   const candidates = useMemo(
     () => aggregateCandidates(experiments, optimization?.objective_name),
     [experiments, optimization?.objective_name],
@@ -424,9 +415,8 @@ export const useCompareOptimizationsData = () => {
   const handleRowClick = useCallback(
     (row: AggregatedCandidate) => {
       navigate({
-        to: "/$workspaceName/optimizations/$datasetId/$optimizationId/compare",
+        to: "/$workspaceName/optimizations/$optimizationId/trials",
         params: {
-          datasetId: optimization?.dataset_id ?? "",
           optimizationId,
           workspaceName,
         },
@@ -435,7 +425,7 @@ export const useCompareOptimizationsData = () => {
         },
       });
     },
-    [navigate, workspaceName, optimizationId, optimization?.dataset_id],
+    [navigate, workspaceName, optimizationId],
   );
 
   const handleRefresh = useCallback(() => {

@@ -1,17 +1,23 @@
 import React, { useMemo } from "react";
-import { Clock, Coins, PenLine } from "lucide-react";
+import { Coins } from "lucide-react";
 
 import {
   KPICard,
   MetricKPICard,
+  getMetricKPICardConfigs,
 } from "@/components/pages-shared/experiments/KPICard/KPICard";
 import {
-  formatAsPercentage,
   formatAsDuration,
   formatAsCurrency,
 } from "@/lib/optimization-formatters";
 import { Experiment } from "@/types/datasets";
 import { AggregatedCandidate } from "@/types/optimizations";
+
+const CANDIDATE_KEY_MAP: Record<string, keyof AggregatedCandidate> = {
+  score: "score",
+  latency: "latencyP50",
+  cost: "runtimeCost",
+};
 
 type OptimizationKPICardsProps = {
   experiments: Experiment[];
@@ -42,33 +48,24 @@ const OptimizationKPICards: React.FunctionComponent<
     return { totalOptCost, totalDuration };
   }, [experiments]);
 
+  const configs = getMetricKPICardConfigs({ isEvaluationSuite });
+
   return (
     <div className="grid grid-cols-4 gap-4">
-      <MetricKPICard
-        icon={PenLine}
-        label={isEvaluationSuite ? "Pass rate" : "Accuracy"}
-        baseline={baselineCandidate?.score}
-        current={bestCandidate?.score}
-        formatter={formatAsPercentage}
-      />
-
-      <MetricKPICard
-        icon={Clock}
-        label="Latency"
-        baseline={baselineCandidate?.latencyP50}
-        current={bestCandidate?.latencyP50}
-        formatter={formatAsDuration}
-        trend="inverted"
-      />
-
-      <MetricKPICard
-        icon={Coins}
-        label="Runtime cost"
-        baseline={baselineCandidate?.runtimeCost}
-        current={bestCandidate?.runtimeCost}
-        formatter={formatAsCurrency}
-        trend="inverted"
-      />
+      {configs.map((config) => {
+        const field = CANDIDATE_KEY_MAP[config.key];
+        return (
+          <MetricKPICard
+            key={config.key}
+            icon={config.icon}
+            label={config.label}
+            baseline={baselineCandidate?.[field] as number | undefined}
+            current={bestCandidate?.[field] as number | undefined}
+            formatter={config.formatter}
+            trend={config.trend}
+          />
+        );
+      })}
 
       <KPICard icon={Coins} label="Optimization cost">
         <div className="flex items-baseline gap-1.5">

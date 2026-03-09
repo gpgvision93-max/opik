@@ -1,17 +1,19 @@
 import React from "react";
 import OptimizationViewSelector, {
   OPTIMIZATION_VIEW_TYPE,
-} from "@/components/pages/CompareOptimizationsPage/OptimizationViewSelector";
+} from "@/components/pages/OptimizationPage/OptimizationViewSelector";
 
-interface CompareOptimizationsToolbarProps {
+interface OptimizationToolbarProps {
   isStudioOptimization: boolean;
   view: OPTIMIZATION_VIEW_TYPE;
   onViewChange: (view: OPTIMIZATION_VIEW_TYPE) => void;
 }
 
-const CompareOptimizationsToolbar: React.FC<
-  CompareOptimizationsToolbarProps
-> = ({ isStudioOptimization, view, onViewChange }) => {
+const OptimizationToolbar: React.FC<OptimizationToolbarProps> = ({
+  isStudioOptimization,
+  view,
+  onViewChange,
+}) => {
   return (
     <>
       {isStudioOptimization && (
@@ -21,4 +23,4 @@ const CompareOptimizationsToolbar: React.FC<
   );
 };
 
-export default CompareOptimizationsToolbar;
+export default OptimizationToolbar;

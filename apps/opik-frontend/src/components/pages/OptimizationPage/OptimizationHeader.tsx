@@ -18,7 +18,7 @@ import { PROMPT_TEMPLATE_STRUCTURE } from "@/types/prompts";
 import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
 import { convertMessages } from "@/components/pages-shared/shared/useSaveToPromptLibrary";
 
-type CompareOptimizationsHeaderProps = {
+type OptimizationHeaderProps = {
   title: string;
   status?: OPTIMIZATION_STATUS;
   optimizationId?: string;
@@ -27,7 +27,7 @@ type CompareOptimizationsHeaderProps = {
   bestExperiment?: Experiment | null;
 };
 
-const CompareOptimizationsHeader: React.FC<CompareOptimizationsHeaderProps> = ({
+const OptimizationHeader: React.FC<OptimizationHeaderProps> = ({
   title,
   status,
   optimizationId,
@@ -181,4 +181,4 @@ const CompareOptimizationsHeader: React.FC<CompareOptimizationsHeaderProps> = ({
   );
 };
 
-export default CompareOptimizationsHeader;
+export default OptimizationHeader;

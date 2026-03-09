@@ -9,16 +9,16 @@ import {
 import { AggregatedCandidate } from "@/types/optimizations";
 import TimeCell from "@/components/shared/DataTableCells/TimeCell";
 import { convertColumnDataToColumn } from "@/lib/table";
-import TrialStatusCell from "@/components/pages/CompareOptimizationsPage/TrialStatusCell";
+import TrialStatusCell from "@/components/pages/OptimizationPage/TrialStatusCell";
 import {
   TrialNumberCell,
   TrialStepCell,
   TrialAccuracyCell,
   TrialCandidateCostCell,
   TrialCandidateLatencyCell,
-} from "@/components/pages/CompareOptimizationsPage/TrialMetricCells";
+} from "@/components/pages/OptimizationPage/TrialMetricCells";
 
-type UseCompareOptimizationsColumnsParams = {
+type UseOptimizationColumnsParams = {
   candidates: AggregatedCandidate[];
   columnsOrder: string[];
   selectedColumns: string[];
@@ -29,7 +29,7 @@ type UseCompareOptimizationsColumnsParams = {
   inProgressStepIndex?: number;
 };
 
-export const useCompareOptimizationsColumns = ({
+export const useOptimizationColumns = ({
   candidates,
   columnsOrder,
   selectedColumns,
@@ -38,7 +38,7 @@ export const useCompareOptimizationsColumns = ({
   bestCandidateId,
   isEvaluationSuite,
   inProgressStepIndex,
-}: UseCompareOptimizationsColumnsParams) => {
+}: UseOptimizationColumnsParams) => {
   const columnsDef: ColumnData<AggregatedCandidate>[] = useMemo(() => {
     return [
       {

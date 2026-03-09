@@ -3,12 +3,12 @@ import { ColumnDef, ColumnSort } from "@tanstack/react-table";
 import { ROW_HEIGHT, OnChangeFn } from "@/types/shared";
 import { Experiment } from "@/types/datasets";
 import { AggregatedCandidate, Optimization } from "@/types/optimizations";
-import { OPTIMIZATION_VIEW_TYPE } from "@/components/pages/CompareOptimizationsPage/OptimizationViewSelector";
+import { OPTIMIZATION_VIEW_TYPE } from "@/components/pages/OptimizationPage/OptimizationViewSelector";
 import OptimizationLogs from "@/components/pages-shared/optimizations/OptimizationLogs/OptimizationLogs";
-import CompareOptimizationsTrialsTable from "./CompareOptimizationsTrialsTable";
-import CompareOptimizationsConfiguration from "./CompareOptimizationsConfiguration";
+import OptimizationTrialsTable from "./OptimizationTrialsTable";
+import OptimizationConfiguration from "./OptimizationConfiguration";
 
-type CompareOptimizationsMainContentProps = {
+type OptimizationMainContentProps = {
   view: OPTIMIZATION_VIEW_TYPE;
   isStudioOptimization: boolean;
   optimization: Optimization | undefined;
@@ -26,9 +26,7 @@ type CompareOptimizationsMainContentProps = {
   showLoadingOverlay?: boolean;
 };
 
-const CompareOptimizationsMainContent: React.FC<
-  CompareOptimizationsMainContentProps
-> = ({
+const OptimizationMainContent: React.FC<OptimizationMainContentProps> = ({
   view,
   isStudioOptimization,
   optimization,
@@ -56,7 +54,7 @@ const CompareOptimizationsMainContent: React.FC<
     <div className="flex min-w-0 flex-1 overflow-auto">
       {showLogsView && <OptimizationLogs optimization={optimization!} />}
       {showTrialsView && (
-        <CompareOptimizationsTrialsTable
+        <OptimizationTrialsTable
           columns={columns}
           rows={rows}
           onRowClick={onRowClick}
@@ -71,7 +69,7 @@ const CompareOptimizationsMainContent: React.FC<
         />
       )}
       {showConfigurationView && optimization?.studio_config && (
-        <CompareOptimizationsConfiguration
+        <OptimizationConfiguration
           studioConfig={optimization.studio_config}
           datasetId={optimization.dataset_id}
           optimizationId={optimization.id}
@@ -82,4 +80,4 @@ const CompareOptimizationsMainContent: React.FC<
   );
 };
 
-export default CompareOptimizationsMainContent;
+export default OptimizationMainContent;

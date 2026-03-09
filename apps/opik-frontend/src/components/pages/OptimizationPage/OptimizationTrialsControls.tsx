@@ -7,7 +7,7 @@ import DataTableRowHeightSelector from "@/components/shared/DataTableRowHeightSe
 import ColumnsButton from "@/components/shared/ColumnsButton/ColumnsButton";
 import { AggregatedCandidate } from "@/types/optimizations";
 
-interface CompareOptimizationsTrialsControlsProps {
+interface OptimizationTrialsControlsProps {
   onRefresh: () => void;
   rowHeight: ROW_HEIGHT;
   onRowHeightChange: (height: ROW_HEIGHT) => void;
@@ -18,9 +18,7 @@ interface CompareOptimizationsTrialsControlsProps {
   onColumnsOrderChange: (order: string[]) => void;
 }
 
-const CompareOptimizationsTrialsControls: React.FC<
-  CompareOptimizationsTrialsControlsProps
-> = ({
+const OptimizationTrialsControls: React.FC<OptimizationTrialsControlsProps> = ({
   onRefresh,
   rowHeight,
   onRowHeightChange,
@@ -57,4 +55,4 @@ const CompareOptimizationsTrialsControls: React.FC<
   );
 };
 
-export default CompareOptimizationsTrialsControls;
+export default OptimizationTrialsControls;

@@ -1,20 +1,28 @@
 import React, { useMemo } from "react";
-import { Clock, Coins, PenLine } from "lucide-react";
 
-import { MetricKPICard } from "@/components/pages-shared/experiments/KPICard/KPICard";
 import {
-  formatAsPercentage,
-  formatAsDuration,
-  formatAsCurrency,
-} from "@/lib/optimization-formatters";
+  MetricKPICard,
+  getMetricKPICardConfigs,
+} from "@/components/pages-shared/experiments/KPICard/KPICard";
 import { Experiment } from "@/types/datasets";
-import { aggregateExperimentMetrics } from "@/lib/experiment-metrics";
+import {
+  aggregateExperimentMetrics,
+  AggregatedMetrics,
+} from "@/lib/experiment-metrics";
 
 type TrialKPICardsProps = {
   experiments: Experiment[];
   allOptimizationExperiments: Experiment[];
   objectiveName?: string;
   isEvaluationSuite?: boolean;
+};
+
+const getMetricValue = (
+  metrics: AggregatedMetrics | undefined,
+  key: string,
+): number | undefined => {
+  if (!metrics) return undefined;
+  return metrics[key as keyof AggregatedMetrics] as number | undefined;
 };
 
 const TrialKPICards: React.FunctionComponent<TrialKPICardsProps> = ({
@@ -63,33 +71,21 @@ const TrialKPICards: React.FunctionComponent<TrialKPICardsProps> = ({
     return aggregateExperimentMetrics(baselineExps, objectiveName);
   }, [allOptimizationExperiments, experiments, objectiveName]);
 
+  const configs = getMetricKPICardConfigs({ isEvaluationSuite, objectiveName });
+
   return (
     <div className="grid grid-cols-3 gap-4">
-      <MetricKPICard
-        icon={PenLine}
-        label={isEvaluationSuite ? "Pass rate" : objectiveName ?? "Accuracy"}
-        baseline={baselineMetrics?.score}
-        current={currentMetrics.score}
-        formatter={formatAsPercentage}
-      />
-
-      <MetricKPICard
-        icon={Clock}
-        label="Latency"
-        baseline={baselineMetrics?.latency}
-        current={currentMetrics.latency}
-        formatter={formatAsDuration}
-        trend="inverted"
-      />
-
-      <MetricKPICard
-        icon={Coins}
-        label="Runtime cost"
-        baseline={baselineMetrics?.cost}
-        current={currentMetrics.cost}
-        formatter={formatAsCurrency}
-        trend="inverted"
-      />
+      {configs.map((config) => (
+        <MetricKPICard
+          key={config.key}
+          icon={config.icon}
+          label={config.label}
+          baseline={getMetricValue(baselineMetrics, config.key)}
+          current={getMetricValue(currentMetrics, config.key)}
+          formatter={config.formatter}
+          trend={config.trend}
+        />
+      ))}
     </div>
   );
 };
