@@ -3,7 +3,7 @@ import { FileText } from "lucide-react";
 import CellWrapper from "@/components/shared/DataTableCells/CellWrapper";
 import CellTooltipWrapper from "@/components/shared/DataTableCells/CellTooltipWrapper";
 import { Tag } from "@/components/ui/tag";
-import { EnrichedBlueprintValue } from "@/types/agent-configs";
+import { BlueprintValueType, EnrichedBlueprintValue } from "@/types/agent-configs";
 import { formatNumericData } from "@/lib/utils";
 
 const BlueprintValueCell = (
@@ -14,8 +14,8 @@ const BlueprintValueCell = (
 
   const renderValue = () => {
     switch (row.type) {
-      case "int":
-      case "float": {
+      case BlueprintValueType.INT:
+      case BlueprintValueType.FLOAT: {
         const num = Number(value);
         return (
           <span className="truncate">
@@ -23,7 +23,7 @@ const BlueprintValueCell = (
           </span>
         );
       }
-      case "boolean": {
+      case BlueprintValueType.BOOLEAN: {
         const isTruthy = value === "true";
         return (
           <Tag size="md" variant={isTruthy ? "green" : "gray"}>
@@ -31,7 +31,7 @@ const BlueprintValueCell = (
           </Tag>
         );
       }
-      case "prompt":
+      case BlueprintValueType.PROMPT:
         return (
           <div className="flex items-center gap-1.5 overflow-hidden">
             <FileText className="size-3.5 shrink-0 text-muted-slate" />
