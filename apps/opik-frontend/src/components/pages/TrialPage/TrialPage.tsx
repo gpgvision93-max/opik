@@ -109,19 +109,33 @@ const TrialPage: React.FunctionComponent = () => {
 
   const parentExperiment = useMemo(() => {
     const experiment = memorizedExperiments[0];
-    if (!experiment?.metadata) return undefined;
-    const meta = experiment.metadata as Record<string, unknown>;
-    const parentCandidateIds = meta.parent_candidate_ids as
-      | string[]
-      | undefined;
-    if (!parentCandidateIds?.length) return undefined;
+    if (!experiment) return undefined;
 
     const allExperiments = optimizationExperimentsData?.content ?? [];
-    return allExperiments.find((exp) => {
-      const expMeta = exp.metadata as Record<string, unknown> | undefined;
-      const candidateId = expMeta?.candidate_id as string | undefined;
-      return candidateId && parentCandidateIds.includes(candidateId);
-    });
+
+    // GEPA v2: parent is identified by parent_candidate_ids metadata
+    const meta = experiment.metadata as Record<string, unknown> | undefined;
+    const parentCandidateIds = meta?.parent_candidate_ids as
+      | string[]
+      | undefined;
+    if (parentCandidateIds?.length) {
+      return allExperiments.find((exp) => {
+        const expMeta = exp.metadata as Record<string, unknown> | undefined;
+        const candidateId = expMeta?.candidate_id as string | undefined;
+        return candidateId && parentCandidateIds.includes(candidateId);
+      });
+    }
+
+    // Old optimizations: parent is the previous trial in chronological order
+    const sorted = allExperiments
+      .slice()
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const currentIndex = sorted.findIndex((exp) => exp.id === experiment.id);
+    if (currentIndex > 0) {
+      return sorted[currentIndex - 1];
+    }
+
+    return undefined;
   }, [memorizedExperiments, optimizationExperimentsData?.content]);
 
   const [tab, setTab] = useState<string>("results");

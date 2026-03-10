@@ -46,8 +46,11 @@ const ConfigurationDiffContent: React.FunctionComponent<
     const currPrompt = get(currConfig, "prompt", null);
     const hasStructuredPrompt = !!(basePrompt || currPrompt);
 
-    const baseFlat = flattenConfig(baseConfig, hasStructuredPrompt);
-    const currFlat = flattenConfig(currConfig, hasStructuredPrompt);
+    const skipKey = (key: string) =>
+      EXCLUDED_CONFIG_KEYS.includes(key) ||
+      shouldSkipRedundantKey(key, hasStructuredPrompt);
+    const baseFlat = flattenConfig(baseConfig, skipKey);
+    const currFlat = flattenConfig(currConfig, skipKey);
 
     const flatBase: Record<string, unknown> = {};
     for (const entry of baseFlat) {

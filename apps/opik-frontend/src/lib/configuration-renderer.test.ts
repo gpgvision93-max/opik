@@ -29,6 +29,29 @@ describe("detectConfigValueType", () => {
     expect(detectConfigValueType("prompt", value)).toBe("prompt");
   });
 
+  it("detects prompt keys with NamedPrompts format", () => {
+    const value = {
+      "chat-prompt": [
+        { role: "system", content: "You are helpful" },
+        { role: "user", content: "{question}" },
+      ],
+    };
+    expect(detectConfigValueType("prompt", value)).toBe("prompt");
+
+    const multiPrompt = {
+      "agent-1": [{ role: "system", content: "Agent 1" }],
+      "agent-2": [{ role: "user", content: "Agent 2" }],
+    };
+    expect(detectConfigValueType("prompt", multiPrompt)).toBe("prompt");
+  });
+
+  it("does not detect as prompt when object values are not message arrays", () => {
+    const value = {
+      "chat-prompt": "just a string",
+    };
+    expect(detectConfigValueType("prompt", value)).not.toBe("prompt");
+  });
+
   it("detects tools keys with array values", () => {
     expect(detectConfigValueType("tools", [{ name: "search" }])).toBe("tools");
     expect(detectConfigValueType("functions", [{ name: "fn" }])).toBe("tools");
@@ -78,14 +101,18 @@ describe("EXCLUDED_CONFIG_KEYS", () => {
 });
 
 describe("flattenConfig", () => {
-  it("flattens simple primitive config", () => {
+  const makeSkipKey = (hasStructuredPrompt: boolean) => (key: string) =>
+    EXCLUDED_CONFIG_KEYS.includes(key) ||
+    shouldSkipRedundantKey(key, hasStructuredPrompt);
+
+  it("flattens simple primitive config without skipKey", () => {
     const config = {
       temperature: 0.7,
       model: "gpt-4",
       max_tokens: 100,
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config);
 
     expect(result).toEqual([
       { key: "temperature", value: 0.7, type: "number" },
@@ -94,14 +121,31 @@ describe("flattenConfig", () => {
     ]);
   });
 
-  it("excludes top-level prompt and examples keys", () => {
+  it("includes all keys when no skipKey is provided", () => {
     const config = {
       temperature: 0.7,
       prompt: [{ role: "system", content: "Hello" }],
       examples: [{ input: "a", output: "b" }],
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config);
+
+    expect(result).toHaveLength(3);
+    expect(result.map((e) => e.key)).toEqual([
+      "temperature",
+      "prompt",
+      "examples",
+    ]);
+  });
+
+  it("excludes keys matched by skipKey callback", () => {
+    const config = {
+      temperature: 0.7,
+      prompt: [{ role: "system", content: "Hello" }],
+      examples: [{ input: "a", output: "b" }],
+    };
+
+    const result = flattenConfig(config, makeSkipKey(false));
 
     expect(result).toEqual([
       { key: "temperature", value: 0.7, type: "number" },
@@ -117,7 +161,7 @@ describe("flattenConfig", () => {
       top_k: 10,
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config);
 
     expect(result).toEqual([
       { key: "llm_model.model", value: "gpt-4", type: "string" },
@@ -134,7 +178,7 @@ describe("flattenConfig", () => {
       temperature: 0.7,
     };
 
-    const result = flattenConfig(config, true);
+    const result = flattenConfig(config, makeSkipKey(true));
 
     expect(result).toEqual([
       { key: "temperature", value: 0.7, type: "number" },
@@ -147,7 +191,7 @@ describe("flattenConfig", () => {
       temperature: 0.7,
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config, makeSkipKey(false));
 
     expect(result).toEqual([
       { key: "system_prompt", value: "You are helpful", type: "prompt" },
@@ -163,7 +207,7 @@ describe("flattenConfig", () => {
       },
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config);
 
     expect(result).toEqual([
       {
@@ -175,14 +219,14 @@ describe("flattenConfig", () => {
     ]);
   });
 
-  it("does not exclude prompt/examples from nested paths", () => {
+  it("only applies skipKey to root-level keys", () => {
     const config = {
       nested: {
         prompt: "nested prompt value",
       },
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config, makeSkipKey(false));
 
     expect(result).toEqual([
       { key: "nested.prompt", value: "nested prompt value", type: "prompt" },
@@ -190,8 +234,8 @@ describe("flattenConfig", () => {
   });
 
   it("handles empty config", () => {
-    expect(flattenConfig({}, false)).toEqual([]);
-    expect(flattenConfig({}, true)).toEqual([]);
+    expect(flattenConfig({})).toEqual([]);
+    expect(flattenConfig({}, makeSkipKey(true))).toEqual([]);
   });
 
   it("handles deeply nested objects", () => {
@@ -203,7 +247,7 @@ describe("flattenConfig", () => {
       },
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config);
 
     expect(result).toEqual([
       { key: "level1.level2.value", value: 42, type: "number" },
@@ -215,7 +259,7 @@ describe("flattenConfig", () => {
       items: [1, 2, 3],
     };
 
-    const result = flattenConfig(config, false);
+    const result = flattenConfig(config);
 
     expect(result).toEqual([
       { key: "items", value: [1, 2, 3], type: "json_object" },

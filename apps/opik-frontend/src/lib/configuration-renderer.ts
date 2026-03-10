@@ -54,14 +54,13 @@ export type FlatConfigEntry = {
 
 export const flattenConfig = (
   config: Record<string, unknown>,
-  hasStructuredPrompt: boolean,
+  skipKey?: (key: string) => boolean,
 ): FlatConfigEntry[] => {
   const result: FlatConfigEntry[] = [];
 
   const collect = (obj: Record<string, unknown>, prefix: string) => {
     for (const [key, value] of Object.entries(obj)) {
-      if (!prefix && EXCLUDED_CONFIG_KEYS.includes(key)) continue;
-      if (!prefix && shouldSkipRedundantKey(key, hasStructuredPrompt)) continue;
+      if (!prefix && skipKey?.(key)) continue;
 
       const path = prefix ? `${prefix}.${key}` : key;
       const type = detectConfigValueType(key, value);
@@ -88,8 +87,16 @@ export const detectConfigValueType = (
     if (isString(value) || isMessagesArray(value)) {
       return "prompt";
     }
-    if (isObject(value) && "messages" in (value as Record<string, unknown>)) {
-      return "prompt";
+    if (isObject(value) && !isArray(value)) {
+      const obj = value as Record<string, unknown>;
+      if ("messages" in obj) {
+        return "prompt";
+      }
+      // NamedPrompts: object where all values are message arrays
+      const vals = Object.values(obj);
+      if (vals.length > 0 && vals.every((v) => isMessagesArray(v))) {
+        return "prompt";
+      }
     }
   }
 

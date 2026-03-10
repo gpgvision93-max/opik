@@ -13,6 +13,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   detectConfigValueType,
   flattenConfig,
+  EXCLUDED_CONFIG_KEYS,
+  shouldSkipRedundantKey,
 } from "@/lib/configuration-renderer";
 import { getOptimizerLabel } from "@/lib/optimizations";
 import { OPTIMIZATION_METRIC_OPTIONS } from "@/constants/optimizations";
@@ -241,7 +243,10 @@ const TrialConfigurationSection: React.FC<TrialConfigurationSectionProps> = ({
     if (!configuration) return [];
 
     const hasStructuredPrompt = "prompt" in configuration;
-    const result = flattenConfig(configuration, hasStructuredPrompt);
+    const skipKey = (key: string) =>
+      EXCLUDED_CONFIG_KEYS.includes(key) ||
+      shouldSkipRedundantKey(key, hasStructuredPrompt);
+    const result = flattenConfig(configuration, skipKey);
 
     // If no prompt was found (old format without structured "prompt" key),
     // try the top-level "prompt" as a fallback.
