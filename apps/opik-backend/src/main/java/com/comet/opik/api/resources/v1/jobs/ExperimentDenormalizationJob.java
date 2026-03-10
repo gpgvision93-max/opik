@@ -3,6 +3,7 @@ package com.comet.opik.api.resources.v1.jobs;
 import com.comet.opik.api.events.ExperimentAggregationMessage;
 import com.comet.opik.infrastructure.ExperimentDenormalizationConfig;
 import com.comet.opik.infrastructure.lock.LockService;
+import com.comet.opik.infrastructure.redis.RedisStreamUtils;
 import io.dropwizard.jobs.Job;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -11,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.JobExecutionContext;
 import org.redisson.api.RedissonReactiveClient;
-import org.redisson.api.stream.StreamAddArgs;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.vyarus.dropwizard.guice.module.yaml.bind.Config;
@@ -140,12 +140,8 @@ public class ExperimentDenormalizationJob extends Job {
                             .userName(userName)
                             .build();
 
-                    return stream.add(StreamAddArgs
-                            .<String, ExperimentAggregationMessage>entry(
-                                    ExperimentDenormalizationConfig.PAYLOAD_FIELD, message)
-                            .trimNonStrict()
-                            .maxLen(config.getStreamMaxLen())
-                            .limit(config.getStreamTrimLimit()))
+                    return stream.add(RedisStreamUtils.buildAddArgs(
+                            ExperimentDenormalizationConfig.PAYLOAD_FIELD, message, config))
                             .doOnNext(id -> log.debug(
                                     "Enqueued aggregation message for experiment '{}' with stream id '{}'",
                                     experimentIdStr, id))
