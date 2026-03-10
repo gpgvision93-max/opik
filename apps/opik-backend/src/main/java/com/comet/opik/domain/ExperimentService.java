@@ -339,7 +339,7 @@ public class ExperimentService {
             return;
         }
 
-        log.info("Checking if lazy aggregation trigger needed for experiment: '{}'", experimentId);
+        log.debug("Checking if lazy aggregation trigger needed for experiment: '{}'", experimentId);
 
         String workspaceId = ctx.get(RequestContext.WORKSPACE_ID);
         String userName = ctx.get(RequestContext.USER_NAME);
