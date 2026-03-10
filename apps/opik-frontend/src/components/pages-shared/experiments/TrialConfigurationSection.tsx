@@ -291,7 +291,7 @@ const TrialConfigurationSection: React.FC<TrialConfigurationSectionProps> = ({
           >
             <ToggleGroupItem value={CONFIG_VIEW_MODE.CONFIG}>
               <List className="mr-1 size-3.5" />
-              Config
+              Configuration
             </ToggleGroupItem>
             {hasDiffBaseline && (
               <ToggleGroupItem value={CONFIG_VIEW_MODE.DIFF_BASELINE}>
