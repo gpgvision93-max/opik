@@ -11,7 +11,7 @@ import {
 } from "./typeHelpers";
 
 export interface CreateBlueprintOptions {
-  values: Record<string, SupportedValue>;
+  values: Record<string, SupportedValue | null | undefined>;
   description?: string;
 }
 
@@ -47,13 +47,11 @@ export class AgentConfig {
     const id = generateId();
     const values: OpikApi.AgentConfigValueWrite[] = Object.entries(
       options.values
-    )
-      .filter(([, v]) => v != null)
-      .map(([key, value]) => ({
-        key,
-        value: serializeValue(value),
-        type: inferBackendType(value),
-      }));
+    ).map(([key, value]) => ({
+      key,
+      value: serializeValue(value),
+      type: value != null ? inferBackendType(value) : "string",
+    }));
 
     logger.debug(`Creating ${type} for project "${this.projectName}"`);
 

@@ -151,6 +151,21 @@ describe("AgentConfig domain object", () => {
       );
     });
 
+    it("should include null values with type string and no value", async () => {
+      const agentConfig = client.getAgentConfig();
+      await agentConfig.createBlueprint({
+        values: { temperature: 0.8, model: null },
+      });
+
+      const createCall = createAgentConfigSpy.mock.calls[0][0];
+      expect(createCall.blueprint.values).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ key: "temperature", value: "0.8", type: "float" }),
+          expect.objectContaining({ key: "model", value: undefined, type: "string" }),
+        ])
+      );
+    });
+
     it("should use a client-side generated UUID in the POST body", async () => {
       const agentConfig = client.getAgentConfig();
       await agentConfig.createBlueprint({ values: { key: "val" } });
@@ -335,5 +350,19 @@ describe("Blueprint value object", () => {
     await expect(
       Blueprint.fromApiResponse({ type: "blueprint", values: [] })
     ).rejects.toThrow("missing required field 'id'");
+  });
+
+  it("should deserialize null value as null", async () => {
+    const response: OpikApi.AgentBlueprintPublic = {
+      id: "bp-null",
+      type: "blueprint",
+      values: [
+        { key: "model", value: undefined, type: "string" },
+        { key: "temperature", value: "0.7", type: "float" },
+      ],
+    };
+    const bp = await Blueprint.fromApiResponse(response);
+    expect(bp.get("model")).toBeNull();
+    expect(bp.get("temperature")).toBe(0.7);
   });
 });

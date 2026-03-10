@@ -166,6 +166,32 @@ describe("deserializeValue", () => {
   });
 });
 
+describe("serializeValue: null/undefined", () => {
+  it("should return undefined for null", () => {
+    expect(serializeValue(null)).toBeUndefined();
+  });
+
+  it("should return undefined for undefined", () => {
+    expect(serializeValue(undefined)).toBeUndefined();
+  });
+});
+
+describe("deserializeValue: null/undefined value", () => {
+  it.each(["string", "integer", "float", "boolean", "prompt", "prompt_commit"] as const)(
+    "should return null for null value with type %s",
+    (type) => {
+      expect(deserializeValue(null, type)).toBeNull();
+    }
+  );
+
+  it.each(["string", "integer", "float", "boolean"] as const)(
+    "should return null for undefined value with type %s",
+    (type) => {
+      expect(deserializeValue(undefined, type)).toBeNull();
+    }
+  );
+});
+
 describe("round-trip: serialize then deserialize", () => {
   it("round-trips strings", () => {
     const val = "hello world";

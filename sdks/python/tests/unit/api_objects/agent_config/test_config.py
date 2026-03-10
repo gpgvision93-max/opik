@@ -346,20 +346,20 @@ class TestAgentConfigCreateMask:
 
 
 class TestResolveFieldsWithValues:
-    def test_none_values_are_excluded(self):
+    def test_none_value__included_with_string_type(self):
         result = AgentConfig._resolve_fields_with_values(
             parameters={"temp": 0.5, "name": None},
             fields_with_values=None,
         )
-        assert "name" not in result
         assert result["temp"] == (float, 0.5, None)
+        assert result["name"] == (str, None, None)
 
-    def test_all_none_parameters_returns_empty_dict(self):
+    def test_all_none_parameters__included_with_string_type(self):
         result = AgentConfig._resolve_fields_with_values(
             parameters={"a": None, "b": None},
             fields_with_values=None,
         )
-        assert result == {}
+        assert result == {"a": (str, None, None), "b": (str, None, None)}
 
     def test_fields_with_values_takes_precedence_over_parameters(self):
         explicit = {"x": (int, 1, None)}
@@ -369,7 +369,7 @@ class TestResolveFieldsWithValues:
         )
         assert result is explicit
 
-    def test_create_blueprint__none_parameter__excluded_from_payload(
+    def test_create_blueprint__none_parameter__included_in_payload_with_string_type(
         self, agent_config, mock_rest_client
     ):
         mock_rest_client.agent_configs.get_blueprint_by_id.return_value = (
@@ -379,6 +379,8 @@ class TestResolveFieldsWithValues:
         agent_config.create_blueprint(parameters={"temp": 0.6, "name": None})
 
         call_kwargs = mock_rest_client.agent_configs.create_agent_config.call_args[1]
-        keys = {v.key for v in call_kwargs["blueprint"].values}
-        assert "temp" in keys
-        assert "name" not in keys
+        values = {v.key: v for v in call_kwargs["blueprint"].values}
+        assert "temp" in values
+        assert "name" in values
+        assert values["name"].type == "string"
+        assert values["name"].value is None
