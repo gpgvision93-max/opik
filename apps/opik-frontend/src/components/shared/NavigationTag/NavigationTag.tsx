@@ -17,7 +17,7 @@ type NavigationTagProps = {
   tooltipContent?: string;
   className?: string;
   isSmall?: boolean;
-  iconsSize?: number;
+  iconSize?: number;
   size?: TagProps["size"];
   variant?: TagProps["variant"];
 };
@@ -30,7 +30,7 @@ const NavigationTag: React.FunctionComponent<NavigationTagProps> = ({
   tooltipContent,
   className,
   isSmall = false,
-  iconsSize = DEFAULT_ICON_SIZE,
+  iconSize = DEFAULT_ICON_SIZE,
   size = "md",
   variant = "transparent",
 }) => {
@@ -46,7 +46,7 @@ const NavigationTag: React.FunctionComponent<NavigationTagProps> = ({
       tooltipContent={tooltipContent ?? defaultTooltipContent}
       variant={variant}
       className={className}
-      iconsSize={iconsSize}
+      iconSize={iconSize}
       gapSize={1}
       asTag
       isSmall={isSmall}
