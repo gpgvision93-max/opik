@@ -416,12 +416,14 @@ interface AgentConfigDAO {
             SET ended_at = :timestamp
             WHERE workspace_id = :workspace_id
                 AND project_id = :project_id
+                AND config_id = :config_id
                 AND env_name IN (<env_names>)
                 AND ended_at IS NULL
             """)
     void closeActiveEnvHistory(
             @Bind("workspace_id") String workspaceId,
             @Bind("project_id") UUID projectId,
+            @Bind("config_id") UUID configId,
             @Bind("timestamp") Instant timestamp,
             @BindList("env_names") List<String> envNames);
 

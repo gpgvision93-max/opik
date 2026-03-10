@@ -400,7 +400,7 @@ class AgentConfigServiceImpl implements AgentConfigService {
                             actuallyChanged.size(), projectId, workspaceId, changedEnvNames);
 
                     Instant now = Instant.now();
-                    dao.closeActiveEnvHistory(workspaceId, projectId, now, changedEnvNames);
+                    dao.closeActiveEnvHistory(workspaceId, projectId, config.id(), now, changedEnvNames);
                     dao.batchUpdateEnvs(workspaceId, projectId, userName, actuallyChanged);
 
                     List<AgentConfigEnv> updateHistoryRecords = actuallyChanged.stream()
