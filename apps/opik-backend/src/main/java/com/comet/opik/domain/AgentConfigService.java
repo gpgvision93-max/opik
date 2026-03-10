@@ -374,13 +374,7 @@ class AgentConfigServiceImpl implements AgentConfigService {
                         newEnvs.size(), projectId, workspaceId,
                         newEnvs.stream().map(AgentConfigEnv::envName).toList());
                 dao.batchInsertEnvs(workspaceId, projectId, config.id(), userName, userName, newEnvs);
-
-                Instant now = Instant.now();
-                List<AgentConfigEnv> newEnvHistoryRecords = newEnvs.stream()
-                        .map(env -> env.toBuilder().id(idGenerator.generateId()).build())
-                        .toList();
-                dao.batchInsertEnvHistory(workspaceId, projectId, config.id(), userName, now,
-                        newEnvHistoryRecords);
+                recordEnvHistory(dao, workspaceId, projectId, config.id(), userName, Instant.now(), newEnvs);
             }
 
             if (!envsToUpdate.isEmpty()) {
@@ -402,17 +396,20 @@ class AgentConfigServiceImpl implements AgentConfigService {
                     Instant now = Instant.now();
                     dao.closeActiveEnvHistory(workspaceId, projectId, config.id(), now, changedEnvNames);
                     dao.batchUpdateEnvs(workspaceId, projectId, userName, actuallyChanged);
-
-                    List<AgentConfigEnv> updateHistoryRecords = actuallyChanged.stream()
-                            .map(env -> env.toBuilder().id(idGenerator.generateId()).build())
-                            .toList();
-                    dao.batchInsertEnvHistory(workspaceId, projectId, config.id(), userName, now,
-                            updateHistoryRecords);
+                    recordEnvHistory(dao, workspaceId, projectId, config.id(), userName, now, actuallyChanged);
                 }
             }
 
             return null;
         });
+    }
+
+    private void recordEnvHistory(AgentConfigDAO dao, String workspaceId, UUID projectId,
+            UUID configId, String userName, Instant timestamp, List<AgentConfigEnv> envs) {
+        List<AgentConfigEnv> historyRecords = envs.stream()
+                .map(env -> env.toBuilder().id(idGenerator.generateId()).build())
+                .toList();
+        dao.batchInsertEnvHistory(workspaceId, projectId, configId, userName, timestamp, historyRecords);
     }
 
     @Override
