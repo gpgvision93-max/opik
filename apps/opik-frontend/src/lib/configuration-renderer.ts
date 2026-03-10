@@ -33,6 +33,51 @@ const isMessagesArray = (value: unknown): boolean => {
   );
 };
 
+export const EXCLUDED_CONFIG_KEYS = ["prompt", "examples"];
+
+const REDUNDANT_WHEN_STRUCTURED = [
+  "system_prompt",
+  "user_prompt",
+  "user_message",
+];
+
+export const shouldSkipRedundantKey = (
+  key: string,
+  hasStructuredPrompt: boolean,
+): boolean => hasStructuredPrompt && REDUNDANT_WHEN_STRUCTURED.includes(key);
+
+export type FlatConfigEntry = {
+  key: string;
+  value: unknown;
+  type: ConfigValueType;
+};
+
+export const flattenConfig = (
+  config: Record<string, unknown>,
+  hasStructuredPrompt: boolean,
+): FlatConfigEntry[] => {
+  const result: FlatConfigEntry[] = [];
+
+  const collect = (obj: Record<string, unknown>, prefix: string) => {
+    for (const [key, value] of Object.entries(obj)) {
+      if (!prefix && EXCLUDED_CONFIG_KEYS.includes(key)) continue;
+      if (!prefix && shouldSkipRedundantKey(key, hasStructuredPrompt)) continue;
+
+      const path = prefix ? `${prefix}.${key}` : key;
+      const type = detectConfigValueType(key, value);
+
+      if (type === "json_object" && isObject(value) && !isArray(value)) {
+        collect(value as Record<string, unknown>, path);
+      } else {
+        result.push({ key: path, value, type });
+      }
+    }
+  };
+
+  collect(config, "");
+  return result;
+};
+
 export const detectConfigValueType = (
   key: string,
   value: unknown,
