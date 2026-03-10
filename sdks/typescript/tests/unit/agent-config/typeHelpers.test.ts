@@ -166,6 +166,16 @@ describe("deserializeValue", () => {
   });
 });
 
+describe("inferBackendType: null/undefined", () => {
+  it('should return "string" for null', () => {
+    expect(inferBackendType(null)).toBe("string");
+  });
+
+  it('should return "string" for undefined', () => {
+    expect(inferBackendType(undefined)).toBe("string");
+  });
+});
+
 describe("serializeValue: null/undefined", () => {
   it("should return undefined for null", () => {
     expect(serializeValue(null)).toBeUndefined();

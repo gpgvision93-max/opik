@@ -50,7 +50,7 @@ export class AgentConfig {
     ).map(([key, value]) => ({
       key,
       value: serializeValue(value),
-      type: value != null ? inferBackendType(value) : "string",
+      type: inferBackendType(value),
     }));
 
     logger.debug(`Creating ${type} for project "${this.projectName}"`);

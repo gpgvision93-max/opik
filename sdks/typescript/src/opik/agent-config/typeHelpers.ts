@@ -12,8 +12,9 @@ export type SupportedValue =
   | Record<string, unknown>;
 
 export function inferBackendType(
-  value: SupportedValue
+  value: SupportedValue | null | undefined
 ): OpikApi.AgentConfigValueWriteType {
+  if (value === null || value === undefined) return "string";
   if (typeof value === "boolean") return "boolean";
   if (typeof value === "number") {
     return Number.isInteger(value) ? "integer" : "float";
