@@ -12,17 +12,16 @@ import { BlueprintValue, BlueprintValueType } from "@/types/agent-configs";
 import { formatNumericData } from "@/lib/utils";
 
 export const formatBlueprintValue = (v: BlueprintValue): string => {
-  const str = String(v.value);
   switch (v.type) {
     case BlueprintValueType.INT:
     case BlueprintValueType.FLOAT: {
       const num = Number(v.value);
-      return isNaN(num) ? str : formatNumericData(num);
+      return isNaN(num) ? v.value : formatNumericData(num);
     }
     case BlueprintValueType.BOOLEAN:
-      return v.value === "false" || v.value === false ? "false" : "true";
+      return v.value === "true" ? "true" : "false";
     default:
-      return str;
+      return v.value;
   }
 };
 

@@ -9,7 +9,7 @@ export enum BlueprintValueType {
 export interface BlueprintValue {
   key: string;
   type: BlueprintValueType;
-  value: string | number | boolean;
+  value: string;
   description?: string;
 }
 
