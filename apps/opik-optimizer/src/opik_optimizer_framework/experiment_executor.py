@@ -7,7 +7,7 @@ import opik
 from opik.evaluation import evaluate_optimization_suite_trial
 
 from opik_optimizer_framework.tasks import MESSAGE_KEYS, create_task
-from opik_optimizer_framework.types import Candidate, TrialResult
+from opik_optimizer_framework.types import Candidate, ScoringConfig, TrialResult
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,8 @@ def run_experiment(
     optimizer_type: str | None = None,
     optimizable_keys: list[str] | None = None,
     task_threads: int = 4,
+    evaluator_model: str | None = None,
+    scoring_config: ScoringConfig | None = None,
 ) -> TrialResult:
     """Execute an experiment, returning only the TrialResult."""
     trial, _ = run_experiment_with_details(
@@ -42,6 +44,8 @@ def run_experiment(
         optimizer_type=optimizer_type,
         optimizable_keys=optimizable_keys,
         task_threads=task_threads,
+        evaluator_model=evaluator_model,
+        scoring_config=scoring_config,
     )
     return trial
 
@@ -60,6 +64,8 @@ def run_experiment_with_details(
     optimizer_type: str | None = None,
     optimizable_keys: list[str] | None = None,
     task_threads: int = 4,
+    evaluator_model: str | None = None,
+    scoring_config: ScoringConfig | None = None,
 ) -> tuple[TrialResult, Any]:
     """Execute an experiment and return both the TrialResult and the raw EvaluationResult.
 
@@ -114,21 +120,23 @@ def run_experiment_with_details(
         experiment_config=experiment_config,
         task_threads=task_threads,
         experiment_type=experiment_type,
+        evaluator_model=evaluator_model,
     )
 
-    score = _extract_score(result)
+    optimization_score, pass_rate = _extract_score(result, scoring_config or ScoringConfig())
 
-    _log_experiment_score(client, result.experiment_id, metric_type, score)
+    _log_experiment_score(client, result.experiment_id, metric_type, pass_rate)
 
     trial = TrialResult(
         candidate_id=candidate.candidate_id,
         step_index=candidate.step_index,
-        score=score,
-        metric_scores={metric_type: score},
+        score=pass_rate,
+        metric_scores={metric_type: pass_rate},
         experiment_id=getattr(result, "experiment_id", None),
         experiment_name=getattr(result, "experiment_name", None),
         config=candidate.config,
         parent_candidate_ids=candidate.parent_candidate_ids,
+        internal_optimization_score=optimization_score,
     )
     return trial, result
 
@@ -155,14 +163,15 @@ def _log_experiment_score(
         logger.warning("Failed to log experiment score", exc_info=True)
 
 
-def _extract_score(result: Any) -> float:
-    """Extract pass_rate from an evaluation suite result.
+def _extract_score(result: Any, scoring_config: ScoringConfig) -> tuple[float, float]:
+    """Extract optimization score and display pass_rate from a suite result.
 
-    Uses the SDK's build_suite_result to compute pass_rate with the
-    canonical pass/fail algorithm (grouping by item, binary per run).
+    Returns ``(optimization_score, pass_rate)`` where:
+    - ``optimization_score`` is the value used by the algorithm (blended or raw pass_rate)
+    - ``pass_rate`` is the raw item-level pass_rate for UI display
     """
     if not hasattr(result, "test_results") or not result.test_results:
-        return 0.0
+        return 0.0, 0.0
 
     from opik.api_objects.dataset.evaluation_suite.suite_result_constructor import (
         build_suite_result,
@@ -170,7 +179,29 @@ def _extract_score(result: Any) -> float:
 
     try:
         suite_result = build_suite_result(result)
-        return suite_result.pass_rate
     except Exception:
-        logger.warning("Failed to compute pass_rate via build_suite_result", exc_info=True)
-        return 0.0
+        logger.warning("Failed to compute suite result", exc_info=True)
+        return 0.0, 0.0
+
+    pass_rate = suite_result.pass_rate
+
+    if scoring_config.strategy == "pass_rate":
+        return pass_rate, pass_rate
+
+    assertions_passed = 0
+    assertions_total = 0
+    for tr in result.test_results:
+        for sr in tr.score_results:
+            assertions_total += 1
+            if (isinstance(sr.value, bool) and sr.value) or sr.value == 1:
+                assertions_passed += 1
+
+    assertion_rate = assertions_passed / assertions_total if assertions_total > 0 else 1.0
+
+    assertion_weight = scoring_config.assertion_rate_weight
+    if assertion_weight is None:
+        num_items = len(suite_result.item_results)
+        assertion_weight = 1.0 / (num_items + 1) if num_items > 0 else 0.0
+
+    blended = scoring_config.pass_rate_weight * pass_rate + assertion_weight * assertion_rate
+    return blended, pass_rate

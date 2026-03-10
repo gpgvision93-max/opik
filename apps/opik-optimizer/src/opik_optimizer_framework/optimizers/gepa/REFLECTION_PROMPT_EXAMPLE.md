@@ -32,12 +32,26 @@ This becomes the `<curr_param>` placeholder value in the template.
 
 ### Step 3: Build the reflective dataset
 
-`ReflectiveDatasetBuilder.build()` transforms minibatch evaluation results into structured feedback records. Each record contains:
+`ReflectiveDatasetBuilder.build()` transforms minibatch evaluation results into structured feedback records.
 
+**Single-run items** (runs_per_item = 1) produce:
 - **Inputs**: all dataset item fields (except `id`)
-- **Generated Outputs** / **Runs**: the LLM's response(s)
+- **Generated Outputs**: the LLM's response
 - **Feedback**: FAILED assertions (with reasons) and PASSED assertions
-- **Failure History** (optional): for items with consecutive failures, warns the LLM to try a different approach
+
+**Multi-run items** (runs_per_item > 1) produce:
+- **Inputs**: all dataset item fields (except `id`)
+- **Failure History** (optional, see below): persistent failure context — placed before run data
+- **Summary**: pass/fail stats across runs, consistent failures, blocking assertion rates
+- **Worst Run**: output and assertion details from the single worst run only
+
+**Failure History annotation** (applied to both single-run and multi-run items):
+
+The `FailureAwareBatchSampler` tracks cumulative assertion failures across the entire optimization. When an assertion has failed >= `persistent_failure_threshold` times (default 7, configurable via `GepaConfig`) AND failed again in the current evaluation, a Failure History section is inserted showing:
+- Which assertions are persistently failing
+- The failure count out of total evaluations (e.g., "failed 12 out of 15 evaluations")
+
+Failure History is placed right after Inputs (before any run data) via dict key reordering, so it's the first thing the reflection LLM sees after the input context.
 
 Records are sorted by difficulty (most failures first). This becomes the `<side_info>` placeholder value.
 
@@ -63,16 +77,13 @@ new_text = result["new_instruction"]
 
 ### Step 6: Strip the header
 
-The LLM sometimes echoes the header in its output. Strip it so it doesn't leak:
+The LLM sometimes echoes the header in its output. `_strip_header(text, name)` removes leading lines that match known header patterns: `Parameter:`, `Description:`, `Other parameters`, sibling bullet items, bare parameter names, and echoed description text.
 
-```python
-if new_text.startswith(header + "\n"):
-    new_text = new_text[len(header) + 1:]
-elif new_text.startswith(f"Parameter: {name}\n"):
-    new_text = new_text[len(f"Parameter: {name}\n"):]
-```
+### Step 7: Validate template variables
 
-### Step 7: Log
+If the original parameter contains `{var}` placeholders, `_validate_template_vars()` checks that the proposal preserves all of them. Missing variables → the proposal is rejected and the component keeps its current text.
+
+### Step 8: Log
 
 The full reflection call is logged to `_reflection_log` for debugging:
 - `component`: parameter name
@@ -80,6 +91,7 @@ The full reflection call is logged to `_reflection_log` for debugging:
 - `dataset_with_feedback`: the structured records
 - `rendered_prompt`: what the LLM actually received
 - `proposed_text`: the stripped output
+- `rejected` (if applicable): reason for rejection (e.g., `"missing_template_vars"`)
 
 ---
 
@@ -100,13 +112,25 @@ Examples are sorted by priority — the ones with the most failures come first:
 <side_info>
 ```
 
-Your task is to write an improved version of this parameter. Preserve working
-rules and make targeted additions or tweaks to fix the FAILED assertions.
+Your task is to write an improved version of this parameter that fixes
+the FAILED assertions while preserving PASSED ones. Use the existing
+parameter as your starting point.
 
-STEP 1 — DIAGNOSE: [identify missing behaviors from FAILED, preserve PASSED]
-STEP 2 — CHECK FAILURE HISTORY: [avoid repeating failed approaches]
-STEP 3 — WRITE TARGETED FIXES: [observable actions, not vague guidance]
-STEP 4 — STRUCTURE: [group rules, merge overlaps, keep concise]
+STEP 1 — DIAGNOSE: [identify missing behaviors from FAILED, prefer keeping PASSED rules]
+STEP 2 — CHECK FAILURE HISTORY: [persistent failures need fundamentally different approach —
+         escalate via restructuring, step-by-step procedures, conditional logic,
+         or section rewrite; may use more specific rules than normal,
+         but still avoid non-generalizable specifics]
+STEP 3 — WRITE FIXES: [update existing rules before adding new ones;
+         observable, verifiable actions — generalize to any input;
+         NEVER copy specific names/details/scenarios from feedback,
+         abstract into general categories]
+STEP 4 — STRUCTURE: [markdown formatting, group by behavior pattern under ## headers,
+         merge overlaps]
+
+IMPORTANT:
+- Output ONLY the parameter text. No metadata lines.
+- Preserve ALL template variables exactly (e.g. {var}).
 
 Provide the new parameter within ``` blocks.
 ```
@@ -145,8 +169,20 @@ and want a FULL refund PLUS compensation!
 ### context
 Order #98765, 3 previous support tickets closed without resolution
 
-## Runs
-[Run 1/3]
+## Failure History
+These assertions have been persistently failing and failed again in this
+evaluation: "Response sincerely apologizes for the repeated failures in service"
+(failed 12 out of 15 evaluations).
+
+## Summary
+0/3 runs passed. Consistent failures: Response sincerely apologizes for the
+repeated failures in service
+Blocking assertions (failed in at least one run):
+- "Response sincerely apologizes for the repeated failures in service": failed 3/3 runs
+- "Response does not make promises the agent cannot guarantee": failed 1/3 runs
+
+## Worst Run
+Worst run (1/3):
 Output: I apologize for the inconvenience you've experienced. Please provide
 your order number so I can assist you further.
 FAILED assertions (fix these):
@@ -157,30 +193,6 @@ FAILED assertions (fix these):
 PASSED assertions (preserve these):
 - Response is relevant to the user question
 - Response does not make promises the agent cannot guarantee
-
-[Run 2/3]
-Output: I apologize for the inconvenience. I will escalate your case to ensure
-a prompt resolution including refund and compensation.
-FAILED assertions (fix these):
-- Assertion: Response sincerely apologizes for the repeated failures in service
-  Reason: Generic apology without acknowledging repeated service failures
-- Assertion: Response does not make promises the agent cannot guarantee
-  Reason: Commits to guaranteed refund and compensation
-PASSED assertions (preserve these):
-- Response is relevant to the user question
-- Response offers a concrete resolution path like refund, escalation, or compensation
-
-[Run 3/3]
-...
-
-## Summary
-0/3 runs passed. Consistent failures: Response sincerely apologizes for the
-repeated failures in service
-
-## Failure History
-This item has failed 2 consecutive iteration(s).
-Still-failing assertions: Response sincerely apologizes for the repeated
-failures in service. The current rules for these assertions are not working.
 
 
 # Example 2
@@ -204,27 +216,52 @@ PASSED assertions (preserve these):
 
 ```
 
-Your task is to write an improved version of this parameter. Preserve working
-rules and make targeted additions or tweaks to fix the FAILED assertions.
+Your task is to write an improved version of this parameter that fixes
+the FAILED assertions while preserving PASSED ones. Use the existing
+parameter as your starting point.
 
-STEP 1 — DIAGNOSE: Read the FAILED assertions and identify what behaviors
-are missing. Read the PASSED assertions — the current parameter already
-produces these. Preserve the rules that drive successes.
+STEP 1 — DIAGNOSE:
+Read the FAILED assertions and identify what specific behaviors are missing or
+wrong. Read the PASSED assertions — the current parameter already produces
+these. Prefer keeping rules that drive successes, but you may tighten or
+rephrase them if needed to fix failures.
 
-STEP 2 — CHECK FAILURE HISTORY: If any example has a "Failure History"
-section, the current rules for that assertion already failed before.
-Do NOT add another generic rule of the same kind. Instead embed concrete
-example phrases or lookup instructions directly, or try a structurally
-different approach.
+STEP 2 — CHECK FAILURE HISTORY:
+If any example has a "Failure History" section, the listed assertions have been
+persistently failing across many previous attempts to fix them (the failure
+count out of total evaluations is shown). The existing rules for these
+assertions are not working — do NOT refine or rephrase them. Instead, try a
+fundamentally different approach:
+(a) restructure the parameter so the failing behavior gets more prominent
+placement;
+(b) add explicit step-by-step procedures with concrete example phrases;
+(c) add conditional logic ("When X, always do Y before Z");
+(d) rewrite the section governing the failing behavior from scratch.
+For persistent failures, you may use more specific and detailed rules than you
+normally would, but still avoid copying non-generalizable specifics from the
+feedback examples.
 
-STEP 3 — WRITE TARGETED FIXES: For each failing assertion, add or modify
-a specific rule. Every rule must describe an observable action (what to say,
-include, or avoid) — vague guidance does not reliably work. Rules must
-generalize to any input in this domain; do NOT reference specific test inputs.
+STEP 3 — WRITE FIXES:
+For each failing assertion, first check whether an existing rule can be updated
+to cover the failing behavior before adding a new one. You may change multiple
+related rules together if the failure requires coordinated changes. Every rule
+must describe an observable, verifiable action — not abstract guidance. Rules
+must generalize to any input. NEVER copy specific names, details, or scenarios
+from the feedback examples into the parameter — they are just samples and will
+change at runtime. Abstract them into general categories.
 
-STEP 4 — STRUCTURE: Group related rules under short descriptive headers.
-Merge overlapping rules. Remove redundant ones. Keep the parameter concise
-— prefer tightening existing rules over appending new ones.
+STEP 4 — STRUCTURE:
+Use markdown formatting. Group rules by behavior pattern under ## headers, not
+by scenario type. Merge overlapping rules. Keep the parameter concise.
+
+IMPORTANT:
+- Output ONLY the parameter text. Do NOT include any metadata such as
+"Parameter:", "Description:", or "Other parameters" lines — those are
+context for you, not part of the parameter.
+- Preserve ALL template variables exactly as they appear in the original
+parameter (e.g. {{var}}, {var}, <var>, {% var %}). These are runtime
+placeholders filled by the system — do NOT rename, remove, or reformat them.
+If the original has {var}, your output MUST also contain {var}.
 
 Provide the new parameter within ``` blocks.
 ````

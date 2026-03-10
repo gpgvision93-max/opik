@@ -20,6 +20,7 @@ from opik_optimizer_framework.types import (
     TrialResult,
 )
 
+from .config import GepaConfig
 from .failure_aware_sampler import FailureAwareBatchSampler
 from .gepa_adapter import (
     DatasetItem,
@@ -72,26 +73,20 @@ class GepaOptimizer:
                 "Install it with: pip install 'gepa>=0.1.0'"
             )
 
-        params = context.optimizer_parameters
-        seed = params.get("seed", 42)
-        reflection_minibatch_size = max(4, params.get("reflection_minibatch_size", 4))
-        candidate_selection_strategy = params.get(
-            "candidate_selection_strategy", "pareto"
-        )
-        max_candidates = params.get("max_candidates", 5)
+        cfg = GepaConfig.from_params(context.optimizer_parameters)
 
         seed_candidate = _build_seed_candidate(context.baseline_config, context.optimizable_keys)
 
         effective_n_samples = max(len(training_set), 1)
-        max_metric_calls = params.get(
-            "max_metric_calls", max_candidates * effective_n_samples * 5
+        max_metric_calls = context.optimizer_parameters.get(
+            "max_metric_calls",
+            cfg.max_candidates * effective_n_samples * cfg.max_metric_calls_multiplier,
         )
 
         sampler = FailureAwareBatchSampler(
-            minibatch_size=reflection_minibatch_size,
-            min_failed_per_batch=params.get("min_failed_per_batch", 1),
-            failure_threshold=params.get("failure_threshold", 1.0),
-            rng=random.Random(seed),
+            minibatch_size=cfg.reflection_minibatch_size,
+            min_failed_per_batch=cfg.min_failed_per_batch,
+            rng=random.Random(cfg.seed),
         )
 
         config_builder = _make_config_builder(context.baseline_config)
@@ -102,7 +97,9 @@ class GepaOptimizer:
             reflection_prompt_template=GENERALIZATION_REFLECTION_TEMPLATE,
             batch_sampler=sampler,
             config_descriptions=context.config_descriptions,
+            persistent_failure_threshold=cfg.persistent_failure_threshold,
         )
+        adapter._cache_max_entries = cfg.max_candidates
         self.adapter = adapter
 
         if baseline_trial is not None:
@@ -110,12 +107,28 @@ class GepaOptimizer:
 
         callback = GEPAProgressCallback(adapter=adapter)
 
-        score_threshold = params.get("score_threshold", 1.0)
-
         def _trial_score_stopper(_state):
-            return adapter.best_full_eval_trial_score >= score_threshold
+            return adapter.best_full_eval_trial_score >= cfg.score_threshold
 
-        stop_callbacks = [_trial_score_stopper]
+        def _plateau_stopper(_state):
+            if cfg.early_stopping_patience <= 0:
+                return False
+            history = adapter._full_eval_score_history
+            if len(history) < cfg.early_stopping_patience + 1:
+                return False
+            best_before_window = max(history[: -cfg.early_stopping_patience])
+            best_in_window = max(history[-cfg.early_stopping_patience :])
+            if best_in_window <= best_before_window:
+                logger.info(
+                    "Early stopping: no pass_rate improvement in last %d full evaluations "
+                    "(best=%.4f)",
+                    cfg.early_stopping_patience,
+                    best_before_window,
+                )
+                return True
+            return False
+
+        stop_callbacks = [_trial_score_stopper, _plateau_stopper]
 
         result = _gepa.optimize(
             seed_candidate=seed_candidate,
@@ -123,14 +136,14 @@ class GepaOptimizer:
             valset=training_set,
             adapter=adapter,
             reflection_lm=context.model,
-            candidate_selection_strategy=candidate_selection_strategy,
+            candidate_selection_strategy=cfg.candidate_selection_strategy,
             batch_sampler=sampler,
             max_metric_calls=max_metric_calls,
             stop_callbacks=stop_callbacks,
             callbacks=[callback],
             skip_perfect_score=False,
             perfect_score=1,
-            seed=seed,
+            seed=cfg.seed,
             reflection_prompt_template=None,
             cache_evaluation=False,
         )

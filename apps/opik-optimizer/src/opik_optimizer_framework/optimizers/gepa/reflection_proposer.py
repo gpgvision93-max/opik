@@ -1,55 +1,76 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-GENERALIZATION_REFLECTION_TEMPLATE = """\
-I have a system that uses the following parameter to guide its behavior:
-```
-<curr_param>
-```
+_TEMPLATE_VAR_RE = re.compile(r"\{(\w+)\}")
 
-The following are examples of inputs along with the system's outputs and \
-feedback showing which assertions PASSED and which FAILED. \
-Examples are sorted by priority — the ones with the most failures come first:
-```
-<side_info>
-```
-
-Your task is to write an improved version of this parameter. Preserve working \
-rules and make targeted additions or tweaks to fix the FAILED assertions.
-
-STEP 1 — DIAGNOSE: Read the FAILED assertions and identify what behaviors \
-are missing. Read the PASSED assertions — the current parameter already \
-produces these. Preserve the rules that drive successes.
-
-STEP 2 — CHECK FAILURE HISTORY: If any example has a "Failure History" \
-section, the current rules for that assertion already failed before. \
-Do NOT add another generic rule of the same kind. Instead embed concrete \
-example phrases or lookup instructions directly, or try a structurally \
-different approach.
-
-STEP 3 — WRITE TARGETED FIXES: For each failing assertion, add or modify \
-a specific rule. Every rule must describe an observable action (what to say, \
-include, or avoid) — vague guidance does not reliably work. Rules must \
-generalize to any input in this domain; do NOT reference specific test inputs.
-
-STEP 4 — STRUCTURE: Use markdown formatting. Group related rules under \
-## headers. Merge overlapping rules. Remove redundant ones. Keep the \
-parameter concise — prefer tightening existing rules over appending new ones.
-
-IMPORTANT:
-- Output ONLY the parameter text. Do NOT include any metadata such as \
-"Parameter:", "Description:", or "Other parameters" lines — those are \
-context for you, not part of the parameter.
-- Preserve ALL template variables exactly as they appear in the original \
-parameter (e.g. {{var}}, {var}, <var>, {% var %}). These are runtime \
-placeholders filled by the system — do NOT rename, remove, or reformat them.
-
-Provide the new parameter within ``` blocks."""
+GENERALIZATION_REFLECTION_TEMPLATE = (
+    "I have a system that uses the following parameter to guide its behavior:\n"
+    "```\n"
+    "<curr_param>\n"
+    "```\n"
+    "\n"
+    "The following are examples of inputs along with the system's outputs and "
+    "feedback showing which assertions PASSED and which FAILED. "
+    "Examples are sorted by priority — the ones with the most failures come first:\n"
+    "```\n"
+    "<side_info>\n"
+    "```\n"
+    "\n"
+    "Your task is to write an improved version of this parameter that fixes "
+    "the FAILED assertions while preserving PASSED ones. "
+    "Use the existing parameter as your starting point.\n"
+    "\n"
+    "STEP 1 — DIAGNOSE:\n"
+    "Read the FAILED assertions and identify what specific behaviors are missing or wrong. "
+    "Read the PASSED assertions — the current parameter already produces these. "
+    "Prefer keeping rules that drive successes, but you may tighten or rephrase them "
+    "if needed to fix failures.\n"
+    "\n"
+    "STEP 2 — CHECK FAILURE HISTORY:\n"
+    "If any example has a \"Failure History\" section, the listed assertions have been "
+    "persistently failing across many previous attempts to fix them "
+    "(the failure count out of total evaluations is shown). "
+    "The existing rules for these assertions are not working — "
+    "do NOT refine or rephrase them. Instead, try a fundamentally different approach:\n"
+    "(a) restructure the parameter so the failing behavior gets more prominent placement;\n"
+    "(b) add explicit step-by-step procedures with concrete example phrases;\n"
+    "(c) add conditional logic (\"When X, always do Y before Z\");\n"
+    "(d) rewrite the section governing the failing behavior from scratch.\n"
+    "For persistent failures, you may use more specific and detailed rules "
+    "than you normally would, but still avoid copying non-generalizable "
+    "specifics from the feedback examples.\n"
+    "\n"
+    "STEP 3 — WRITE FIXES:\n"
+    "For each failing assertion, first check whether an existing rule can be "
+    "updated to cover the failing behavior before adding a new one. "
+    "You may change multiple related rules together if the failure requires "
+    "coordinated changes. Every rule must describe an observable, verifiable action — "
+    "not abstract guidance. Rules must generalize to any input. "
+    "NEVER copy specific names, details, or scenarios from the feedback "
+    "examples into the parameter — they are just samples and will change "
+    "at runtime. Abstract them into general categories.\n"
+    "\n"
+    "STEP 4 — STRUCTURE:\n"
+    "Use markdown formatting. Group rules by behavior pattern under ## headers, "
+    "not by scenario type. Merge overlapping rules. Keep the parameter concise.\n"
+    "\n"
+    "IMPORTANT:\n"
+    "- Output ONLY the parameter text. Do NOT include any metadata such as "
+    "\"Parameter:\", \"Description:\", or \"Other parameters\" lines — "
+    "those are context for you, not part of the parameter.\n"
+    "- Preserve ALL template variables exactly as they appear in the original "
+    "parameter (e.g. {{var}}, {var}, <var>, {% var %}). These are runtime "
+    "placeholders filled by the system — do NOT rename, remove, or reformat them. "
+    "If the original has {var}, your output MUST also contain {var}.\n"
+    "\n"
+    "Provide the new parameter within ``` blocks."
+)
 
 
 class ReflectionProposer:
@@ -160,6 +181,27 @@ class ReflectionProposer:
 
         return header
 
+    @staticmethod
+    def _extract_template_vars(text: str) -> set[str]:
+        return set(_TEMPLATE_VAR_RE.findall(text))
+
+    def _validate_template_vars(
+        self, original: str, proposed: str, name: str,
+    ) -> str | None:
+        """Return proposed text if template vars are preserved, else None."""
+        original_vars = self._extract_template_vars(original)
+        if not original_vars:
+            return proposed
+        proposed_vars = self._extract_template_vars(proposed)
+        missing = original_vars - proposed_vars
+        if missing:
+            logger.warning(
+                "Reflection for '%s' dropped template variables %s — rejecting proposal",
+                name, missing,
+            )
+            return None
+        return proposed
+
     def propose(
         self,
         candidate: dict[str, str],
@@ -201,13 +243,21 @@ class ReflectionProposer:
             )
             new_text = result["new_instruction"]
             new_text = self._strip_header(new_text, name)
-            new_texts[name] = new_text
 
-            log_entry["proposed_text"] = new_text
+            validated = self._validate_template_vars(candidate[name], new_text, name)
+            if validated is None:
+                log_entry["proposed_text"] = new_text
+                log_entry["rejected"] = "missing_template_vars"
+                self._reflection_log.append(log_entry)
+                continue
+
+            new_texts[name] = validated
+
+            log_entry["proposed_text"] = validated
             self._reflection_log.append(log_entry)
             logger.info(
                 "Reflection for '%s': proposed %d chars (was %d)",
-                name, len(new_text), len(candidate[name]),
+                name, len(validated), len(candidate[name]),
             )
 
         return new_texts

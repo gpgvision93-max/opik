@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 
 CandidateConfig = dict[str, Any]
@@ -25,6 +25,15 @@ class TrialResult:
     experiment_name: str | None
     config: CandidateConfig
     parent_candidate_ids: list[str] = field(default_factory=list)
+    internal_optimization_score: float | None = field(default=None, repr=False)
+
+    @property
+    def optimization_score(self) -> float:
+        """Internal blended score used by the algorithm for candidate ranking.
+
+        Falls back to ``score`` (pass_rate) when blended scoring is not used.
+        """
+        return self.internal_optimization_score if self.internal_optimization_score is not None else self.score
 
 
 @dataclass(frozen=True)
@@ -33,6 +42,13 @@ class SplitResult:
     validation_item_ids: list[str]
     dataset_size: int
     seed: int
+
+
+@dataclass
+class ScoringConfig:
+    strategy: Literal["blended", "pass_rate"] = "blended"
+    pass_rate_weight: float = 1.0
+    assertion_rate_weight: float | None = None  # None = auto: 1/(num_items+1)
 
 
 @dataclass
@@ -47,6 +63,8 @@ class OptimizationContext:
     baseline_config: CandidateConfig = field(default_factory=dict)
     config_descriptions: dict[str, str] = field(default_factory=dict)
     split_strategy: str = "80_20"
+    evaluator_model: str | None = None
+    scoring_config: ScoringConfig = field(default_factory=ScoringConfig)
 
 
 

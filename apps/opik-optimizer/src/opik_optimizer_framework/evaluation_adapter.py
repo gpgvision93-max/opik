@@ -12,6 +12,7 @@ from opik_optimizer_framework.experiment_executor import run_experiment_with_det
 from opik_optimizer_framework.types import (
     CandidateConfig,
     OptimizationState,
+    ScoringConfig,
     TrialResult,
 )
 
@@ -34,6 +35,8 @@ class EvaluationAdapter:
         event_emitter: EventEmitter,
         optimizer_type: str | None = None,
         optimizable_keys: list[str] | None = None,
+        evaluator_model: str | None = None,
+        scoring_config: ScoringConfig | None = None,
     ) -> None:
         self._client = client
         self._dataset_name = dataset_name
@@ -43,6 +46,8 @@ class EvaluationAdapter:
         self._event_emitter = event_emitter
         self._optimizer_type = optimizer_type
         self._optimizable_keys = optimizable_keys or []
+        self._evaluator_model = evaluator_model
+        self._scoring_config = scoring_config
         self._trial_count = 0
         self._candidate_step_index: dict[str, int] = {}
         self._last_emitted_step = -1
@@ -152,6 +157,8 @@ class EvaluationAdapter:
                 experiment_type=experiment_type,
                 optimizer_type=self._optimizer_type,
                 optimizable_keys=self._optimizable_keys,
+                evaluator_model=self._evaluator_model,
+                scoring_config=self._scoring_config,
             )
 
             if trial is not None:
@@ -161,13 +168,20 @@ class EvaluationAdapter:
         if trial is not None and trial.candidate_id not in self._candidate_step_index:
             self._candidate_step_index[trial.candidate_id] = step_index
 
-        previous_best = self._state.best_trial
-        self._state.trials.append(trial)
-        if self._state.best_trial is None or trial.score > self._state.best_trial.score:
-            self._state.best_trial = trial
-        self._event_emitter.on_trial_completed(trial)
+        is_full_eval = experiment_type is None
+        is_cache_hit = cached is not None
 
-        if self._state.best_trial is trial and self._state.best_trial is not previous_best:
-            self._event_emitter.on_best_candidate_changed(trial)
+        # Only record full evaluations (and non-cached) as visible trials.
+        # Subsample/minibatch evals are internal to the optimizer and would
+        # clutter the UI — especially when minibatch size equals dataset size.
+        if is_full_eval and not is_cache_hit and trial is not None:
+            previous_best = self._state.best_trial
+            self._state.trials.append(trial)
+            if self._state.best_trial is None or trial.optimization_score > self._state.best_trial.optimization_score:
+                self._state.best_trial = trial
+            self._event_emitter.on_trial_completed(trial)
+
+            if self._state.best_trial is trial and self._state.best_trial is not previous_best:
+                self._event_emitter.on_best_candidate_changed(trial)
 
         return trial, raw_result

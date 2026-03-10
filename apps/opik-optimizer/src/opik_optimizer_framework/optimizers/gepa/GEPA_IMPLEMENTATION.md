@@ -74,16 +74,19 @@ GEPA's default `EpochShuffledBatchSampler` selects minibatch items uniformly. Wi
 ### Algorithm
 
 1. **Before any full eval** — no failure data exists, sample uniformly at random.
-2. **After a full eval** — the adapter calls `sampler.update_scores(per_item_feedback)`, providing per-item scores.
+2. **After a full eval** — the adapter calls `sampler.update_assertion_failures(per_item)`, providing per-item assertion results.
 3. **On each minibatch selection**, items are categorized:
-   - **Failed**: score < `failure_threshold` in the last full eval
+   - **Failed**: has any failing assertions in the last full eval
    - **Passed**: everything else
-4. **Slot filling**:
+4. **Top-tier priority sampling**: Failed items are sorted by assertion failure count (worst first) and split into two tiers:
+   - **Top tier**: the worst `top_failed_fraction` (default 50%) of failed items
+   - **Rest**: remaining failed items
+   - Both tiers are shuffled randomly within themselves
+5. **Slot filling**:
    - Target `remaining // 2` failed slots (at least `min_failed_per_batch`)
-   - Fill failed slots with worst-scoring items first
+   - Draw from the top tier first, then the rest of failed items
    - Fill remaining slots with randomly sampled passed items
-   - If not enough passed items, fill randomly from all remaining
-5. If a category is exhausted, its slots spill into the next category.
+   - If not enough items in any category, spill into the next
 
 ### Why 50/50
 
@@ -94,11 +97,11 @@ The passed items act as **behavioral anchors**. The reflection LLM sees both wha
 
 ### Minimum batch size
 
-The minimum `reflection_minibatch_size` is clamped to **4** to ensure the 50/50 split is meaningful (at least 2 failed + 2 passed). Default is 4.
+Default `reflection_minibatch_size` is **6**. The 50/50 split needs at least 4 items to be meaningful (2 failed + 2 passed); 6 gives the reflection LLM enough signal per iteration without excessive cost.
 
-### Failure streak tracking
+### Cumulative failure tracking
 
-The sampler also tracks per-item **failure streaks** — how many consecutive full evaluations an item has failed, and which specific assertions keep failing. This data is used by the reflection prompt to annotate stuck items with "Failure History" context, encouraging the reflection LLM to try structurally different approaches rather than repeating the same fix.
+The sampler tracks **cumulative assertion failures** across the entire optimization — how many times each assertion has failed in total, and which items currently have failing assertions. This data is used by `ReflectiveDatasetBuilder` to annotate items with "Failure History" context when an assertion exceeds the `persistent_failure_threshold` (default 7), encouraging the reflection LLM to try structurally different approaches rather than repeating the same fix.
 
 ### Problematic items summary
 
@@ -178,7 +181,7 @@ The `EvaluationAdapter` caches evaluation results keyed by `SHA256(JSON(config) 
 
 ## Reflection Prompt
 
-The reflection prompt is a custom 4-step template stored in `GENERALIZATION_REFLECTION_TEMPLATE` in `reflection_proposer.py`. It replaces GEPA's default to provide structured reasoning and prevent overfitting. The template is task-agnostic — it uses neutral language ("parameter", "system") and avoids domain-specific examples.
+The reflection prompt is a custom 4-step template stored in `GENERALIZATION_REFLECTION_TEMPLATE` in `reflection_proposer.py`. It replaces GEPA's default to provide structured reasoning and prevent overfitting. The template is task-agnostic — it uses neutral language ("parameter", "system") and avoids domain-specific examples. It explicitly instructs the LLM to update existing rules before adding new ones, and to never copy specific names or details from the feedback examples.
 
 ### Template structure
 
@@ -205,13 +208,13 @@ The header is stripped from the LLM's output so it doesn't leak into the propose
 
 ### The 4 steps
 
-**STEP 1 — DIAGNOSE**: Read FAILED assertions and identify what behaviors are missing. Read PASSED assertions — the current parameter already produces these. Preserve the rules that drive successes.
+**STEP 1 — DIAGNOSE**: Read FAILED assertions and identify what behaviors are missing. Read PASSED assertions — the current parameter already produces these. Prefer keeping rules that drive successes, but may tighten or rephrase them if needed to fix failures.
 
-**STEP 2 — CHECK FAILURE HISTORY**: If any example has a "Failure History" section, the current rules for that assertion already failed before. Do NOT add another generic rule of the same kind. Instead embed concrete example phrases or lookup instructions directly, or try a structurally different approach.
+**STEP 2 — CHECK FAILURE HISTORY**: If any example has a "Failure History" section, the listed assertions have been persistently failing across many previous attempts. Do NOT refine or rephrase existing rules — try a fundamentally different approach: restructure the parameter, add step-by-step procedures, add conditional logic, or rewrite the section from scratch. More specific rules are allowed for persistent failures, but still avoid copying non-generalizable specifics from the feedback examples.
 
-**STEP 3 — WRITE TARGETED FIXES**: For each failing assertion, add or modify a specific rule. Every rule must describe an observable action (what to say, include, or avoid) — vague guidance does not reliably work. Rules must generalize to any input in this domain; do NOT reference specific test inputs.
+**STEP 3 — WRITE FIXES**: For each failing assertion, first check whether an existing rule can be updated before adding a new one. Multiple related rules may be changed together. Every rule must describe an observable, verifiable action — not abstract guidance. Rules must generalize to any input. NEVER copy specific names, details, or scenarios from the feedback examples — they are just samples and will change at runtime. Abstract them into general categories.
 
-**STEP 4 — STRUCTURE**: Group related rules under short descriptive headers. Merge overlapping rules. Remove redundant ones. Keep the parameter concise — prefer tightening existing rules over appending new ones.
+**STEP 4 — STRUCTURE**: Use markdown formatting. Group rules by behavior pattern under `##` headers, not by scenario type. Merge overlapping rules. Keep the parameter concise.
 
 ## Reflective Dataset Construction
 
@@ -225,17 +228,28 @@ The header is stripped from the LLM's output so it doesn't leak into the propose
 {
     "item-id-1": {
         "runs": [
-            {"output": "...", "score": 0.5, "assertions": [
+            {"output": "...", "score": 0.83, "assertions": [
                 {"name": "is_polite", "value": 1.0, "reason": ""},
                 {"name": "mentions_deadline", "value": 0.0, "reason": "No deadline mentioned"}
             ]},
         ],
-        "score": 0.5  # mean across all runs
+        "score": 0.83  # pass_rate-aligned item score (see below)
     },
 }
 ```
 
-When `runs_per_item > 1`, all runs are preserved so the reflection LLM can see what varies across attempts.
+When `runs_per_item > 1`, only the worst run is shown to keep the prompt focused on the most problematic output.
+
+### Per-item scoring (`_item_score`)
+
+Item scores are aligned with the framework's pass_rate to ensure GEPA ranks candidates consistently:
+
+- **Passing items** (as determined by `build_suite_result`, respecting `execution_policy.pass_threshold`): score = **1.0**
+- **Failing items**: score = **ε × assertion_frac**, where `ε = 1/(num_items+1)` and `assertion_frac` is the fraction of assertions that passed across all runs
+
+The gap between any passing item (1.0) and any failing item (< ε < 1) guarantees that `mean(per_item_scores)` ranks candidates the same way as pass_rate. The assertion fraction within failing items provides gradient for GEPA's subsample acceptance gate, so it can distinguish "almost passing" from "completely failing" items.
+
+Previous approach (mean of assertion values per item) caused GEPA to prefer "uniformly decent" candidates over ones with higher pass_rate.
 
 ### Record building
 
@@ -248,15 +262,14 @@ For each item in the minibatch trajectories:
 
 **Multiple runs** — consolidates into one record with:
 - `Inputs`: same as above
-- `Runs`: each run as `[Run 1/N]` with output and feedback
-- `Summary`: e.g., "2/3 runs passed. Consistent failures: mentions_deadline"
+- `Summary`: e.g., "2/3 runs passed. Consistent failures: mentions_deadline" plus blocking assertion rates
+- `Worst Run`: output and assertion details from the single worst run only
 
 ### Failure history annotation
 
-For items with `failure_streak >= 1`, a `Failure History` field is appended:
-> "This item has failed N consecutive iteration(s). Still-failing assertions: ... The current rules for these assertions are not working."
+The `FailureAwareBatchSampler` tracks cumulative assertion failures across the entire optimization. When an assertion has failed >= `persistent_failure_threshold` times total (default 7, configurable via `GepaConfig`) AND failed again in the current evaluation, a `Failure History` section is inserted showing which assertions are persistently failing and their failure count out of total evaluations (e.g., "failed 12 out of 15 evaluations").
 
-This warns the reflection LLM to try a structurally different approach.
+Failure History is placed right after Inputs (before any run data) via dict key reordering, so it's the first thing the reflection LLM sees after the input context. This warns the reflection LLM to try a structurally different approach.
 
 ### Sorting
 
@@ -274,10 +287,36 @@ The adapter delegates to `ReflectionProposer.propose()`, which overrides GEPA's 
 2. Prepend the header to the current parameter text as `current_instruction`
 3. Call GEPA's `InstructionProposalSignature.prompt_renderer()` to render the full prompt (substituting `<curr_param>` and `<side_info>`)
 4. Call `InstructionProposalSignature.run(lm, input_dict)` to get the new parameter text
-5. Strip the header from the result so it doesn't leak into the proposed text
-6. Log the full reflection call (current instruction, feedback, rendered prompt, proposed text) in `_reflection_log`
+5. Strip the header from the result via `_strip_header()` so it doesn't leak into the proposed text
+6. **Validate template variables** — if the original parameter contains `{var}` placeholders, check that the proposal preserves all of them. Missing variables → reject the proposal (logged with `rejected: "missing_template_vars"`)
+7. Log the full reflection call (current instruction, feedback, rendered prompt, proposed text) in `_reflection_log`
+
+### Template variable validation
+
+Prompt templates often contain `{variable}` placeholders that are filled at runtime (e.g., `{question}`, `{context}`). The reflection LLM sometimes drops or renames these placeholders, producing a prompt that would fail at evaluation time.
+
+`_validate_template_vars()` extracts all `{word}` patterns from the original and proposed text using the regex `\{(\w+)\}`. If any original variables are missing from the proposal, the proposal is rejected and the component keeps its current text. This is a post-processing safety net — the reflection template also instructs the LLM to preserve template variables.
 
 The reflection LLM is resolved via `_get_lm_callable()`: string model names are wrapped in a litellm completion call; callables are used directly.
+
+## Scoring Contract
+
+`TrialResult` carries two scores:
+
+| Field | Contains | Used by |
+|-------|----------|---------|
+| `score` | Raw pass_rate (items passed / total) | UI, API, `OptimizationResult`, stop condition |
+| `internal_optimization_score` | Blended score: `pass_rate + ε × assertion_rate` | Algorithm-internal candidate ranking only |
+
+The `optimization_score` property returns `internal_optimization_score` if set, falling back to `score`. This is used by the `EvaluationAdapter` to update `best_trial` and by GEPA to compare candidates.
+
+The stop condition (`_trial_score_stopper`) compares `best_full_eval_trial_score` (which tracks `trial.score`, i.e. pass_rate) against `score_threshold`, keeping user-facing thresholds aligned with user-facing scores.
+
+## Trial Visibility
+
+Only full evaluations that are not cache hits are recorded in `state.trials` and emitted as UI events. Subsample evaluations (minibatch, mutation) are returned to the optimizer for internal use but excluded from the trial list. This prevents the UI from showing intermediate exploration steps as if they were real trials — especially important when minibatch size equals dataset size (small datasets or `no_split` strategy), where every eval looks like a full eval by batch size.
+
+**Known limitation**: When minibatch size equals dataset size, the adapter cannot distinguish subsample from full eval by batch size alone. In this case, new mutation evals on the full dataset are treated as full evals (`experiment_type=None`). Cache hits (parent re-evaluations) are still filtered out.
 
 ## Experiment Metadata
 
@@ -306,18 +345,19 @@ The first evaluation sets `_full_dataset_size = len(batch)`. Subsequent evals wi
 
 ## Configuration Parameters
 
-All passed via `context.optimizer_parameters`:
+All passed via `context.optimizer_parameters` and parsed into `GepaConfig`:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `seed` | `42` | Random seed for GEPA and the batch sampler |
-| `reflection_minibatch_size` | `4` (min 4) | Items per minibatch for reflection |
-| `candidate_selection_strategy` | `"pareto"` | How GEPA selects candidates (`"pareto"` or `"epsilon_greedy"`) |
-| `max_candidates` | `5` | Maximum candidates to explore |
-| `max_metric_calls` | `max_candidates * len(dataset) * 5` | Budget for total evaluations |
-| `score_threshold` | `1.0` | Stop when best full-eval score reaches this |
+| `reflection_minibatch_size` | `6` | Items per minibatch for reflection |
+| `candidate_selection_strategy` | `"current_best"` | How GEPA selects candidates (`"current_best"`, `"pareto"`, or `"epsilon_greedy"`) |
+| `max_candidates` | `25` | Maximum candidates in the pool before GEPA stops |
+| `max_metric_calls_multiplier` | `5` | Budget multiplier: `max_candidates * len(dataset) * multiplier` |
+| `max_metric_calls` | (computed) | Override: passed directly in `optimizer_parameters` to bypass the formula |
+| `score_threshold` | `1.0` | Stop when best full-eval pass_rate reaches this |
 | `min_failed_per_batch` | `1` | Minimum guaranteed failed items per minibatch |
-| `failure_threshold` | `1.0` | Items scoring below this are "failed" |
+| `persistent_failure_threshold` | `7` | Minimum cumulative assertion failures before showing Failure History to the reflection LLM |
 
 ## Example Experiment Table
 
