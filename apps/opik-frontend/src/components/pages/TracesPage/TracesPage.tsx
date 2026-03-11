@@ -30,6 +30,9 @@ const TracesPage = () => {
   const isGuardrailsEnabled = useIsFeatureEnabled(
     FeatureToggleKeys.GUARDRAILS_ENABLED,
   );
+  const isAgentConfigurationEnabled = useIsFeatureEnabled(
+    FeatureToggleKeys.AGENT_CONFIGURATION_ENABLED,
+  );
 
   const { data: project } = useProjectById(
     {
@@ -73,12 +76,14 @@ const TracesPage = () => {
               <TabsTrigger variant="underline" value={PROJECT_TAB.metrics}>
                 Metrics
               </TabsTrigger>
-              <TabsTrigger
-                variant="underline"
-                value={PROJECT_TAB.configuration}
-              >
-                Configuration
-              </TabsTrigger>
+              {isAgentConfigurationEnabled && (
+                <TabsTrigger
+                  variant="underline"
+                  value={PROJECT_TAB.configuration}
+                >
+                  Configuration
+                </TabsTrigger>
+              )}
               <TabsTrigger variant="underline" value={PROJECT_TAB.evaluators}>
                 Online evaluation
               </TabsTrigger>
@@ -101,9 +106,11 @@ const TracesPage = () => {
           <TabsContent value={PROJECT_TAB.metrics}>
             <MetricsTab projectId={projectId} />
           </TabsContent>
-          <TabsContent value={PROJECT_TAB.configuration}>
-            <ConfigurationTab projectId={projectId} />
-          </TabsContent>
+          {isAgentConfigurationEnabled && (
+            <TabsContent value={PROJECT_TAB.configuration}>
+              <ConfigurationTab projectId={projectId} />
+            </TabsContent>
+          )}
           <TabsContent value={PROJECT_TAB.evaluators}>
             <RulesTab projectId={projectId} />
           </TabsContent>

@@ -86,6 +86,9 @@ const TraceDataViewer: React.FunctionComponent<TraceDataViewerProps> = ({
   const showOptimizerPrompts = useIsFeatureEnabled(
     FeatureToggleKeys.OPTIMIZATION_STUDIO_ENABLED,
   );
+  const isAgentConfigurationEnabled = useIsFeatureEnabled(
+    FeatureToggleKeys.AGENT_CONFIGURATION_ENABLED,
+  );
 
   const hasPrompts = useMemo(() => {
     if (!showOptimizerPrompts) return false;
@@ -94,11 +97,12 @@ const TraceDataViewer: React.FunctionComponent<TraceDataViewerProps> = ({
   }, [data.metadata, showOptimizerPrompts]);
 
   const hasAgentConfiguration = useMemo(() => {
+    if (!isAgentConfigurationEnabled) return false;
     const config = (data.metadata as Record<string, unknown>)?.[
       AGENT_CONFIGURATION_METADATA_KEY
     ];
     return isAgentConfigurationMetadata(config);
-  }, [data.metadata]);
+  }, [data.metadata, isAgentConfigurationEnabled]);
 
   const { media, transformedInput, transformedOutput } = useUnifiedMedia(data);
 
