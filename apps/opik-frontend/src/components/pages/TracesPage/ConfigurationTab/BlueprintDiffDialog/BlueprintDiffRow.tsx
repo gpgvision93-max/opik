@@ -4,12 +4,12 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { BlueprintValueType, BlueprintValue } from "@/types/agent-configs";
 import BlueprintTypeIcon from "@/components/pages-shared/traces/ConfigurationTab/BlueprintTypeIcon";
 import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
+import { formatBlueprintValue } from "@/utils/agent-configurations";
 import {
   type DiffSide,
   DiffCellBox,
   EmptyDiffCell,
   PromptDiffPair,
-  formatBlueprintValue,
 } from "./BlueprintDiffCell";
 
 export type DiffPair = {
