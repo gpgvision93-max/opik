@@ -7627,6 +7627,45 @@ class ExperimentsResourceTest {
         }
 
         @Test
+        @DisplayName("when evaluation_suite has items but no scores, then all runs pass and pass_rate=1.0")
+        void findEvaluationSuiteExperiment__itemsNoScores__thenAllPass() {
+            var workspaceName = UUID.randomUUID().toString();
+            var workspaceId = UUID.randomUUID().toString();
+            var apiKey = UUID.randomUUID().toString();
+
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var experiment = experimentResourceClient.createPartialExperiment()
+                    .evaluationMethod(EvaluationMethod.EVALUATION_SUITE)
+                    .optimizationId(null)
+                    .build();
+            createAndAssert(experiment, apiKey, workspaceName);
+
+            var trace1 = podamFactory.manufacturePojo(Trace.class);
+            var trace2 = podamFactory.manufacturePojo(Trace.class);
+            traceResourceClient.batchCreateTraces(List.of(trace1, trace2), apiKey, workspaceName);
+
+            var item1 = podamFactory.manufacturePojo(ExperimentItem.class).toBuilder()
+                    .experimentId(experiment.id())
+                    .traceId(trace1.id())
+                    .build();
+            var item2 = podamFactory.manufacturePojo(ExperimentItem.class).toBuilder()
+                    .experimentId(experiment.id())
+                    .traceId(trace2.id())
+                    .build();
+            createAndAssert(new ExperimentItemsBatch(Set.of(item1, item2)), apiKey, workspaceName);
+
+            var actual = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
+            var expectedExperiment = experiment.toBuilder()
+                    .duration(actual.duration())
+                    .passedCount(2L)
+                    .totalCount(2L)
+                    .passRate(BigDecimal.ONE)
+                    .build();
+            getAndAssert(experiment.id(), expectedExperiment, workspaceName, apiKey);
+        }
+
+        @Test
         @DisplayName("when suite-level pass_threshold=2 and 2 of 3 runs pass, then item passes and pass_rate=1.0")
         void findEvaluationSuiteExperiment__suiteThreshold__passThresholdMet() {
             var workspaceName = UUID.randomUUID().toString();
