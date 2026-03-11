@@ -21,6 +21,15 @@ import { runWizard } from './src/run';
 import { runDoctor } from './src/doctor';
 import clack from './src/utils/clack';
 
+function getCliErrorMessage(error: unknown, fallbackMessage: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  const errorText = String(error).trim();
+  return errorText && errorText !== 'Error' ? errorText : fallbackMessage;
+}
+
 yargs(hideBin(process.argv))
   .scriptName('opik-ts')
   .env('OPIK_TS')
@@ -80,6 +89,12 @@ yargs(hideBin(process.argv))
             'Workspace name override for cloud or self-hosted setup. If omitted, configure uses your default workspace from the API key\nenv: OPIK_TS_WORKSPACE',
           type: 'string',
         },
+        'trust-url': {
+          default: false,
+          describe:
+            'Trust a custom Opik URL without prompting before probing it or sending your API key\nenv: OPIK_TS_TRUST_URL',
+          type: 'boolean',
+        },
         'project-name': {
           describe:
             'Project name to write into the generated configuration\nenv: OPIK_TS_PROJECT_NAME',
@@ -98,9 +113,11 @@ yargs(hideBin(process.argv))
       try {
         await runWizard(options as unknown as WizardOptions);
       } catch (error) {
-        clack.log.error(
-          `Error: ${error instanceof Error ? error.message : String(error)}`,
+        const message = getCliErrorMessage(
+          error,
+          'An unknown configuration error occurred. Please rerun `opik-ts configure`.',
         );
+        clack.log.error(`Error: ${message}`);
         process.exit(1);
       }
     },
@@ -113,9 +130,11 @@ yargs(hideBin(process.argv))
       try {
         await runDoctor();
       } catch (error) {
-        clack.log.error(
-          `Error: ${error instanceof Error ? error.message : String(error)}`,
+        const message = getCliErrorMessage(
+          error,
+          'An unknown doctor error occurred. Please rerun `opik-ts doctor`.',
         );
+        clack.log.error(`Error: ${message}`);
         process.exit(1);
       }
     },
@@ -129,8 +148,7 @@ yargs(hideBin(process.argv))
   .wrap(process.stdout.isTTY ? process.stdout.columns || 80 : 80)
   .parseAsync()
   .catch((error) => {
-    console.error(
-      `Fatal error: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    const message = getCliErrorMessage(error, 'A fatal error occurred.');
+    console.error(`Fatal error: ${message}`);
     process.exit(1);
   });
