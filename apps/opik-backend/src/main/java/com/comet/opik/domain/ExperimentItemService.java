@@ -1,5 +1,6 @@
 package com.comet.opik.domain;
 
+import com.comet.opik.api.ExecutionPolicy;
 import com.comet.opik.api.Experiment;
 import com.comet.opik.api.ExperimentItem;
 import com.comet.opik.infrastructure.FeatureFlags;
@@ -56,6 +57,7 @@ public class ExperimentItemService {
 
             return resolveProjectIdFromProjectName(experimentItemsWithValidIds)
                     .flatMap(this::populateProjectIdFromTraces)
+                    .flatMap(this::populateExecutionPolicy)
                     .flatMap(experimentItemDAO::insert)
                     .then();
         });
@@ -142,6 +144,55 @@ public class ExperimentItemService {
                                 return item;
                             })
                             .collect(toSet());
+                });
+    }
+
+    private Mono<Set<ExperimentItem>> populateExecutionPolicy(Set<ExperimentItem> experimentItems) {
+        var experimentIds = experimentItems.stream()
+                .map(ExperimentItem::experimentId)
+                .collect(toSet());
+
+        var datasetItemIds = experimentItems.stream()
+                .map(ExperimentItem::datasetItemId)
+                .collect(toSet());
+
+        return experimentService.getExecutionPolicies(experimentIds)
+                .flatMap(experimentInfoMap -> {
+                    var datasetVersionIds = experimentInfoMap.values().stream()
+                            .map(ExperimentDAO.ExperimentPolicyInfo::datasetVersionId)
+                            .filter(Objects::nonNull)
+                            .collect(toSet());
+
+                    Mono<Map<UUID, Map<UUID, ExecutionPolicy>>> itemPoliciesMono = featureFlags
+                            .isDatasetVersioningEnabled() && !datasetVersionIds.isEmpty()
+                                    ? datasetItemVersionDAO.getExecutionPoliciesByDatasetItemIds(
+                                            datasetItemIds, datasetVersionIds)
+                                    : Mono.just(Map.of());
+
+                    return itemPoliciesMono.map(policiesByVersion -> experimentItems.stream()
+                            .map(item -> {
+                                if (item.executionPolicy() != null) {
+                                    return item;
+                                }
+                                var info = experimentInfoMap.get(item.experimentId());
+                                ExecutionPolicy policy = null;
+                                if (info != null && info.datasetVersionId() != null) {
+                                    var versionPolicies = policiesByVersion.get(info.datasetVersionId());
+                                    if (versionPolicies != null) {
+                                        policy = versionPolicies.get(item.datasetItemId());
+                                    }
+                                }
+                                if (policy == null && info != null) {
+                                    policy = info.policy();
+                                }
+                                if (policy == null) {
+                                    policy = ExecutionPolicy.DEFAULT;
+                                }
+                                return item.toBuilder()
+                                        .executionPolicy(policy)
+                                        .build();
+                            })
+                            .collect(toSet()));
                 });
     }
 

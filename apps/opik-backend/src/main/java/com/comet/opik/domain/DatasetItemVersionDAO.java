@@ -38,6 +38,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -273,6 +274,9 @@ public interface DatasetItemVersionDAO {
      * @return Mono emitting a list of workspace and resource ID pairs
      */
     Mono<List<WorkspaceAndResourceId>> getDatasetItemWorkspace(Set<UUID> datasetItemRowIds);
+
+    Mono<Map<UUID, Map<UUID, ExecutionPolicy>>> getExecutionPoliciesByDatasetItemIds(Set<UUID> datasetItemIds,
+            Set<UUID> datasetVersionIds);
 
     /**
      * Mapping from row ID to dataset_item_id.
@@ -1448,6 +1452,17 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
             WHERE id IN :datasetItemRowIds
             ORDER BY (workspace_id, dataset_id, dataset_version_id, id) DESC, last_updated_at DESC
             LIMIT 1 BY id
+            """;
+
+    private static final String SELECT_EXECUTION_POLICIES_BY_DATASET_ITEM_IDS = """
+            SELECT DISTINCT
+                dataset_item_id,
+                dataset_version_id,
+                execution_policy
+            FROM dataset_item_versions
+            WHERE dataset_item_id IN :datasetItemIds
+            AND dataset_version_id IN :datasetVersionIds
+            AND workspace_id = :workspace_id
             """;
 
     private static final String SELECT_ITEMS_BY_DATASET_ITEM_IDS = """
@@ -3091,6 +3106,48 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
                             UUID.fromString(row.get("id", String.class)))))
                     .collectList()
                     .doFinally(signalType -> endSegment(segment));
+        });
+    }
+
+    @Override
+    @WithSpan
+    public Mono<Map<UUID, Map<UUID, ExecutionPolicy>>> getExecutionPoliciesByDatasetItemIds(
+            @NonNull Set<UUID> datasetItemIds,
+            @NonNull Set<UUID> datasetVersionIds) {
+        if (datasetItemIds.isEmpty() || datasetVersionIds.isEmpty()) {
+            return Mono.just(Map.of());
+        }
+
+        return Mono.deferContextual(ctx -> {
+            String workspaceId = ctx.get(RequestContext.WORKSPACE_ID);
+
+            return asyncTemplate.nonTransaction(connection -> {
+                var statement = connection.createStatement(SELECT_EXECUTION_POLICIES_BY_DATASET_ITEM_IDS)
+                        .bind("datasetItemIds", datasetItemIds.toArray(UUID[]::new))
+                        .bind("datasetVersionIds", datasetVersionIds.toArray(UUID[]::new))
+                        .bind("workspace_id", workspaceId);
+
+                Segment segment = startSegment(DATASET_ITEM_VERSIONS, CLICKHOUSE,
+                        "get_execution_policies_by_dataset_item_ids");
+
+                return Flux.from(statement.execute())
+                        .flatMap(result -> result.map((row, rowMetadata) -> {
+                            var datasetItemId = UUID.fromString(row.get("dataset_item_id", String.class));
+                            var versionId = UUID.fromString(row.get("dataset_version_id", String.class));
+                            var policy = ExecutionPolicy.fromJson(row.get("execution_policy", String.class));
+                            return Map.entry(versionId, Map.entry(datasetItemId, Optional.ofNullable(policy)));
+                        }))
+                        .filter(entry -> entry.getValue().getValue().isPresent())
+                        .<Map<UUID, Map<UUID, ExecutionPolicy>>>collect(
+                                HashMap::new, (map, entry) -> {
+                                    var versionId = entry.getKey();
+                                    var datasetItemId = entry.getValue().getKey();
+                                    var policy = entry.getValue().getValue().get();
+                                    map.computeIfAbsent(versionId, k -> new HashMap<>())
+                                            .put(datasetItemId, policy);
+                                })
+                        .doFinally(signalType -> endSegment(segment));
+            });
         });
     }
 
