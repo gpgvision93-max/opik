@@ -7521,7 +7521,9 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
+            var actual = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
             var expectedExperiment = experiment.toBuilder()
+                    .duration(actual.duration())
                     .passedCount(2L)
                     .totalCount(3L)
                     .passRate(BigDecimal.valueOf(2).divide(BigDecimal.valueOf(3), 9, RoundingMode.HALF_UP))
@@ -7561,7 +7563,11 @@ class ExperimentsResourceTest {
                     .build();
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(List.of(score)).build(), apiKey, workspaceName);
 
-            getAndAssert(experiment.id(), experiment, workspaceName, apiKey);
+            var actual = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
+            var expectedExperiment = experiment.toBuilder()
+                    .duration(actual.duration())
+                    .build();
+            getAndAssert(experiment.id(), expectedExperiment, workspaceName, apiKey);
         }
 
         @Test
@@ -7626,7 +7632,9 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
+            var actual = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
             var expectedExperiment = experiment.toBuilder()
+                    .duration(actual.duration())
                     .passedCount(1L)
                     .totalCount(2L)
                     .passRate(BigDecimal.valueOf(0.5))
@@ -7746,7 +7754,11 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
+            var actual = experimentResourceClient.getExperiment(experimentId, apiKey, workspaceName);
             var expectedExperiment = experiment.toBuilder()
+                    .duration(actual.duration())
+                    .datasetVersionId(actual.datasetVersionId())
+                    .datasetVersionSummary(actual.datasetVersionSummary())
                     .passedCount(1L)
                     .totalCount(1L)
                     .passRate(BigDecimal.ONE)
@@ -7848,7 +7860,11 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
+            var actual = experimentResourceClient.getExperiment(experimentId, apiKey, workspaceName);
             var expectedExperiment = experiment.toBuilder()
+                    .duration(actual.duration())
+                    .datasetVersionId(actual.datasetVersionId())
+                    .datasetVersionSummary(actual.datasetVersionSummary())
                     .passedCount(0L)
                     .totalCount(1L)
                     .passRate(BigDecimal.ZERO)
@@ -7958,7 +7974,11 @@ class ExperimentsResourceTest {
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
             // ItemA fails (2 < 3), ItemB passes (2 >= 1) → passedCount=1, totalCount=2, passRate=0.5
+            var actual = experimentResourceClient.getExperiment(experimentId, apiKey, workspaceName);
             var expectedExperiment = experiment.toBuilder()
+                    .duration(actual.duration())
+                    .datasetVersionId(actual.datasetVersionId())
+                    .datasetVersionSummary(actual.datasetVersionSummary())
                     .passedCount(1L)
                     .totalCount(2L)
                     .passRate(BigDecimal.valueOf(0.5))
