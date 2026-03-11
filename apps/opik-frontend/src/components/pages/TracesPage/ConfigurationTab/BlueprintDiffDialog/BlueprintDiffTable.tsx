@@ -12,7 +12,8 @@ import useAgentConfigById from "@/api/agent-configs/useAgentConfigById";
 import Loader from "@/components/shared/Loader/Loader";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { DiffCellBox, formatBlueprintValue } from "./BlueprintDiffCell";
+import { formatBlueprintValue } from "@/utils/agent-configurations";
+import { DiffCellBox } from "./BlueprintDiffCell";
 import BlueprintDiffRow, { type DiffPair } from "./BlueprintDiffRow";
 
 export type BlueprintVersionInfo = {

@@ -1,3 +1,6 @@
+import { BlueprintValue, BlueprintValueType } from "@/types/agent-configs";
+import { formatNumericData } from "@/lib/utils";
+
 export const AGENT_CONFIGURATION_METADATA_KEY = "agent_configuration";
 export const AGENT_CONFIGURATION_PROD_ENV_NAME = "prod";
 
@@ -7,9 +10,6 @@ export const sortTags = (tags: string[]) => [
   ...tags.filter(isProdTag),
   ...tags.filter((t) => !isProdTag(t)),
 ];
-
-import { BlueprintValue, BlueprintValueType } from "@/types/agent-configs";
-import { formatNumericData } from "@/lib/utils";
 
 export const formatBlueprintValue = (v: BlueprintValue): string => {
   switch (v.type) {
@@ -32,5 +32,3 @@ export const generateBlueprintDescription = (
   const changes = values.map(({ key, value }) => `${key} to ${value}`);
   return `Changed ${changes.join(", ")}`;
 };
-
-// ALEX rename file

@@ -2,7 +2,6 @@ import React from "react";
 import { GitCommitVertical } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-export { formatBlueprintValue } from "@/utils/agent-configurations";
 import usePromptByCommit from "@/api/prompts/usePromptByCommit";
 import Loader from "@/components/shared/Loader/Loader";
 import { Tag } from "@/components/ui/tag";
