@@ -163,23 +163,27 @@ public class ExperimentItemService {
                             .filter(Objects::nonNull)
                             .collect(toSet());
 
-                    Mono<Map<UUID, ExecutionPolicy>> itemPoliciesMono = featureFlags.isDatasetVersioningEnabled()
-                            && !datasetVersionIds.isEmpty()
+                    Mono<Map<UUID, Map<UUID, ExecutionPolicy>>> itemPoliciesMono = featureFlags
+                            .isDatasetVersioningEnabled() && !datasetVersionIds.isEmpty()
                                     ? datasetItemVersionDAO.getExecutionPoliciesByDatasetItemIds(
                                             datasetItemIds, datasetVersionIds)
                                     : Mono.just(Map.of());
 
-                    return itemPoliciesMono.map(itemPolicies -> experimentItems.stream()
+                    return itemPoliciesMono.map(policiesByVersion -> experimentItems.stream()
                             .map(item -> {
                                 if (item.executionPolicy() != null) {
                                     return item;
                                 }
-                                var policy = itemPolicies.get(item.datasetItemId());
-                                if (policy == null) {
-                                    var info = experimentInfoMap.get(item.experimentId());
-                                    if (info != null) {
-                                        policy = info.policy();
+                                var info = experimentInfoMap.get(item.experimentId());
+                                ExecutionPolicy policy = null;
+                                if (info != null && info.datasetVersionId() != null) {
+                                    var versionPolicies = policiesByVersion.get(info.datasetVersionId());
+                                    if (versionPolicies != null) {
+                                        policy = versionPolicies.get(item.datasetItemId());
                                     }
+                                }
+                                if (policy == null && info != null) {
+                                    policy = info.policy();
                                 }
                                 if (policy == null) {
                                     policy = ExecutionPolicy.DEFAULT;

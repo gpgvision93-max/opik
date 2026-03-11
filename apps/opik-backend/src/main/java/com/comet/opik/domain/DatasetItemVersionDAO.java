@@ -38,6 +38,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -274,7 +275,7 @@ public interface DatasetItemVersionDAO {
      */
     Mono<List<WorkspaceAndResourceId>> getDatasetItemWorkspace(Set<UUID> datasetItemRowIds);
 
-    Mono<Map<UUID, ExecutionPolicy>> getExecutionPoliciesByDatasetItemIds(Set<UUID> datasetItemIds,
+    Mono<Map<UUID, Map<UUID, ExecutionPolicy>>> getExecutionPoliciesByDatasetItemIds(Set<UUID> datasetItemIds,
             Set<UUID> datasetVersionIds);
 
     /**
@@ -1456,6 +1457,7 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
     private static final String SELECT_EXECUTION_POLICIES_BY_DATASET_ITEM_IDS = """
             SELECT DISTINCT
                 dataset_item_id,
+                dataset_version_id,
                 execution_policy
             FROM dataset_item_versions
             WHERE dataset_item_id IN :datasetItemIds
@@ -3109,7 +3111,8 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
 
     @Override
     @WithSpan
-    public Mono<Map<UUID, ExecutionPolicy>> getExecutionPoliciesByDatasetItemIds(@NonNull Set<UUID> datasetItemIds,
+    public Mono<Map<UUID, Map<UUID, ExecutionPolicy>>> getExecutionPoliciesByDatasetItemIds(
+            @NonNull Set<UUID> datasetItemIds,
             @NonNull Set<UUID> datasetVersionIds) {
         if (datasetItemIds.isEmpty() || datasetVersionIds.isEmpty()) {
             return Mono.just(Map.of());
@@ -3129,12 +3132,20 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
 
                 return Flux.from(statement.execute())
                         .flatMap(result -> result.map((row, rowMetadata) -> {
-                            var id = UUID.fromString(row.get("dataset_item_id", String.class));
+                            var datasetItemId = UUID.fromString(row.get("dataset_item_id", String.class));
+                            var versionId = UUID.fromString(row.get("dataset_version_id", String.class));
                             var policy = ExecutionPolicy.fromJson(row.get("execution_policy", String.class));
-                            return Map.entry(id, Optional.ofNullable(policy));
+                            return Map.entry(versionId, Map.entry(datasetItemId, Optional.ofNullable(policy)));
                         }))
-                        .filter(entry -> entry.getValue().isPresent())
-                        .collectMap(Map.Entry::getKey, entry -> entry.getValue().get())
+                        .filter(entry -> entry.getValue().getValue().isPresent())
+                        .<Map<UUID, Map<UUID, ExecutionPolicy>>>collect(
+                                HashMap::new, (map, entry) -> {
+                                    var versionId = entry.getKey();
+                                    var datasetItemId = entry.getValue().getKey();
+                                    var policy = entry.getValue().getValue().get();
+                                    map.computeIfAbsent(versionId, k -> new HashMap<>())
+                                            .put(datasetItemId, policy);
+                                })
                         .doFinally(signalType -> endSegment(segment));
             });
         });
