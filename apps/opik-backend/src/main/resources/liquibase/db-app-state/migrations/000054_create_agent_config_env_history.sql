@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS agent_config_env_history (
     ended_at TIMESTAMP(6) NULL,
     created_by VARCHAR(100) NOT NULL,
     CONSTRAINT agent_config_env_history_pk PRIMARY KEY (id),
-    INDEX idx_env_history_lookup (workspace_id, project_id, env_name, ended_at)
+    INDEX idx_env_history_lookup (workspace_id, project_id, config_id, env_name, ended_at)
 );
 
 --rollback DROP TABLE IF EXISTS agent_config_env_history;

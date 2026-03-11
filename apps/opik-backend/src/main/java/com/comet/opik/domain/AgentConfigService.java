@@ -369,18 +369,21 @@ class AgentConfigServiceImpl implements AgentConfigService {
                     .filter(env -> existingEnvNames.contains(env.envName()))
                     .toList();
 
+            Instant now = Instant.now();
+
             if (!newEnvs.isEmpty()) {
                 log.info("Inserting {} new environments for project '{}' in workspace '{}': {}",
                         newEnvs.size(), projectId, workspaceId,
                         newEnvs.stream().map(AgentConfigEnv::envName).toList());
                 dao.batchInsertEnvs(workspaceId, projectId, config.id(), userName, userName, newEnvs);
-                recordEnvHistory(dao, workspaceId, projectId, config.id(), userName, Instant.now(), newEnvs);
+                recordEnvHistory(dao, workspaceId, projectId, config.id(), userName, now, newEnvs);
             }
 
             if (!envsToUpdate.isEmpty()) {
                 Map<String, UUID> currentMappings = existingEnvs.stream()
                         .collect(Collectors.toMap(AgentConfigEnv::envName, AgentConfigEnv::blueprintId));
 
+                // Skip no-op updates: only process envs where the blueprint actually changed
                 List<AgentConfigEnv> actuallyChanged = envsToUpdate.stream()
                         .filter(env -> !env.blueprintId().equals(currentMappings.get(env.envName())))
                         .toList();
@@ -393,7 +396,6 @@ class AgentConfigServiceImpl implements AgentConfigService {
                     log.info("Updating {} existing environments for project '{}' in workspace '{}': {}",
                             actuallyChanged.size(), projectId, workspaceId, changedEnvNames);
 
-                    Instant now = Instant.now();
                     dao.closeActiveEnvHistory(workspaceId, projectId, config.id(), now, changedEnvNames);
                     dao.batchUpdateEnvs(workspaceId, projectId, userName, actuallyChanged);
                     recordEnvHistory(dao, workspaceId, projectId, config.id(), userName, now, actuallyChanged);
