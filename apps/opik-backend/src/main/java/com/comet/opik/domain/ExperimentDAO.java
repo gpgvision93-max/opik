@@ -252,7 +252,7 @@ class ExperimentDAO {
                 <endif>
             ), experiment_items_final AS (
                 SELECT DISTINCT
-                    id, experiment_id, trace_id
+                    id, experiment_id, dataset_item_id, trace_id
                 FROM experiment_items
                 WHERE workspace_id = :workspace_id
                 AND experiment_id IN (SELECT id FROM experiments_final)
@@ -274,6 +274,7 @@ class ExperimentDAO {
                         )
                     ) AS duration_values,
                     count(DISTINCT ei.trace_id) as trace_count,
+                    count(DISTINCT ei.dataset_item_id) as dataset_item_count,
                     avgMap(usage) as usage,
                     sum(total_estimated_cost) as total_estimated_cost_sum,
                     avg(total_estimated_cost) as total_estimated_cost_avg
@@ -494,6 +495,7 @@ class ExperimentDAO {
                 fs.feedback_scores as feedback_scores,
                 es.experiment_scores as experiment_scores_agg,
                 ed.trace_count as trace_count,
+                ed.dataset_item_count as dataset_item_count,
                 ed.duration_values AS duration,
                 ed.usage as usage,
                 ed.total_estimated_cost_sum as total_estimated_cost,
@@ -861,7 +863,7 @@ class ExperimentDAO {
                 <if(filters)> AND <filters> <endif>
             ), experiment_items_final AS (
                 SELECT DISTINCT
-                    id, experiment_id, trace_id
+                    id, experiment_id, dataset_item_id, trace_id
                 FROM experiment_items
                 WHERE workspace_id = :workspace_id
                 AND experiment_id IN (SELECT id FROM experiments_final)
@@ -883,6 +885,7 @@ class ExperimentDAO {
                         )
                     ) AS duration_values,
                     count(DISTINCT ei.trace_id) as trace_count,
+                    count(DISTINCT ei.dataset_item_id) as dataset_item_count,
                     sum(total_estimated_cost) as total_estimated_cost_sum,
                     avg(total_estimated_cost) as total_estimated_cost_avg
                 FROM experiment_items_final ei
@@ -1029,6 +1032,7 @@ class ExperimentDAO {
                     fs.feedback_scores as feedback_scores,
                     es.experiment_scores as experiment_scores,
                     ed.trace_count as trace_count,
+                    ed.dataset_item_count as dataset_item_count,
                     ed.duration_values AS duration,
                     ed.total_estimated_cost_sum as total_estimated_cost,
                     ed.total_estimated_cost_avg as total_estimated_cost_avg,
@@ -1042,6 +1046,7 @@ class ExperimentDAO {
             SELECT
                 count(DISTINCT id) as experiment_count,
                 sum(trace_count) as trace_count,
+                sum(dataset_item_count) as dataset_item_count,
                 sum(total_estimated_cost) as total_estimated_cost,
                 avg(total_estimated_cost_avg) as total_estimated_cost_avg,
                 avgMap(feedback_scores) as feedback_scores,
@@ -1066,6 +1071,7 @@ class ExperimentDAO {
                 *,
                 null AS feedback_scores,
                 null AS trace_count,
+                null AS dataset_item_count,
                 null AS duration,
                 null AS total_estimated_cost,
                 null AS total_estimated_cost_avg,
@@ -1343,6 +1349,7 @@ class ExperimentDAO {
                     .feedbackScores(getFeedbackScores(row, "feedback_scores"))
                     .comments(getComments(row.get("comments_array_agg", List[].class)))
                     .traceCount(row.get("trace_count", Long.class))
+                    .datasetItemCount(row.get("dataset_item_count", Long.class))
                     .duration(ExperimentGroupMappers.getDuration(row))
                     .totalEstimatedCost(ExperimentGroupMappers.getCostValue(row, "total_estimated_cost"))
                     .totalEstimatedCostAvg(ExperimentGroupMappers.getCostValue(row, "total_estimated_cost_avg"))
