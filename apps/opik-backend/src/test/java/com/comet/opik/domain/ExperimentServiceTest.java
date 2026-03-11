@@ -8,6 +8,7 @@ import com.comet.opik.api.sorting.ExperimentSortingFactory;
 import com.comet.opik.infrastructure.ExperimentAggregatesConfig;
 import com.comet.opik.infrastructure.FeatureFlags;
 import com.comet.opik.infrastructure.OpikConfiguration;
+import com.comet.opik.infrastructure.auth.RequestContext;
 import com.comet.opik.podam.PodamFactoryUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.EventBus;
@@ -34,6 +35,9 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ExperimentServiceTest {
+
+    private static final String TEST_WORKSPACE_ID = "test-workspace-id";
+    private static final String TEST_USER_NAME = "test-user";
 
     private ExperimentService experimentService;
 
@@ -133,7 +137,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .verifyComplete();
 
             verify(experimentDAO).getById(experimentId);
@@ -160,7 +167,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .verifyComplete();
 
             verify(experimentDAO).getById(experimentId);
@@ -190,7 +200,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .verifyComplete();
 
             verify(experimentDAO).getById(experimentId);
@@ -217,7 +230,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .verifyComplete();
 
             verify(experimentDAO).getById(experimentId);
@@ -244,7 +260,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .verifyComplete();
 
             verify(experimentDAO).getById(experimentId);
@@ -277,7 +296,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .verifyComplete();
 
             verify(experimentDAO).getById(experimentId);
@@ -295,11 +317,12 @@ class ExperimentServiceTest {
 
             when(experimentDAO.getById(experimentId))
                     .thenReturn(Mono.empty());
-            when(experimentDAO.update(experimentId, experimentUpdate))
-                    .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .expectError(NotFoundException.class)
                     .verify();
 
@@ -327,7 +350,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.error(expectedError));
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .expectError(RuntimeException.class)
                     .verify();
 
@@ -353,7 +379,10 @@ class ExperimentServiceTest {
                     .thenReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(experimentService.update(experimentId, experimentUpdate))
+            StepVerifier.create(experimentService.update(experimentId, experimentUpdate)
+                    .contextWrite(ctx -> ctx
+                            .put(RequestContext.WORKSPACE_ID, TEST_WORKSPACE_ID)
+                            .put(RequestContext.USER_NAME, TEST_USER_NAME)))
                     .verifyComplete();
 
             verify(experimentDAO).getById(experimentId);
