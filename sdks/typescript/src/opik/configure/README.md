@@ -44,6 +44,10 @@ npx opik-ts configure \
 
 You can also provide the same values through `OPIK_TS_*` environment variables.
 
+For custom self-hosted URLs in non-interactive mode, pass `--trust-url` after
+you have validated that the host is the correct Opik instance. The CLI refuses
+to probe or send your API key to untrusted URLs by default.
+
 # Options
 
 The following CLI arguments are available:
@@ -61,6 +65,7 @@ The following CLI arguments are available:
 | `--url`             | Base URL for your Opik instance. Required for self-hosted in non-interactive mode                 | string  |         | `OPIK_TS_URL`             |
 | `--api-key`         | Opik API key for cloud or self-hosted setup                                                       | string  |         | `OPIK_TS_API_KEY`         |
 | `--workspace`       | Workspace override for cloud or self-hosted setup. If omitted, configure uses the API key default | string  |         | `OPIK_TS_WORKSPACE`       |
+| `--trust-url`       | Trust a custom Opik URL without prompting before probing it or sending your API key               | boolean | `false` | `OPIK_TS_TRUST_URL`       |
 | `--project-name`    | Project name to write into the generated configuration                                            | string  |         | `OPIK_TS_PROJECT_NAME`    |
 | `--package-manager` | Package manager to use when auto-detection is ambiguous: `npm`, `pnpm`, `yarn`, or `bun`          | string  |         | `OPIK_TS_PACKAGE_MANAGER` |
 
