@@ -77,6 +77,7 @@ export enum ManagementPermissionsNames {
   PROJECT_CREATE = "project_create",
   COMMENT_WRITE = "comment_write",
   ONLINE_EVALUATION_RULE_UPDATE = "online_evaluation_rule_update",
+  ALERT_UPDATE = "alert_update",
 }
 
 export interface UserPermission {

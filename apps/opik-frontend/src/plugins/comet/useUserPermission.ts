@@ -180,6 +180,11 @@ const useUserPermission = (config?: { enabled?: boolean }) => {
     [checkNullablePermission],
   );
 
+  const canUpdateAlerts = useMemo(
+    () => checkNullablePermission(ManagementPermissionsNames.ALERT_UPDATE),
+    [checkNullablePermission],
+  );
+
   return {
     canInviteMembers,
     isWorkspaceOwner,
@@ -199,6 +204,7 @@ const useUserPermission = (config?: { enabled?: boolean }) => {
     canCreateProjects,
     canWriteComments,
     canUpdateOnlineEvaluationRules,
+    canUpdateAlerts,
     isPending: isEnabled && isPending,
   };
 };
