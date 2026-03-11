@@ -62,6 +62,11 @@ export type WizardOptions = {
   workspace?: string;
 
   /**
+   * Trust and probe a custom setup URL without prompting for confirmation.
+   */
+  trustUrl?: boolean;
+
+  /**
    * Project name to configure without prompting.
    */
   projectName?: string;
