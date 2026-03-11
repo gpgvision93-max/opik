@@ -203,7 +203,7 @@ class ExperimentsResourceTest {
 
     private static final String[] EXPERIMENT_IGNORED_FIELDS = new String[]{
             "id", "datasetId", "name", "feedbackScores", "traceCount", "createdAt", "lastUpdatedAt", "createdBy",
-            "lastUpdatedBy", "comments", "projectId", "projectName", "passRate", "passedCount", "totalCount"};
+            "lastUpdatedBy", "comments", "projectId", "projectName"};
 
     private static final String WORKSPACE_ID = UUID.randomUUID().toString();
     private static final String USER = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
@@ -7521,12 +7521,12 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
-            var actualExperiment = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
-
-            assertThat(actualExperiment.passedCount()).isEqualTo(2L);
-            assertThat(actualExperiment.totalCount()).isEqualTo(3L);
-            assertThat(actualExperiment.passRate()).isNotNull();
-            assertThat(actualExperiment.passRate().doubleValue()).isCloseTo(0.6667, within(0.01));
+            var expectedExperiment = experiment.toBuilder()
+                    .passedCount(2L)
+                    .totalCount(3L)
+                    .passRate(BigDecimal.valueOf(2).divide(BigDecimal.valueOf(3), 9, RoundingMode.HALF_UP))
+                    .build();
+            getAndAssert(experiment.id(), expectedExperiment, workspaceName, apiKey);
         }
 
         @Test
@@ -7561,11 +7561,7 @@ class ExperimentsResourceTest {
                     .build();
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(List.of(score)).build(), apiKey, workspaceName);
 
-            var actualExperiment = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
-
-            assertThat(actualExperiment.passRate()).isNull();
-            assertThat(actualExperiment.passedCount()).isNull();
-            assertThat(actualExperiment.totalCount()).isNull();
+            getAndAssert(experiment.id(), experiment, workspaceName, apiKey);
         }
 
         @Test
@@ -7630,12 +7626,12 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
-            var actualExperiment = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
-
-            assertThat(actualExperiment.passedCount()).isEqualTo(1L);
-            assertThat(actualExperiment.totalCount()).isEqualTo(2L);
-            assertThat(actualExperiment.passRate()).isNotNull();
-            assertThat(actualExperiment.passRate().doubleValue()).isCloseTo(0.5, within(0.01));
+            var expectedExperiment = experiment.toBuilder()
+                    .passedCount(1L)
+                    .totalCount(2L)
+                    .passRate(BigDecimal.valueOf(0.5))
+                    .build();
+            getAndAssert(experiment.id(), expectedExperiment, workspaceName, apiKey);
         }
 
         @Test
@@ -7653,11 +7649,7 @@ class ExperimentsResourceTest {
                     .build();
             createAndAssert(experiment, apiKey, workspaceName);
 
-            var actualExperiment = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
-
-            assertThat(actualExperiment.passRate()).isNull();
-            assertThat(actualExperiment.passedCount()).isNull();
-            assertThat(actualExperiment.totalCount()).isNull();
+            getAndAssert(experiment.id(), experiment, workspaceName, apiKey);
         }
 
         @Test
@@ -7754,12 +7746,12 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
-            var actualExperiment = experimentResourceClient.getExperiment(experimentId, apiKey, workspaceName);
-
-            assertThat(actualExperiment.passedCount()).isEqualTo(1L);
-            assertThat(actualExperiment.totalCount()).isEqualTo(1L);
-            assertThat(actualExperiment.passRate()).isNotNull();
-            assertThat(actualExperiment.passRate().doubleValue()).isCloseTo(1.0, within(0.01));
+            var expectedExperiment = experiment.toBuilder()
+                    .passedCount(1L)
+                    .totalCount(1L)
+                    .passRate(BigDecimal.ONE)
+                    .build();
+            getAndAssert(experimentId, expectedExperiment, workspaceName, apiKey);
         }
 
         @Test
@@ -7856,12 +7848,12 @@ class ExperimentsResourceTest {
                             .build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
-            var actualExperiment = experimentResourceClient.getExperiment(experimentId, apiKey, workspaceName);
-
-            assertThat(actualExperiment.passedCount()).isEqualTo(0L);
-            assertThat(actualExperiment.totalCount()).isEqualTo(1L);
-            assertThat(actualExperiment.passRate()).isNotNull();
-            assertThat(actualExperiment.passRate().doubleValue()).isCloseTo(0.0, within(0.01));
+            var expectedExperiment = experiment.toBuilder()
+                    .passedCount(0L)
+                    .totalCount(1L)
+                    .passRate(BigDecimal.ZERO)
+                    .build();
+            getAndAssert(experimentId, expectedExperiment, workspaceName, apiKey);
         }
 
         @Test
@@ -7965,13 +7957,13 @@ class ExperimentsResourceTest {
                             .value(BigDecimal.ZERO).source(ScoreSource.SDK).build());
             createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
 
-            var actualExperiment = experimentResourceClient.getExperiment(experimentId, apiKey, workspaceName);
-
             // ItemA fails (2 < 3), ItemB passes (2 >= 1) → passedCount=1, totalCount=2, passRate=0.5
-            assertThat(actualExperiment.passedCount()).isEqualTo(1L);
-            assertThat(actualExperiment.totalCount()).isEqualTo(2L);
-            assertThat(actualExperiment.passRate()).isNotNull();
-            assertThat(actualExperiment.passRate().doubleValue()).isCloseTo(0.5, within(0.01));
+            var expectedExperiment = experiment.toBuilder()
+                    .passedCount(1L)
+                    .totalCount(2L)
+                    .passRate(BigDecimal.valueOf(0.5))
+                    .build();
+            getAndAssert(experimentId, expectedExperiment, workspaceName, apiKey);
         }
     }
 }
