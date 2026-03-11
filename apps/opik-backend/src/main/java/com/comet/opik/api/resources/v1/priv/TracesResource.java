@@ -497,14 +497,14 @@ public class TracesResource {
     @JsonView({FeedbackDefinition.View.Public.class})
     public Response findFeedbackScoreNames(
             @QueryParam("project_id") UUID projectId,
-            @QueryParam("exclude_category_name") String excludeCategoryName) {
+            @QueryParam("exclude_category_names") @DefaultValue("suite_assertion") Set<String> excludeCategoryNames) {
 
         String workspaceId = requestContext.get().getWorkspaceId();
 
         log.info("Find feedback score names by project_id '{}', on workspaceId '{}'",
                 projectId, workspaceId);
         FeedbackScoreNames feedbackScoreNames = feedbackScoreService
-                .getTraceFeedbackScoreNames(projectId, excludeCategoryName)
+                .getTraceFeedbackScoreNames(projectId, excludeCategoryNames)
                 .contextWrite(ctx -> setRequestContext(ctx, requestContext))
                 .block();
         log.info("Found feedback score names '{}' by project_id '{}', on workspaceId '{}'",
@@ -1058,4 +1058,5 @@ public class TracesResource {
 
         return Response.noContent().build();
     }
+
 }

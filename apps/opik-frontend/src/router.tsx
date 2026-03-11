@@ -41,7 +41,7 @@ import OptimizationPage from "@/components/pages/OptimizationPage/OptimizationPa
 import CompareOptimizationsPage from "@/components/pages/CompareOptimizationsPage/CompareOptimizationsPage";
 import CompareTrialsPage from "@/components/pages/CompareTrialsPage/CompareTrialsPage";
 import AlertsRouteWrapper from "@/components/pages/AlertsPage/AlertsRouteWrapper";
-import AddEditAlertPage from "./components/pages/AlertsPage/AddEditAlertPage/AddEditAlertPage";
+import AlertEditPageGuard from "@/components/layout/AlertEditPageGuard/AlertEditPageGuard";
 import DashboardPage from "@/components/pages/DashboardPage/DashboardPage";
 import DashboardsPage from "@/components/pages/DashboardsPage/DashboardsPage";
 import EvaluationSuitesPage from "@/components/pages/EvaluationSuitesPage/EvaluationSuitesPage";
@@ -480,7 +480,7 @@ const alertNewRoute = createRoute({
   staticData: {
     title: "New alert",
   },
-  component: AddEditAlertPage,
+  component: AlertEditPageGuard,
 });
 
 const alertEditRoute = createRoute({
@@ -489,7 +489,7 @@ const alertEditRoute = createRoute({
   staticData: {
     param: "alertId",
   },
-  component: AddEditAlertPage,
+  component: AlertEditPageGuard,
 });
 
 // --------- production

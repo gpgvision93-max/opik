@@ -424,14 +424,16 @@ public class ExperimentResourceClient {
     }
 
     public FeedbackScoreNames getFeedbackScoreNames(List<UUID> experimentIds,
-            @Nullable String excludeCategoryName, String apiKey, String workspaceName) {
+            @Nullable Set<String> excludeCategoryNames, String apiKey, String workspaceName) {
         var ids = JsonUtils.writeValueAsString(experimentIds);
         WebTarget webTarget = client.target(RESOURCE_PATH.formatted(baseURI))
                 .path("feedback-scores")
                 .path("names")
                 .queryParam("experiment_ids", ids);
-        if (excludeCategoryName != null) {
-            webTarget = webTarget.queryParam("exclude_category_name", excludeCategoryName);
+        if (excludeCategoryNames != null) {
+            for (String categoryName : excludeCategoryNames) {
+                webTarget = webTarget.queryParam("exclude_category_names", categoryName);
+            }
         }
         try (var response = webTarget
                 .request()
