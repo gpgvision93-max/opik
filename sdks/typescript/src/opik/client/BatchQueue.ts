@@ -40,7 +40,7 @@ class ActionQueue<EntityData = object, EntityId = string> {
 
     this.timerId = setTimeout(() => {
       this.timerId = null;
-      void this.flush().catch(() => undefined);
+      void this.flush();
     }, this.delay);
     this.timerId.unref?.();
   };
@@ -49,13 +49,13 @@ class ActionQueue<EntityData = object, EntityId = string> {
     this.queue.set(id, entity);
 
     if (!this.enableBatch) {
-      void this.flush().catch(() => undefined);
+      void this.flush();
       return;
     }
 
     // @todo: change to check payload size instead of batch size
     if (this.queue.size >= this.batchSize) {
-      void this.flush().catch(() => undefined);
+      void this.flush();
       return;
     }
 
