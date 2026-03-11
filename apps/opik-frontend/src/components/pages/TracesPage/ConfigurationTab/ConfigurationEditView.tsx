@@ -219,6 +219,7 @@ const ConfigurationEditView: React.FC<ConfigurationEditViewProps> = ({
                   <BlueprintValuePrompt
                     key={v.value}
                     value={v}
+                    projectId={projectId}
                     isEditing={isLatestVersion}
                     ref={(el) => {
                       promptRefs.current[v.key] = el;

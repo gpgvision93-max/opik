@@ -9,10 +9,7 @@ import {
 
 import { BlueprintValue } from "@/types/agent-configs";
 import { LLMMessage } from "@/types/llm";
-import {
-  PROMPT_TEMPLATE_STRUCTURE,
-  PROMPT_VERSION_ACTION,
-} from "@/types/prompts";
+import { PROMPT_TEMPLATE_STRUCTURE } from "@/types/prompts";
 import usePromptByCommit from "@/api/prompts/usePromptByCommit";
 import useCreatePromptVersionMutation from "@/api/prompts/useCreatePromptVersionMutation";
 import PromptTemplateView from "@/components/pages-shared/llm/PromptTemplateView/PromptTemplateView";
@@ -32,6 +29,7 @@ export interface BlueprintValuePromptHandle {
 
 type BlueprintValuePromptProps = {
   value: BlueprintValue;
+  projectId?: string;
   isEditing?: boolean;
   onDirtyChange?: (isDirty: boolean) => void;
 };
@@ -39,7 +37,7 @@ type BlueprintValuePromptProps = {
 const BlueprintValuePrompt = forwardRef<
   BlueprintValuePromptHandle,
   BlueprintValuePromptProps
->(({ value, isEditing = false, onDirtyChange }, ref) => {
+>(({ value, projectId, isEditing = false, onDirtyChange }, ref) => {
   const [draftTemplate, setDraftTemplate] = useState("");
   const [draftMessages, setDraftMessages] = useState<LLMMessage[]>([]);
   const initialTemplate = useRef("");
@@ -138,7 +136,9 @@ const BlueprintValuePrompt = forwardRef<
           template: currentTemplate,
           type: promptVersion?.type,
           templateStructure: prompt.template_structure,
-          action: PROMPT_VERSION_ACTION.NO_ACTION,
+          ...(projectId && {
+            excludeBlueprintUpdateForProjects: [projectId],
+          }),
           onSuccess: () => {},
         });
 
@@ -152,6 +152,7 @@ const BlueprintValuePrompt = forwardRef<
       isChatPrompt,
       prompt,
       promptVersion,
+      projectId,
       value.key,
     ],
   );
