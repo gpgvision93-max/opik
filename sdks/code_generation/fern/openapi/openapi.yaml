@@ -2800,10 +2800,14 @@ paths:
         in: query
         schema:
           type: string
-      - name: exclude_category_name
+      - name: exclude_category_names
         in: query
         schema:
-          type: string
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+            default: suite_assertion
       responses:
         "200":
           description: Feedback Scores resource
@@ -5330,10 +5334,14 @@ paths:
           - tool
           - llm
           - guardrail
-      - name: exclude_category_name
+      - name: exclude_category_names
         in: query
         schema:
-          type: string
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+            default: suite_assertion
       responses:
         "200":
           description: Feedback Scores resource
@@ -5940,10 +5948,14 @@ paths:
         schema:
           type: string
           format: uuid
-      - name: exclude_category_name
+      - name: exclude_category_names
         in: query
         schema:
-          type: string
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+            default: suite_assertion
       responses:
         "200":
           description: Feedback Scores resource
