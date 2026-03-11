@@ -26,7 +26,10 @@ export default function useLocalRunnerJobLogs(
   options?: QueryConfig<LocalRunnerLogEntry[]>,
 ) {
   return useQuery({
-    queryKey: [LOCAL_RUNNERS_KEY, { type: "logs", jobId: params.jobId } as Record<string, unknown>],
+    queryKey: [
+      LOCAL_RUNNERS_KEY,
+      { type: "logs", jobId: params.jobId } as Record<string, unknown>,
+    ],
     queryFn: (context) => getLocalRunnerJobLogs(context, params),
     ...options,
     enabled: Boolean(params.jobId),
