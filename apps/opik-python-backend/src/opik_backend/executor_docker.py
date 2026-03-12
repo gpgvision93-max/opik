@@ -81,6 +81,7 @@ execution_outcome_counter = meter.create_counter(
 executor_cpu_cores_gauge = meter.create_gauge(
     name="executor_container_cpu_cores",
     description="CPU usage of an executor container in fractional cores (e.g. 0.5 = 500m)",
+    unit="cores",
 )
 
 executor_memory_bytes_gauge = meter.create_gauge(
@@ -100,18 +101,7 @@ class DockerExecutor(CodeExecutorBase):
         self.network_disabled = os.getenv("PYTHON_CODE_EXECUTOR_ALLOW_NETWORK", "false").lower() != "true"
         self.cpu_shares = int(os.getenv("PYTHON_CODE_EXECUTOR_CPU_SHARES", str(DEFAULT_CPU_SHARES)))
         self.mem_limit = os.getenv("PYTHON_CODE_EXECUTOR_MEM_LIMIT", DEFAULT_MEM_LIMIT)
-        cpu_limit_str = os.getenv("PYTHON_CODE_EXECUTOR_CPU_LIMIT")
-        if cpu_limit_str:
-            try:
-                cpu_limit = float(cpu_limit_str)
-                if cpu_limit <= 0:
-                    raise ValueError("must be positive")
-                self.nano_cpus = int(cpu_limit * 1e9)
-            except ValueError:
-                logger.warning(f"Invalid PYTHON_CODE_EXECUTOR_CPU_LIMIT value '{cpu_limit_str}', ignoring")
-                self.nano_cpus = DEFAULT_CPU_LIMIT
-        else:
-            self.nano_cpus = DEFAULT_CPU_LIMIT
+        self.nano_cpus = self._parse_cpu_limit()
         self.metrics_interval = int(os.getenv("PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS", "60"))
 
         self.client = docker.from_env()
@@ -138,6 +128,21 @@ class DockerExecutor(CodeExecutorBase):
         self.tracer = trace.get_tracer(__name__)
 
         atexit.register(self.cleanup)
+
+    @staticmethod
+    def _parse_cpu_limit():
+        """Parse PYTHON_CODE_EXECUTOR_CPU_LIMIT env var into nano_cpus (Docker SDK format)."""
+        cpu_limit_str = os.getenv("PYTHON_CODE_EXECUTOR_CPU_LIMIT")
+        if not cpu_limit_str:
+            return DEFAULT_CPU_LIMIT
+        try:
+            cpu_limit = float(cpu_limit_str)
+            if cpu_limit <= 0:
+                raise ValueError("must be positive")
+            return int(cpu_limit * 1e9)
+        except ValueError:
+            logger.warning(f"Invalid PYTHON_CODE_EXECUTOR_CPU_LIMIT value '{cpu_limit_str}', ignoring")
+            return DEFAULT_CPU_LIMIT
 
     def _start_pool_monitor(self):
         """Start a background thread that periodically checks and fills the container pool."""
