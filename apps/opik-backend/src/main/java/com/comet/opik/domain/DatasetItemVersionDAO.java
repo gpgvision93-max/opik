@@ -697,15 +697,18 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
             )
             SELECT COUNT(DISTINCT dataset_item_id) AS count
             FROM (
+                <if(has_aggregated)>
                 SELECT eia.dataset_item_id
                 FROM item_agg_count AS eia
                 <if(search)>
                 LEFT JOIN dataset_items_agg_resolved di ON di.id = eia.dataset_item_id
                 WHERE multiSearchAnyCaseInsensitive(toString(COALESCE(di.data, map())), :searchTerms) OR multiSearchAnyCaseInsensitive(toString(eia.input), :searchTerms) OR multiSearchAnyCaseInsensitive(toString(eia.output), :searchTerms)
                 <endif>
+                <endif>
 
-                UNION ALL
+                <if(has_aggregated)><if(has_raw)>UNION ALL<endif><endif>
 
+                <if(has_raw)>
                 SELECT ei.dataset_item_id
                 FROM experiment_items_final AS ei
                 LEFT JOIN dataset_items_resolved AS di ON di.id = ei.dataset_item_id
@@ -723,6 +726,7 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
                     LIMIT 1 BY id
                 ) AS tfs ON ei.trace_id = tfs.id
                 WHERE multiSearchAnyCaseInsensitive(toString(COALESCE(di.data, map())), :searchTerms) OR multiSearchAnyCaseInsensitive(toString(tfs.input), :searchTerms) OR multiSearchAnyCaseInsensitive(toString(tfs.output), :searchTerms)
+                <endif>
                 <endif>
             )
             """;
@@ -2584,7 +2588,7 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
                                     .flatMap(DatasetItemResultMapper::mapItem)
                                     .collectList()
                                     .zipWith(getCountWithExperimentFilters(criteria, versionId,
-                                            targetProjectIds))
+                                            targetProjectIds, hasAggregated, hasRaw))
                                     .zipWith(getColumns(criteria.datasetId(), versionId))
                                     .map(tuple -> {
                                         var itemsAndCount = tuple.getT1();
@@ -2695,7 +2699,8 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
     }
 
     private Mono<Long> getCountWithExperimentFilters(@NonNull DatasetItemSearchCriteria criteria,
-            @NonNull UUID versionId, List<UUID> targetProjectIds) {
+            @NonNull UUID versionId, List<UUID> targetProjectIds,
+            boolean hasAggregated, boolean hasRaw) {
         log.debug("Getting filtered count for dataset '{}' version '{}' with experiment filters", criteria.datasetId(),
                 versionId);
 
@@ -2709,6 +2714,10 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
             if (CollectionUtils.isNotEmpty(criteria.experimentIds())) {
                 template.add("experiment_ids", true);
             }
+
+            // Add branch flags to conditionally include/exclude UNION ALL branches
+            template.add("has_aggregated", hasAggregated);
+            template.add("has_raw", hasRaw);
 
             // Add filters and search criteria using helper method
             addFiltersToTemplate(template, criteria);
