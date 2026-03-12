@@ -28,7 +28,7 @@ export const generateSyntaxHighlighterCode = (
   switch (mode) {
     case MODE_TYPE.yaml:
       return {
-        message: yamlStringify(data).trim(),
+        message: (yamlStringify(data) ?? "").trim(),
         mode: MODE_TYPE.yaml,
         prettified: false,
         canBePrettified,
@@ -44,14 +44,14 @@ export const generateSyntaxHighlighterCode = (
       return {
         message: response.prettified
           ? (response.message as string)
-          : yamlStringify(data).trim(),
+          : (yamlStringify(data) ?? "").trim(),
         mode: canBePrettified ? MODE_TYPE.pretty : MODE_TYPE.yaml,
         prettified: response.prettified,
         canBePrettified,
       };
     default:
       return {
-        message: yamlStringify({}).trim(),
+        message: (yamlStringify({}) ?? "").trim(),
         mode: MODE_TYPE.yaml,
         prettified: false,
         canBePrettified: false,
