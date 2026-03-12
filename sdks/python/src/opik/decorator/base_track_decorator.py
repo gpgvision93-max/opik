@@ -364,6 +364,8 @@ class BaseTrackDecorator(abc.ABC):
                 capture_output=track_options.capture_output,
                 flush=track_options.flush,
                 should_process_span_data=should_process_span_data,
+                func=func,
+                capture_source=track_options.capture_source,
             )
             if func_exception is not None:
                 raise func_exception
@@ -418,6 +420,8 @@ class BaseTrackDecorator(abc.ABC):
                 capture_output=track_options.capture_output,
                 flush=track_options.flush,
                 should_process_span_data=should_process_span_data,
+                func=func,
+                capture_source=track_options.capture_source,
             )
             if func_exception is not None:
                 raise func_exception
@@ -472,9 +476,6 @@ class BaseTrackDecorator(abc.ABC):
             create_duplicate_root_span=track_options.create_duplicate_root_span,
         )
 
-        if track_options.capture_source and tracing_runtime_config.is_tracing_active():
-            self._add_source_code_comment(func, span_creation_result)
-
         return span_creation_result
 
     def _after_call(
@@ -486,6 +487,8 @@ class BaseTrackDecorator(abc.ABC):
         generators_trace_to_end: Optional[trace.TraceData] = None,
         flush: bool = False,
         should_process_span_data: bool = True,
+        func: Optional[Callable] = None,
+        capture_source: bool = False,
     ) -> None:
         try:
             self.__after_call_unsafe(
@@ -496,6 +499,8 @@ class BaseTrackDecorator(abc.ABC):
                 generators_trace_to_end=generators_trace_to_end,
                 flush=flush,
                 should_process_span_data=should_process_span_data,
+                func=func,
+                capture_source=capture_source,
             )
         except Exception as exception:
             LOGGER.error(
@@ -514,6 +519,8 @@ class BaseTrackDecorator(abc.ABC):
         generators_trace_to_end: Optional[trace.TraceData],
         flush: bool,
         should_process_span_data: bool,
+        func: Optional[Callable] = None,
+        capture_source: bool = False,
     ) -> None:
         span_data_to_end: Optional[span.SpanData] = None
         if generators_span_to_end is None:
@@ -573,16 +580,25 @@ class BaseTrackDecorator(abc.ABC):
 
             client.trace(**trace_data_to_end.as_parameters)
 
+        if capture_source and func is not None:
+            client.flush()
+            self._add_source_code_comment(
+                func, trace_data_to_end, span_data_to_end, should_process_span_data
+            )
+
         if flush:
             client.flush()
 
     def _add_source_code_comment(
         self,
         func: Callable,
-        span_creation_result: span_creation_handler.SpanCreationResult,
+        trace_data: Optional[trace.TraceData],
+        span_data: Optional[span.SpanData],
+        should_process_span_data: bool,
     ) -> None:
         """
         Add source code as a comment to the created trace or span.
+        Must be called after the trace/span has been flushed to the backend.
         """
         source_code = inspect_helpers.get_function_source(func)
         if source_code is None:
@@ -593,17 +609,14 @@ class BaseTrackDecorator(abc.ABC):
 
             comment_text = f"```python\n{source_code}\n```"
 
-            if span_creation_result.trace_data is not None:
+            if trace_data is not None:
                 client._rest_client.traces.add_trace_comment(
-                    id_=span_creation_result.trace_data.id,
+                    id_=trace_data.id,
                     text=comment_text,
                 )
-            elif (
-                span_creation_result.should_process_span_data
-                and span_creation_result.span_data is not None
-            ):
+            elif should_process_span_data and span_data is not None:
                 client._rest_client.spans.add_span_comment(
-                    id_=span_creation_result.span_data.id,
+                    id_=span_data.id,
                     text=comment_text,
                 )
         except Exception as e:
