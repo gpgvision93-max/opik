@@ -102,18 +102,21 @@ public class RetentionRuleResourceClient {
 
     public RetentionRule.RetentionRuleBuilder buildWorkspaceRule(RetentionPeriod retention) {
         return RetentionRule.builder()
-                .retention(retention);
+                .retention(retention)
+                .applyToPast(true);
     }
 
     public RetentionRule.RetentionRuleBuilder buildProjectRule(UUID projectId, RetentionPeriod retention) {
         return RetentionRule.builder()
                 .projectId(projectId)
-                .retention(retention);
+                .retention(retention)
+                .applyToPast(true);
     }
 
     public RetentionRule.RetentionRuleBuilder buildOrganizationRule(RetentionPeriod retention) {
         return RetentionRule.builder()
                 .organizationLevel(true)
-                .retention(retention);
+                .retention(retention)
+                .applyToPast(true);
     }
 }
