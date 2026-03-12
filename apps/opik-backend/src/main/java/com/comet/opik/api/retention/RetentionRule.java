@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
@@ -21,8 +22,11 @@ public record RetentionRule(
                 View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) UUID id,
         @JsonView({View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) String workspaceId,
         @JsonView({View.Public.class, View.Write.class}) UUID projectId,
+        @JsonView({View.Public.class,
+                View.Write.class}) @Nullable @Schema(description = "Set to true to create an organization-level rule") Boolean organizationLevel,
+        @JsonView({
+                View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "Computed from projectId and organizationLevel") RetentionLevel level,
         @JsonView({View.Public.class, View.Write.class}) @NotNull RetentionPeriod retention,
-        @JsonView({View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) String filter,
         @JsonView({View.Public.class, View.Write.class}) Boolean applyToPast,
         @JsonView({View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) Boolean enabled,
         @JsonView({View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) String createdBy,

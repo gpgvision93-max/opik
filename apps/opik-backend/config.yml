@@ -573,6 +573,22 @@ optimizationLogs:
   # Description: Maximum number of concurrent S3 uploads during sync
   syncConcurrency: ${OPTIMIZATION_LOGS_SYNC_CONCURRENCY:-5}
 
+# Data retention policy enforcement configuration
+retention:
+  # Default: false
+  # Description: Whether the retention policy enforcement job is enabled
+  enabled: ${RETENTION_ENABLED:-false}
+  # Default: 48
+  # Description: How many times per day the retention job runs (min 1 = once/day, max 288 = every 5 min).
+  #              Each run processes a 1/N fraction of workspaces, so all workspaces are covered once per day.
+  executionsPerDay: ${RETENTION_EXECUTIONS_PER_DAY:-48}
+  # Default: 1000
+  # Description: Maximum number of workspace_ids per DELETE statement
+  workspaceBatchSize: ${RETENTION_WORKSPACE_BATCH_SIZE:-1000}
+  # Default: 1800 (30 minutes)
+  # Description: Maximum time in seconds the job can hold the distributed lock
+  lockTimeoutSeconds: ${RETENTION_LOCK_TIMEOUT_SECONDS:-1800}
+
 # LLM providers client configuration
 llmProviderClient:
   # Default: 3

@@ -1,5 +1,6 @@
 package com.comet.opik.domain.retention;
 
+import com.comet.opik.api.retention.RetentionLevel;
 import com.comet.opik.api.retention.RetentionRule;
 import com.comet.opik.api.retention.RetentionRule.RetentionRulePage;
 import com.comet.opik.domain.IdGenerator;
@@ -8,6 +9,7 @@ import com.google.inject.ImplementedBy;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -52,10 +54,12 @@ class RetentionRuleServiceImpl implements RetentionRuleService {
         UUID id = rule.id() != null ? rule.id() : idGenerator.generateId();
         IdGenerator.validateVersion(id, "retention_rule");
 
+        RetentionLevel level = inferLevel(rule);
+
         var newRule = rule.toBuilder()
                 .id(id)
                 .workspaceId(workspaceId)
-                .filter(Optional.ofNullable(rule.filter()).orElse(""))
+                .level(level)
                 .applyToPast(Optional.ofNullable(rule.applyToPast()).orElse(false))
                 .enabled(true)
                 .createdBy(userName)
@@ -65,15 +69,15 @@ class RetentionRuleServiceImpl implements RetentionRuleService {
         return template.inTransaction(WRITE, handle -> {
             var dao = handle.attach(RetentionRuleDAO.class);
 
-            // Auto-deactivate any existing active rule for the same scope
+            // Auto-deactivate any existing active rule for the same scope and level
             dao.deactivateByScope(workspaceId,
                     newRule.projectId(),
-                    newRule.filter(),
+                    level,
                     userName);
 
             dao.save(workspaceId, newRule);
-            log.info("Created retention rule '{}' for project '{}' in workspace '{}'",
-                    id, newRule.projectId(), workspaceId);
+            log.info("Created retention rule '{}' (level={}) for project '{}' in workspace '{}'",
+                    id, level, newRule.projectId(), workspaceId);
 
             return dao.findById(id, workspaceId).orElseThrow();
         });
@@ -144,5 +148,29 @@ class RetentionRuleServiceImpl implements RetentionRuleService {
 
             return null;
         });
+    }
+
+    /**
+     * Infer the retention level from request properties:
+     * - organization_level=true (with null project_id) → ORGANIZATION
+     * - project_id set (with organization_level absent or false) → PROJECT
+     * - otherwise → WORKSPACE
+     */
+    private RetentionLevel inferLevel(RetentionRule rule) {
+        boolean orgLevel = Boolean.TRUE.equals(rule.organizationLevel());
+
+        if (orgLevel && rule.projectId() != null) {
+            throw new BadRequestException("Cannot set organization_level=true with a project_id");
+        }
+
+        if (orgLevel) {
+            return RetentionLevel.ORGANIZATION;
+        }
+
+        if (rule.projectId() != null) {
+            return RetentionLevel.PROJECT;
+        }
+
+        return RetentionLevel.WORKSPACE;
     }
 }

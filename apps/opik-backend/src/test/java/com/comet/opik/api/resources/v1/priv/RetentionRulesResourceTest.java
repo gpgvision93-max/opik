@@ -10,6 +10,7 @@ import com.comet.opik.api.resources.utils.TestDropwizardAppExtensionUtils;
 import com.comet.opik.api.resources.utils.TestUtils;
 import com.comet.opik.api.resources.utils.WireMockUtils;
 import com.comet.opik.api.resources.utils.resources.RetentionRuleResourceClient;
+import com.comet.opik.api.retention.RetentionLevel;
 import com.comet.opik.api.retention.RetentionPeriod;
 import com.comet.opik.api.retention.RetentionRule;
 import com.comet.opik.extensions.DropwizardAppExtensionProvider;
@@ -121,8 +122,8 @@ class RetentionRulesResourceTest {
             assertThat(created.id()).isNotNull();
             assertThat(created.workspaceId()).isEqualTo(WORKSPACE_ID);
             assertThat(created.projectId()).isNull();
+            assertThat(created.level()).isEqualTo(RetentionLevel.WORKSPACE);
             assertThat(created.retention()).isEqualTo(RetentionPeriod.BASE_60D);
-            assertThat(created.filter()).isEmpty();
             assertThat(created.applyToPast()).isFalse();
             assertThat(created.enabled()).isTrue();
             assertThat(created.createdBy()).isEqualTo(USER);
@@ -140,7 +141,21 @@ class RetentionRulesResourceTest {
             var created = retentionClient.createAndGet(rule, API_KEY, TEST_WORKSPACE_NAME);
 
             assertThat(created.projectId()).isEqualTo(projectId);
+            assertThat(created.level()).isEqualTo(RetentionLevel.PROJECT);
             assertThat(created.retention()).isEqualTo(RetentionPeriod.SHORT_14D);
+            assertThat(created.enabled()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Create organization-level rule")
+        void createOrganizationRule() {
+            var rule = retentionClient.buildOrganizationRule(RetentionPeriod.BASE_60D).build();
+
+            var created = retentionClient.createAndGet(rule, API_KEY, TEST_WORKSPACE_NAME);
+
+            assertThat(created.projectId()).isNull();
+            assertThat(created.level()).isEqualTo(RetentionLevel.ORGANIZATION);
+            assertThat(created.retention()).isEqualTo(RetentionPeriod.BASE_60D);
             assertThat(created.enabled()).isTrue();
         }
 
@@ -178,7 +193,21 @@ class RetentionRulesResourceTest {
         }
 
         @Test
-        @DisplayName("Creating new workspace rule auto-deactivates previous one")
+        @DisplayName("Create organization_level=true with project_id fails validation")
+        void createOrgLevelWithProjectIdFails() {
+            var rule = RetentionRule.builder()
+                    .organizationLevel(true)
+                    .projectId(UUID.randomUUID())
+                    .retention(RetentionPeriod.BASE_60D)
+                    .build();
+
+            try (var response = retentionClient.callCreate(rule, API_KEY, TEST_WORKSPACE_NAME)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_BAD_REQUEST);
+            }
+        }
+
+        @Test
+        @DisplayName("Creating new workspace rule auto-deactivates previous workspace rule")
         void createRuleAutoDeactivatesPrevious() {
             var rule1 = retentionClient.buildWorkspaceRule(RetentionPeriod.SHORT_14D).build();
             var created1 = retentionClient.createAndGet(rule1, API_KEY, TEST_WORKSPACE_NAME);
@@ -208,6 +237,54 @@ class RetentionRulesResourceTest {
             var fetchedWs = retentionClient.get(createdWs.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
             assertThat(fetchedWs.enabled()).isTrue();
         }
+
+        @Test
+        @DisplayName("Organization rule and workspace rule coexist")
+        void orgAndWorkspaceRulesCoexist() {
+            var orgRule = retentionClient.buildOrganizationRule(RetentionPeriod.BASE_60D).build();
+            var createdOrg = retentionClient.createAndGet(orgRule, API_KEY, TEST_WORKSPACE_NAME);
+
+            var wsRule = retentionClient.buildWorkspaceRule(RetentionPeriod.SHORT_14D).build();
+            var createdWs = retentionClient.createAndGet(wsRule, API_KEY, TEST_WORKSPACE_NAME);
+
+            // Both should be active
+            var fetchedOrg = retentionClient.get(createdOrg.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
+            assertThat(fetchedOrg.enabled()).isTrue();
+            assertThat(fetchedOrg.level()).isEqualTo(RetentionLevel.ORGANIZATION);
+
+            var fetchedWs = retentionClient.get(createdWs.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
+            assertThat(fetchedWs.enabled()).isTrue();
+            assertThat(fetchedWs.level()).isEqualTo(RetentionLevel.WORKSPACE);
+        }
+
+        @Test
+        @DisplayName("New organization rule auto-deactivates previous organization rule")
+        void newOrgRuleDeactivatesPreviousOrgRule() {
+            var orgRule1 = retentionClient.buildOrganizationRule(RetentionPeriod.BASE_60D).build();
+            var createdOrg1 = retentionClient.createAndGet(orgRule1, API_KEY, TEST_WORKSPACE_NAME);
+
+            var orgRule2 = retentionClient.buildOrganizationRule(RetentionPeriod.EXTENDED_400D).build();
+            var createdOrg2 = retentionClient.createAndGet(orgRule2, API_KEY, TEST_WORKSPACE_NAME);
+
+            assertThat(createdOrg2.enabled()).isTrue();
+
+            var fetchedOrg1 = retentionClient.get(createdOrg1.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
+            assertThat(fetchedOrg1.enabled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Creating workspace rule does not deactivate organization rule")
+        void workspaceRuleDoesNotDeactivateOrgRule() {
+            var orgRule = retentionClient.buildOrganizationRule(RetentionPeriod.BASE_60D).build();
+            var createdOrg = retentionClient.createAndGet(orgRule, API_KEY, TEST_WORKSPACE_NAME);
+
+            var wsRule = retentionClient.buildWorkspaceRule(RetentionPeriod.SHORT_14D).build();
+            retentionClient.createAndGet(wsRule, API_KEY, TEST_WORKSPACE_NAME);
+
+            // Org rule should still be active
+            var fetchedOrg = retentionClient.get(createdOrg.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
+            assertThat(fetchedOrg.enabled()).isTrue();
+        }
     }
 
     @Nested
@@ -224,6 +301,7 @@ class RetentionRulesResourceTest {
 
             assertThat(fetched.id()).isEqualTo(created.id());
             assertThat(fetched.retention()).isEqualTo(created.retention());
+            assertThat(fetched.level()).isEqualTo(RetentionLevel.WORKSPACE);
         }
 
         @Test
@@ -356,7 +434,7 @@ class RetentionRulesResourceTest {
     }
 
     @Nested
-    @DisplayName("Revert scenario")
+    @DisplayName("Revert and fallback scenarios")
     class RevertScenario {
 
         @Test
@@ -375,6 +453,34 @@ class RetentionRulesResourceTest {
 
             var fetched1 = retentionClient.get(created1.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
             assertThat(fetched1.enabled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Deactivating workspace rule leaves organization rule active as fallback")
+        void deactivateWorkspaceRuleFallsBackToOrgRule() {
+            // Set org-level rule
+            var orgRule = retentionClient.buildOrganizationRule(RetentionPeriod.BASE_60D).build();
+            var createdOrg = retentionClient.createAndGet(orgRule, API_KEY, TEST_WORKSPACE_NAME);
+
+            // Set workspace-level override
+            var wsRule = retentionClient.buildWorkspaceRule(RetentionPeriod.SHORT_14D).build();
+            var createdWs = retentionClient.createAndGet(wsRule, API_KEY, TEST_WORKSPACE_NAME);
+
+            // Both active
+            assertThat(retentionClient.get(createdOrg.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK).enabled())
+                    .isTrue();
+            assertThat(retentionClient.get(createdWs.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK).enabled())
+                    .isTrue();
+
+            // Deactivate workspace rule — org rule is still there as fallback
+            retentionClient.deactivate(createdWs.id(), API_KEY, TEST_WORKSPACE_NAME);
+
+            var fetchedOrg = retentionClient.get(createdOrg.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
+            assertThat(fetchedOrg.enabled()).isTrue();
+            assertThat(fetchedOrg.level()).isEqualTo(RetentionLevel.ORGANIZATION);
+
+            var fetchedWs = retentionClient.get(createdWs.id(), API_KEY, TEST_WORKSPACE_NAME, HttpStatus.SC_OK);
+            assertThat(fetchedWs.enabled()).isFalse();
         }
     }
 }

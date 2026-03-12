@@ -110,4 +110,10 @@ public class RetentionRuleResourceClient {
                 .projectId(projectId)
                 .retention(retention);
     }
+
+    public RetentionRule.RetentionRuleBuilder buildOrganizationRule(RetentionPeriod retention) {
+        return RetentionRule.builder()
+                .organizationLevel(true)
+                .retention(retention);
+    }
 }
