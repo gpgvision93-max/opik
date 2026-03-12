@@ -727,18 +727,7 @@ class ExperimentDAO {
                 <endif>
             )
             ORDER BY <if(sort_fields)><sort_fields>,<endif> id DESC
-            <if(limit && (
-                feedback_scores_filters ||
-                feedback_scores_empty_filters ||
-                feedback_scores_aggregated_filters ||
-                feedback_scores_aggregated_empty_filters ||
-                experiment_scores_filters ||
-                experiment_scores_empty_filters ||
-                project_id ||
-                project_deleted ||
-                sort_fields
-                )
-            )>
+            <if(limit)>
             LIMIT :limit <if(offset)> OFFSET :offset <endif>
             <endif>
             SETTINGS log_comment = '<log_comment>'
