@@ -1565,6 +1565,55 @@ class ExperimentAggregatesIntegrationTest {
     }
 
     @Test
+    @DisplayName("ExperimentItemDAO.STREAM returns consistent results in mixed state (some experiments aggregated, some not)")
+    void streamExperimentItemsIsConsistentInMixedAggregationState() {
+        var workspaceName = UUID.randomUUID().toString();
+        var apiKey = UUID.randomUUID().toString();
+        var workspaceId = UUID.randomUUID().toString();
+
+        mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+        var project = createProject(apiKey, workspaceName);
+        var dataset = createDataset(apiKey, workspaceName);
+        var experiment1 = createExperiment(dataset, apiKey, workspaceName);
+        var experiment2 = createExperiment(dataset, apiKey, workspaceName);
+        var experiment3 = createExperiment(dataset, apiKey, workspaceName);
+
+        List<String> feedbackScoreNames = PodamFactoryUtils.manufacturePojoList(factory, String.class);
+        createExperimentItemWithData(experiment1.id(), dataset.id(), project.name(), feedbackScoreNames, apiKey,
+                workspaceName);
+        createExperimentItemWithData(experiment2.id(), dataset.id(), project.name(), feedbackScoreNames, apiKey,
+                workspaceName);
+        createExperimentItemWithData(experiment3.id(), dataset.id(), project.name(), feedbackScoreNames, apiKey,
+                workspaceName);
+
+        var experimentIds = List.of(experiment1.id(), experiment2.id(), experiment3.id());
+
+        // Query BEFORE any aggregation — all raw
+        var beforeAggregation = datasetResourceClient.getDatasetItemsWithExperimentItems(
+                dataset.id(), experimentIds, null, null, apiKey, workspaceName);
+
+        assertThat(beforeAggregation).isNotNull();
+        assertThat(beforeAggregation.content()).isNotEmpty();
+
+        // Aggregate only experiment1 — mixed state: has_aggregated=true AND has_raw=true
+        experimentAggregatesService.populateAggregations(experiment1.id())
+                .contextWrite(ctx -> ctx
+                        .put(RequestContext.USER_NAME, USER)
+                        .put(RequestContext.WORKSPACE_ID, workspaceId))
+                .block();
+
+        // Query in mixed state — UNION ALL hybrid with both branches active
+        var mixedState = datasetResourceClient.getDatasetItemsWithExperimentItems(
+                dataset.id(), experimentIds, null, null, apiKey, workspaceName);
+
+        assertThat(mixedState).isNotNull();
+        assertThat(mixedState.content()).isNotEmpty();
+
+        assertDatasetItemsWithExperimentItems(beforeAggregation.content(), mixedState.content());
+    }
+
+    @Test
     @DisplayName("ExperimentItemDAO.STREAM returns non-empty results before and after populating experiment_item_aggregates when experiment items have no feedback scores or comments")
     void streamExperimentItemsWithNoScoresIsConsistentBeforeAndAfterAggregates() {
         var workspaceName = UUID.randomUUID().toString();
