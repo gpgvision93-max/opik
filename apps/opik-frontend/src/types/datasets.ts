@@ -138,6 +138,9 @@ export interface Experiment {
   prompt_versions?: ExperimentPromptVersion[];
   trace_count: number;
   dataset_item_count?: number;
+  pass_rate?: number;
+  passed_count?: number;
+  total_count?: number;
   total_estimated_cost?: number;
   total_estimated_cost_avg?: number;
   evaluation_method?: string;

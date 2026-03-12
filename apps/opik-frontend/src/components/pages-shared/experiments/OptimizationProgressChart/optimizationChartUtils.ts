@@ -9,12 +9,19 @@ export type FeedbackScore = {
   value: number;
 };
 
-export type TrialStatus = "baseline" | "passed" | "pruned";
+export type TrialStatus =
+  | "baseline"
+  | "passed"
+  | "pruned"
+  | "running"
+  | "evaluating";
 
 export const TRIAL_STATUS_COLORS: Record<TrialStatus, string> = {
   baseline: "var(--color-gray)",
   passed: "var(--color-blue)",
   pruned: "var(--color-pink)",
+  running: "var(--color-yellow)",
+  evaluating: "var(--color-orange)",
 };
 
 export type CandidateDataPoint = {
@@ -88,6 +95,8 @@ export const computeCandidateStatuses = (
   for (const c of candidates) {
     if (c.stepIndex === 0) {
       statusMap.set(c.candidateId, "baseline");
+    } else if (c.score == null && !isOptimizationFinished) {
+      statusMap.set(c.candidateId, "running");
     } else if (
       !referencedParents.has(c.candidateId) &&
       c.stepIndex < effectiveMaxStep &&
@@ -102,6 +111,11 @@ export const computeCandidateStatuses = (
       (c.score == null || c.score < bestScore)
     ) {
       statusMap.set(c.candidateId, "pruned");
+    } else if (
+      !isOptimizationFinished &&
+      !referencedParents.has(c.candidateId)
+    ) {
+      statusMap.set(c.candidateId, "evaluating");
     } else {
       statusMap.set(c.candidateId, "passed");
     }

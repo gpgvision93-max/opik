@@ -3,7 +3,7 @@ import { Play, Rocket, RotateCw, X } from "lucide-react";
 import { Tag } from "@/components/ui/tag";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
-import { OPTIMIZATION_STATUS } from "@/types/optimizations";
+import { OPTIMIZATION_STATUS, Optimization } from "@/types/optimizations";
 import { STATUS_TO_VARIANT_MAP } from "@/constants/experiments";
 import { IN_PROGRESS_OPTIMIZATION_STATUSES } from "@/lib/optimizations";
 import useOptimizationStopMutation from "@/api/optimizations/useOptimizationStopMutation";
@@ -17,9 +17,12 @@ import ConfirmDialog from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PROMPT_TEMPLATE_STRUCTURE } from "@/types/prompts";
 import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
 import { convertMessages } from "@/components/pages-shared/shared/useSaveToPromptLibrary";
+import NavigationTag from "@/components/shared/NavigationTag/NavigationTag";
+import { RESOURCE_TYPE } from "@/components/shared/ResourceLink/ResourceLink";
+import { formatDate } from "@/lib/date";
 
 type OptimizationHeaderProps = {
-  title: string;
+  optimization?: Optimization;
   status?: OPTIMIZATION_STATUS;
   optimizationId?: string;
   isStudioOptimization?: boolean;
@@ -28,7 +31,7 @@ type OptimizationHeaderProps = {
 };
 
 const OptimizationHeader: React.FC<OptimizationHeaderProps> = ({
-  title,
+  optimization,
   status,
   optimizationId,
   isStudioOptimization,
@@ -111,16 +114,32 @@ const OptimizationHeader: React.FC<OptimizationHeaderProps> = ({
   return (
     <>
       <div className="mb-4 flex min-h-8 flex-nowrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h1 className="comet-title-l truncate break-words">{title}</h1>
-          {status && (
-            <Tag
-              variant={STATUS_TO_VARIANT_MAP[status]}
-              size="md"
-              className="capitalize"
-            >
-              {status}
-            </Tag>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <h1 className="comet-title-l truncate break-words">
+              {optimization?.dataset_name || optimizationId}
+            </h1>
+            {optimization?.created_at && (
+              <span className="comet-body-s text-muted-slate">
+                {formatDate(optimization.created_at)}
+              </span>
+            )}
+            {status && (
+              <Tag
+                variant={STATUS_TO_VARIANT_MAP[status]}
+                size="md"
+                className="capitalize"
+              >
+                {status}
+              </Tag>
+            )}
+          </div>
+          {optimization?.dataset_id && optimization?.dataset_name && (
+            <NavigationTag
+              id={optimization.dataset_id}
+              name={`Go to ${optimization.dataset_name}`}
+              resource={RESOURCE_TYPE.dataset}
+            />
           )}
         </div>
         <div className="flex items-center gap-2">

@@ -75,6 +75,12 @@ const OptimizationProgressChartContent: React.FC<
     }));
   }, [chartData]);
 
+  // Ghost step: derived from inProgressInfo when the optimizer is running.
+  const ghostStep = useMemo(() => {
+    if (!isInProgress || steps.length === 0 || !inProgressInfo) return null;
+    return inProgressInfo.stepIndex;
+  }, [isInProgress, steps, inProgressInfo]);
+
   // Track pixel offsets for dots that share the same (step, score)
   const overlapOffsets = useMemo(() => {
     const groups = new Map<string, string[]>();
@@ -95,6 +101,17 @@ const OptimizationProgressChartContent: React.FC<
     }
     return offsets;
   }, [chartData]);
+
+  // Count real (scored) dots at the ghost step to offset the ghost dot
+  const ghostXOffset = useMemo(() => {
+    if (ghostStep == null) return 0;
+    const dotsAtStep = chartData.filter(
+      (d) => d.stepIndex === ghostStep && d.value != null,
+    ).length;
+    if (dotsAtStep === 0) return 0;
+    // Push the ghost to the right of existing dots
+    return dotsAtStep * 8;
+  }, [ghostStep, chartData]);
 
   const values = useMemo(
     () => positionedData.map((d) => d.value),
@@ -252,13 +269,6 @@ const OptimizationProgressChartContent: React.FC<
     );
   }, [edges]);
 
-  // Ghost step: derived from parent step + 1. Always at the proposed step —
-  // if another candidate already exists at that step, the chart handles overlap.
-  const ghostStep = useMemo(() => {
-    if (!isInProgress || steps.length === 0 || !inProgressInfo) return null;
-    return inProgressInfo.stepIndex;
-  }, [isInProgress, steps, inProgressInfo]);
-
   const xDomain = useMemo(() => {
     if (steps.length === 0) return [0, 1];
     const maxDataStep = steps[steps.length - 1];
@@ -301,7 +311,8 @@ const OptimizationProgressChartContent: React.FC<
     if (!refA || !refB) return null;
 
     const pxPerStep = (refB.cx - refA.cx) / (refB.step - refA.step);
-    const ghostCx = refA.cx + pxPerStep * (ghostStep - refA.step);
+    const ghostCx =
+      refA.cx + pxPerStep * (ghostStep - refA.step) + ghostXOffset;
     const ghostCy =
       parentPositions.reduce((sum, p) => sum + p.cy, 0) /
       parentPositions.length;
@@ -362,7 +373,7 @@ const OptimizationProgressChartContent: React.FC<
         </circle>
       </g>
     );
-  }, [ghostStep, inProgressInfo, chartData]);
+  }, [ghostStep, inProgressInfo, chartData, ghostXOffset]);
 
   return (
     <div ref={containerRef} className="relative">
@@ -429,12 +440,8 @@ const OptimizationProgressChartContent: React.FC<
             ? formatAsPercentage(c.score)
             : "-";
           const fractionDisplay =
-            isEvaluationSuite &&
-            isNumber(c.score) &&
-            c.totalDatasetItemCount > 0
-              ? ` (${Math.round(c.score * c.totalDatasetItemCount)}/${
-                  c.totalDatasetItemCount
-                })`
+            isEvaluationSuite && isNumber(c.score) && c.totalCount > 0
+              ? ` (${c.passedCount}/${c.totalCount})`
               : "";
 
           const rows: { label: string; value: string }[] = [

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,14 +6,14 @@ import Loader from "@/components/shared/Loader/Loader";
 import OptimizationProgressChartContainer from "@/components/pages-shared/experiments/OptimizationProgressChart";
 import TrialConfigurationSection from "@/components/pages-shared/experiments/TrialConfigurationSection";
 import { IN_PROGRESS_OPTIMIZATION_STATUSES } from "@/lib/optimizations";
+import { formatDate } from "@/lib/date";
+import useBreadcrumbsStore from "@/store/BreadcrumbsStore";
 import { useOptimizationData } from "./useOptimizationData";
 import { useOptimizationColumns } from "./useOptimizationColumns";
 import OptimizationHeader from "./OptimizationHeader";
-import OptimizationToolbar from "./OptimizationToolbar";
 import OptimizationTrialsControls from "./OptimizationTrialsControls";
-import OptimizationMainContent from "./OptimizationMainContent";
+import OptimizationTrialsTable from "./OptimizationTrialsTable";
 import OptimizationKPICards from "./OptimizationKPICards";
-import { OPTIMIZATION_VIEW_TYPE } from "./OptimizationViewSelector";
 
 enum OPTIMIZATION_TAB {
   OVERVIEW = "overview",
@@ -29,7 +29,6 @@ const OptimizationPage: React.FC = () => {
     optimization,
     experiments,
     candidates,
-    title,
     rows,
     noDataText,
     sortableBy,
@@ -38,6 +37,7 @@ const OptimizationPage: React.FC = () => {
     baselineCandidate,
     baselineExperiment,
     inProgressInfo,
+    isRunningMiniBatches,
     isEvaluationSuite,
     isOptimizationPending,
     isExperimentsPending,
@@ -60,10 +60,24 @@ const OptimizationPage: React.FC = () => {
   } = useOptimizationData();
 
   const [selectedTrialId, setSelectedTrialId] = useState<string | undefined>();
-  const [view, setView] = useState<OPTIMIZATION_VIEW_TYPE>(
-    OPTIMIZATION_VIEW_TYPE.LOGS,
-  );
   const [activeTab, setActiveTab] = useState<string>(OPTIMIZATION_TAB.OVERVIEW);
+  const setBreadcrumbParam = useBreadcrumbsStore((state) => state.setParam);
+
+  useEffect(() => {
+    if (optimization?.dataset_name) {
+      const label = optimization.created_at
+        ? `${optimization.dataset_name} - ${formatDate(
+            optimization.created_at,
+          )}`
+        : optimization.dataset_name;
+      setBreadcrumbParam("optimizationId", optimizationId, label);
+    }
+  }, [
+    optimizationId,
+    optimization?.dataset_name,
+    optimization?.created_at,
+    setBreadcrumbParam,
+  ]);
 
   const bestExperiment = useMemo(() => {
     if (!bestCandidate || !experiments.length) return undefined;
@@ -94,8 +108,6 @@ const OptimizationPage: React.FC = () => {
     !!optimization?.status &&
     !IN_PROGRESS_OPTIMIZATION_STATUSES.includes(optimization.status);
 
-  const isStudioOptimization = Boolean(optimization?.studio_config);
-
   const { columnsDef, columns } = useOptimizationColumns({
     candidates,
     columnsOrder,
@@ -112,13 +124,10 @@ const OptimizationPage: React.FC = () => {
   }
 
   const canRerun =
-    isStudioOptimization &&
+    Boolean(optimization?.studio_config) &&
     Boolean(optimization?.id) &&
     optimization?.status &&
     !IN_PROGRESS_OPTIMIZATION_STATUSES.includes(optimization.status);
-
-  const showTrialsView =
-    !isStudioOptimization || view === OPTIMIZATION_VIEW_TYPE.TRIALS;
 
   const isTrialsTab = activeTab === OPTIMIZATION_TAB.TRIALS;
 
@@ -128,10 +137,10 @@ const OptimizationPage: React.FC = () => {
     >
       <div className="shrink-0 pb-4">
         <OptimizationHeader
-          title={title}
+          optimization={optimization}
           status={optimization?.status}
           optimizationId={optimization?.id}
-          isStudioOptimization={isStudioOptimization}
+          isStudioOptimization={Boolean(optimization?.studio_config)}
           canRerun={canRerun}
           bestExperiment={bestExperiment}
         />
@@ -170,6 +179,7 @@ const OptimizationPage: React.FC = () => {
               onTrialClick={handleTrialClick}
               isEvaluationSuite={isEvaluationSuite}
               inProgressInfo={inProgressInfo}
+              isRunningMiniBatches={isRunningMiniBatches}
               selectedTrialId={selectedTrialId}
               onTrialSelect={setSelectedTrialId}
             />
@@ -180,7 +190,9 @@ const OptimizationPage: React.FC = () => {
               <TrialConfigurationSection
                 experiments={[bestExperiment]}
                 title="Best trial configuration"
-                referenceExperiment={baselineExperiment}
+                referenceExperiment={
+                  candidates.length > 1 ? baselineExperiment : undefined
+                }
                 studioConfig={optimization?.studio_config}
               />
             </div>
@@ -191,45 +203,36 @@ const OptimizationPage: React.FC = () => {
           value={OPTIMIZATION_TAB.TRIALS}
           className="mt-0 flex min-h-0 flex-1 flex-col pt-4"
         >
-          <div className="flex shrink-0 items-center justify-between pb-4">
-            <OptimizationToolbar
-              isStudioOptimization={isStudioOptimization}
-              view={view}
-              onViewChange={setView}
+          <div className="flex shrink-0 items-center justify-end pb-4">
+            <OptimizationTrialsControls
+              onRefresh={handleRefresh}
+              rowHeight={height}
+              onRowHeightChange={setHeight}
+              columnsDef={columnsDef}
+              selectedColumns={selectedColumns}
+              onSelectedColumnsChange={setSelectedColumns}
+              columnsOrder={columnsOrder}
+              onColumnsOrderChange={setColumnsOrder}
             />
-            {showTrialsView && (
-              <OptimizationTrialsControls
-                onRefresh={handleRefresh}
-                rowHeight={height}
-                onRowHeightChange={setHeight}
-                columnsDef={columnsDef}
-                selectedColumns={selectedColumns}
-                onSelectedColumnsChange={setSelectedColumns}
-                columnsOrder={columnsOrder}
-                onColumnsOrderChange={setColumnsOrder}
-              />
-            )}
           </div>
 
-          <OptimizationMainContent
-            view={view}
-            isStudioOptimization={isStudioOptimization}
-            optimization={optimization}
-            columns={columns}
-            rows={rows}
-            rowHeight={height}
-            noDataText={noDataText}
-            sortedColumns={sortedColumns}
-            columnsWidth={columnsWidth}
-            onRowClick={handleRowClick}
-            onSortChange={setSortedColumns}
-            onColumnsWidthChange={setColumnsWidth}
-            highlightedTrialId={selectedTrialId}
-            bestExperiment={bestExperiment}
-            showLoadingOverlay={
-              isExperimentsPlaceholderData && isExperimentsFetching
-            }
-          />
+          <div className="flex min-w-0 flex-1 overflow-auto">
+            <OptimizationTrialsTable
+              columns={columns}
+              rows={rows}
+              onRowClick={handleRowClick}
+              rowHeight={height}
+              noDataText={noDataText}
+              sortedColumns={sortedColumns}
+              onSortChange={setSortedColumns}
+              columnsWidth={columnsWidth}
+              onColumnsWidthChange={setColumnsWidth}
+              highlightedTrialId={selectedTrialId}
+              showLoadingOverlay={
+                isExperimentsPlaceholderData && isExperimentsFetching
+              }
+            />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -108,10 +108,8 @@ export const TrialAccuracyCell = (context: CellContext<unknown, unknown>) => {
   );
 
   const passRateFraction =
-    isEvaluationSuite && isNumber(row.score) && row.totalDatasetItemCount > 0
-      ? ` (${Math.round(row.score * row.totalDatasetItemCount)}/${
-          row.totalDatasetItemCount
-        })`
+    isEvaluationSuite && isNumber(row.score) && row.totalCount > 0
+      ? ` (${row.passedCount}/${row.totalCount})`
       : "";
 
   return (

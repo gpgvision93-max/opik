@@ -181,6 +181,8 @@ export type AggregatedCandidate = {
   latencyP50: number | undefined;
   totalTraceCount: number;
   totalDatasetItemCount: number;
+  passedCount: number;
+  totalCount: number;
   experimentIds: string[];
   name: string;
   created_at: string;

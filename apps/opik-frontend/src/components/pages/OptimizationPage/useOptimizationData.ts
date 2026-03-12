@@ -107,28 +107,34 @@ const sortCandidates = (
 const getOptimizationMetadata = (
   metadata: object | undefined,
   experimentId: string,
-): ExperimentOptimizationMetadata | undefined => {
-  if (!metadata) return undefined;
-  const m = metadata as Record<string, unknown>;
-  if (typeof m.step_index === "number") {
+): ExperimentOptimizationMetadata => {
+  if (metadata) {
+    const m = metadata as Record<string, unknown>;
+    if (typeof m.step_index === "number") {
+      return {
+        step_index: m.step_index,
+        candidate_id: (m.candidate_id as string) ?? "",
+        parent_candidate_ids: (m.parent_candidate_ids as string[]) ?? [],
+        configuration: m.configuration as
+          | ExperimentOptimizationMetadata["configuration"]
+          | undefined,
+      };
+    }
+    // Old-style optimizer with metadata but no step_index
     return {
-      step_index: m.step_index,
-      candidate_id: (m.candidate_id as string) ?? "",
-      parent_candidate_ids: (m.parent_candidate_ids as string[]) ?? [],
+      step_index: -1,
+      candidate_id: experimentId,
+      parent_candidate_ids: [],
       configuration: m.configuration as
         | ExperimentOptimizationMetadata["configuration"]
         | undefined,
     };
   }
-  // Old-style optimizer: each experiment is its own candidate
-  // step_index will be assigned after sorting by creation time in aggregateCandidates
+  // No metadata at all: treat each experiment as its own candidate
   return {
     step_index: -1,
     candidate_id: experimentId,
     parent_candidate_ids: [],
-    configuration: m.configuration as
-      | ExperimentOptimizationMetadata["configuration"]
-      | undefined,
   };
 };
 
@@ -146,7 +152,6 @@ const aggregateCandidates = (
 
   for (const exp of experiments) {
     const meta = getOptimizationMetadata(exp.metadata, exp.id);
-    if (!meta) continue;
     const key = meta.candidate_id;
     const existing = groups.get(key);
     if (existing) {
@@ -182,6 +187,8 @@ const aggregateCandidates = (
       latencyP50: metrics.latency,
       totalTraceCount: metrics.totalTraceCount,
       totalDatasetItemCount: metrics.totalDatasetItemCount,
+      passedCount: metrics.passedCount,
+      totalCount: metrics.totalCount,
       experimentIds: exps.map((e) => e.id),
       name: exps[0].name,
       created_at: exps[0].created_at,
@@ -300,19 +307,22 @@ export const useOptimizationData = () => {
     !!optimization?.status &&
     IN_PROGRESS_OPTIMIZATION_STATUSES.includes(optimization.status);
 
-  // Lightweight query: fetch the most recent mutation experiment to detect
-  // in-progress work. Mutation experiments are created when the optimizer
-  // explores a new candidate, so they indicate upcoming work on the chart.
-  const { data: latestExpData } = useExperimentsList(
+  // Fetch the latest experiment (any type) to detect reflection phase.
+  // If it's a mini-batch, the optimizer is reflecting on failing examples.
+  const { data: latestExperimentData } = useExperimentsList(
     {
       workspaceName,
       optimizationId: optimizationId,
-      types: [EXPERIMENT_TYPE.MUTATION],
+      types: [
+        EXPERIMENT_TYPE.TRIAL,
+        EXPERIMENT_TYPE.MINI_BATCH,
+        EXPERIMENT_TYPE.MUTATION,
+      ],
       sorting: [{ id: "created_at", desc: true }],
       forceSorting: true,
       page: 1,
       size: 1,
-      queryKey: "experiments-latest-mutation",
+      queryKey: "experiments-latest",
     },
     {
       enabled: !!optimizationId && isInProgress,
@@ -365,37 +375,32 @@ export const useOptimizationData = () => {
     [experiments, optimization?.objective_name],
   );
 
-  // Derive in-progress candidate info from the latest mutation experiment.
-  // Mutation experiments carry parent_candidate_ids from the optimizer.
-  // The ghost step is always parent step + 1 (each mutation is one generation ahead).
-  // If the mutation's candidate already has a score, the work is done — no ghost.
+  // Derive in-progress candidate info from candidates with no score yet.
+  // A candidate with score == null and parentCandidateIds means the optimizer
+  // created trial experiments but scoring isn't done yet.
   const inProgressInfo = useMemo(() => {
     if (!isInProgress) return undefined;
 
-    const latestMutation = latestExpData?.content?.[0];
-    if (!latestMutation) return undefined;
-
-    const meta = getOptimizationMetadata(
-      latestMutation.metadata,
-      latestMutation.id,
+    const unscoredCandidate = candidates.find(
+      (c) => c.score == null && c.parentCandidateIds.length > 0,
     );
-    if (!meta || !meta.parent_candidate_ids.length) return undefined;
+    if (unscoredCandidate) {
+      return {
+        stepIndex: unscoredCandidate.stepIndex,
+        parentCandidateIds: unscoredCandidate.parentCandidateIds,
+      };
+    }
 
-    const existingCandidate = candidates.find(
-      (c) => c.candidateId === meta.candidate_id,
-    );
-    if (existingCandidate?.score != null) return undefined;
+    return undefined;
+  }, [isInProgress, candidates]);
 
-    const parentSteps = candidates
-      .filter((c) => meta.parent_candidate_ids.includes(c.candidateId))
-      .map((c) => c.stepIndex);
-    if (!parentSteps.length) return undefined;
+  // Detect reflection phase: the latest experiment is a mini-batch.
+  const isRunningMiniBatches = useMemo(() => {
+    if (!isInProgress) return false;
 
-    return {
-      stepIndex: Math.max(...parentSteps) + 1,
-      parentCandidateIds: meta.parent_candidate_ids,
-    };
-  }, [isInProgress, latestExpData?.content, candidates]);
+    const latest = latestExperimentData?.content?.[0];
+    return latest?.type === EXPERIMENT_TYPE.MINI_BATCH;
+  }, [isInProgress, latestExperimentData?.content]);
 
   const rows = useMemo(() => {
     const filtered = candidates.filter(({ name }) =>
@@ -442,6 +447,7 @@ export const useOptimizationData = () => {
         },
         search: {
           trials: row.experimentIds,
+          trialNumber: row.trialNumber,
         },
       });
     },
@@ -471,6 +477,7 @@ export const useOptimizationData = () => {
     baselineCandidate,
     baselineExperiment,
     inProgressInfo,
+    isRunningMiniBatches,
     sortableBy,
     // Loading states
     isOptimizationPending,

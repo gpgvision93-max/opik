@@ -44,7 +44,7 @@ import OptimizationPage from "@/components/pages/OptimizationPage/OptimizationPa
 import OptimizationCompareRedirect from "@/components/pages/OptimizationPage/OptimizationCompareRedirect";
 import TrialPage from "@/components/pages/TrialPage/TrialPage";
 import AlertsRouteWrapper from "@/components/pages/AlertsPage/AlertsRouteWrapper";
-import AddEditAlertPage from "./components/pages/AlertsPage/AddEditAlertPage/AddEditAlertPage";
+import AlertEditPageGuard from "@/components/layout/AlertEditPageGuard/AlertEditPageGuard";
 import DashboardPage from "@/components/pages/DashboardPage/DashboardPage";
 import DashboardsPage from "@/components/pages/DashboardsPage/DashboardsPage";
 
@@ -423,7 +423,7 @@ const alertNewRoute = createRoute({
   staticData: {
     title: "New alert",
   },
-  component: AddEditAlertPage,
+  component: AlertEditPageGuard,
 });
 
 const alertEditRoute = createRoute({
@@ -432,7 +432,7 @@ const alertEditRoute = createRoute({
   staticData: {
     param: "alertId",
   },
-  component: AddEditAlertPage,
+  component: AlertEditPageGuard,
 });
 
 // --------- production

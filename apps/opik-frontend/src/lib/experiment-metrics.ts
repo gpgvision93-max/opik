@@ -8,6 +8,8 @@ export type AggregatedMetrics = {
   latency: number | undefined;
   totalTraceCount: number;
   totalDatasetItemCount: number;
+  passedCount: number;
+  totalCount: number;
 };
 
 export const aggregateExperimentMetrics = (
@@ -19,6 +21,8 @@ export const aggregateExperimentMetrics = (
   let totalCost = 0;
   let totalTraceCount = 0;
   let totalDatasetItemCount = 0;
+  let totalPassedCount = 0;
+  let totalTotalCount = 0;
   let hasScore = false;
   let hasCost = false;
   let hasLatency = false;
@@ -27,15 +31,22 @@ export const aggregateExperimentMetrics = (
 
   for (const exp of experiments) {
     const tc = exp.trace_count || 0;
-    const dic = exp.dataset_item_count ?? tc;
+    const scoreWeight = exp.total_count ?? tc;
     totalTraceCount += tc;
-    totalDatasetItemCount += dic;
+    totalDatasetItemCount += exp.dataset_item_count ?? tc;
+
+    if (exp.passed_count != null) {
+      totalPassedCount += exp.passed_count;
+    }
+    if (exp.total_count != null) {
+      totalTotalCount += exp.total_count;
+    }
 
     if (objectiveName) {
       const score = getObjectiveScoreValue(exp, objectiveName);
       if (score != null) {
-        totalWeightedScore += score * dic;
-        totalWeightedScoreItems += dic;
+        totalWeightedScore += score * scoreWeight;
+        totalWeightedScoreItems += scoreWeight;
         hasScore = true;
       }
     }
@@ -65,5 +76,7 @@ export const aggregateExperimentMetrics = (
         : undefined,
     totalTraceCount,
     totalDatasetItemCount,
+    passedCount: totalPassedCount,
+    totalCount: totalTotalCount,
   };
 };

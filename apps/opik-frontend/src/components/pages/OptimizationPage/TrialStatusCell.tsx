@@ -6,12 +6,14 @@ import { Tag, TagProps } from "@/components/ui/tag";
 import { AggregatedCandidate } from "@/types/optimizations";
 import { computeCandidateStatuses } from "@/components/pages-shared/experiments/OptimizationProgressChart/optimizationChartUtils";
 
-type TrialStatus = "baseline" | "passed" | "pruned";
+type TrialStatus = "baseline" | "passed" | "pruned" | "running" | "evaluating";
 
 const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
   baseline: "gray",
   passed: "blue",
   pruned: "pink",
+  running: "yellow",
+  evaluating: "orange",
 };
 
 const TrialStatusCell = (context: CellContext<unknown, unknown>) => {

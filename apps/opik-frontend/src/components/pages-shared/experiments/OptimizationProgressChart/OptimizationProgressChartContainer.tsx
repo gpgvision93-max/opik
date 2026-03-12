@@ -7,21 +7,14 @@ import { IN_PROGRESS_OPTIMIZATION_STATUSES } from "@/lib/optimizations";
 import NoData from "@/components/shared/NoData/NoData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import useProgressSimulation from "@/hooks/useProgressSimulation";
 import OptimizationProgressChartContent from "./OptimizationProgressChartContent";
 import {
   buildCandidateChartData,
   type InProgressInfo,
 } from "./optimizationChartUtils";
 
-const OPTIMIZATION_TIPS = [
-  "Running optimization trials...",
-  "Evaluating prompt variations...",
-  "Searching for better prompts...",
-  "Analyzing trial results...",
-  "Testing new configurations...",
-  "Exploring the prompt space...",
-];
+const INITIALIZING_MESSAGE = "Optimization process is initialized...";
+const CALCULATING_BASELINE_MESSAGE = "Calculating baseline...";
 
 type OptimizationProgressChartContainerProps = {
   candidates: AggregatedCandidate[];
@@ -33,6 +26,7 @@ type OptimizationProgressChartContainerProps = {
   onTrialClick?: (candidateId: string) => void;
   isEvaluationSuite?: boolean;
   inProgressInfo?: InProgressInfo;
+  isRunningMiniBatches?: boolean;
 };
 
 const OptimizationProgressChartContainer: React.FC<
@@ -47,15 +41,14 @@ const OptimizationProgressChartContainer: React.FC<
   onTrialClick,
   isEvaluationSuite,
   inProgressInfo,
+  isRunningMiniBatches,
 }) => {
   const isInProgress =
     !!status && IN_PROGRESS_OPTIMIZATION_STATUSES.includes(status);
 
-  const { message: currentTip } = useProgressSimulation({
-    messages: OPTIMIZATION_TIPS,
-    isPending: isInProgress,
-    loop: true,
-  });
+  const baselineMessage = candidates.some((c) => c.stepIndex === 0)
+    ? CALCULATING_BASELINE_MESSAGE
+    : INITIALIZING_MESSAGE;
 
   const isOptimizationFinished =
     !!status && !IN_PROGRESS_OPTIMIZATION_STATUSES.includes(status);
@@ -82,7 +75,7 @@ const OptimizationProgressChartContainer: React.FC<
           <div className="flex min-h-32 flex-col items-center justify-center gap-2">
             <Spinner size="small" />
             <div className="comet-body-s text-muted-slate transition-opacity duration-300">
-              {currentTip}
+              {baselineMessage}
             </div>
           </div>
         );
@@ -102,7 +95,7 @@ const OptimizationProgressChartContainer: React.FC<
           <div className="flex min-h-32 flex-col items-center justify-center gap-2">
             <Spinner size="small" />
             <div className="comet-body-s text-muted-slate transition-opacity duration-300">
-              {currentTip}
+              {baselineMessage}
             </div>
           </div>
         );
@@ -137,7 +130,7 @@ const OptimizationProgressChartContainer: React.FC<
     bestCandidateId,
     objectiveName,
     isInProgress,
-    currentTip,
+    baselineMessage,
     selectedTrialId,
     onTrialSelect,
     onTrialClick,
@@ -156,9 +149,9 @@ const OptimizationProgressChartContainer: React.FC<
               <span className="comet-body-xs font-normal text-muted-slate">
                 {inProgressInfo
                   ? "Evaluating new candidate..."
-                  : candidates.length <= 1
-                    ? "Running initial calculations..."
-                    : "Reflecting on results..."}
+                  : isRunningMiniBatches
+                    ? "Looking for failing examples to reflect on..."
+                    : "Generating new candidate..."}
               </span>
             </>
           )}

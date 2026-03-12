@@ -26,23 +26,27 @@ describe("aggregateExperimentMetrics", () => {
         latency: undefined,
         totalTraceCount: 0,
         totalDatasetItemCount: 0,
+        passedCount: 0,
+        totalCount: 0,
       });
     });
   });
 
-  describe("score weighting by dataset_item_count", () => {
-    it("should weight scores by dataset_item_count when available", () => {
+  describe("score weighting by total_count", () => {
+    it("should weight scores by total_count when available", () => {
       const experiments = [
         makeExperiment({
           id: "e1",
           trace_count: 20,
           dataset_item_count: 10,
+          total_count: 10,
           feedback_scores: [{ name: "accuracy", value: 0.8 }],
         }),
         makeExperiment({
           id: "e2",
           trace_count: 10,
           dataset_item_count: 5,
+          total_count: 5,
           feedback_scores: [{ name: "accuracy", value: 0.6 }],
         }),
       ];
@@ -53,20 +57,19 @@ describe("aggregateExperimentMetrics", () => {
       expect(result.score).toBeCloseTo(11 / 15);
       expect(result.totalTraceCount).toBe(30);
       expect(result.totalDatasetItemCount).toBe(15);
+      expect(result.totalCount).toBe(15);
     });
 
-    it("should fall back to trace_count when dataset_item_count is undefined", () => {
+    it("should fall back to trace_count when total_count is undefined", () => {
       const experiments = [
         makeExperiment({
           id: "e1",
           trace_count: 10,
-          dataset_item_count: undefined,
           feedback_scores: [{ name: "accuracy", value: 0.8 }],
         }),
         makeExperiment({
           id: "e2",
           trace_count: 5,
-          dataset_item_count: undefined,
           feedback_scores: [{ name: "accuracy", value: 0.6 }],
         }),
       ];
@@ -77,28 +80,99 @@ describe("aggregateExperimentMetrics", () => {
       expect(result.score).toBeCloseTo(11 / 15);
     });
 
-    it("should not weight by trace_count when runs_per_item > 1", () => {
-      // runs_per_item = 2: 10 dataset items, 20 traces
+    it("should use dataset_item_count for totalDatasetItemCount, not trace_count", () => {
       const experiments = [
         makeExperiment({
           id: "e1",
           trace_count: 20,
           dataset_item_count: 10,
+          feedback_scores: [{ name: "accuracy", value: 0.8 }],
+        }),
+      ];
+
+      const result = aggregateExperimentMetrics(experiments, "accuracy");
+
+      expect(result.totalDatasetItemCount).toBe(10);
+      expect(result.totalTraceCount).toBe(20);
+    });
+
+    it("should fall back to trace_count when dataset_item_count is undefined", () => {
+      const experiments = [
+        makeExperiment({
+          id: "e1",
+          trace_count: 20,
+          feedback_scores: [{ name: "accuracy", value: 0.8 }],
+        }),
+      ];
+
+      const result = aggregateExperimentMetrics(experiments, "accuracy");
+
+      expect(result.totalDatasetItemCount).toBe(20);
+    });
+
+    it("should weight by total_count not trace_count when runs_per_item > 1", () => {
+      // runs_per_item = 2: 10 total items, 20 traces
+      const experiments = [
+        makeExperiment({
+          id: "e1",
+          trace_count: 20,
+          total_count: 10,
           feedback_scores: [{ name: "accuracy", value: 1.0 }],
         }),
-        // runs_per_item = 1: 10 dataset items, 10 traces
+        // runs_per_item = 1: 10 total items, 10 traces
         makeExperiment({
           id: "e2",
           trace_count: 10,
-          dataset_item_count: 10,
+          total_count: 10,
           feedback_scores: [{ name: "accuracy", value: 0.0 }],
         }),
       ];
 
       const result = aggregateExperimentMetrics(experiments, "accuracy");
 
-      // Equal dataset items → equal weight: (1.0 * 10 + 0.0 * 10) / 20 = 0.5
+      // Equal total items → equal weight: (1.0 * 10 + 0.0 * 10) / 20 = 0.5
       expect(result.score).toBeCloseTo(0.5);
+    });
+  });
+
+  describe("passed_count and total_count aggregation", () => {
+    it("should sum passed_count and total_count from experiments", () => {
+      const experiments = [
+        makeExperiment({
+          id: "e1",
+          trace_count: 10,
+          passed_count: 8,
+          total_count: 10,
+          feedback_scores: [{ name: "accuracy", value: 0.8 }],
+        }),
+        makeExperiment({
+          id: "e2",
+          trace_count: 5,
+          passed_count: 3,
+          total_count: 5,
+          feedback_scores: [{ name: "accuracy", value: 0.6 }],
+        }),
+      ];
+
+      const result = aggregateExperimentMetrics(experiments, "accuracy");
+
+      expect(result.passedCount).toBe(11);
+      expect(result.totalCount).toBe(15);
+    });
+
+    it("should handle missing passed_count and total_count", () => {
+      const experiments = [
+        makeExperiment({
+          id: "e1",
+          trace_count: 10,
+          feedback_scores: [{ name: "accuracy", value: 0.8 }],
+        }),
+      ];
+
+      const result = aggregateExperimentMetrics(experiments, "accuracy");
+
+      expect(result.passedCount).toBe(0);
+      expect(result.totalCount).toBe(0);
     });
   });
 
@@ -152,7 +226,7 @@ describe("aggregateExperimentMetrics", () => {
         makeExperiment({
           id: "e1",
           trace_count: 5,
-          dataset_item_count: 5,
+          total_count: 5,
           feedback_scores: [],
           experiment_scores: [{ name: "accuracy", value: 0.9 }],
         }),
@@ -194,7 +268,7 @@ describe("aggregateExperimentMetrics", () => {
         makeExperiment({
           id: "e1",
           trace_count: 0,
-          dataset_item_count: 0,
+          total_count: 0,
           duration: { p50: 1000, p90: 2000, p99: 3000 },
         }),
       ];
