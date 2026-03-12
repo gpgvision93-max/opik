@@ -4,40 +4,29 @@ import { CellContext } from "@tanstack/react-table";
 import CellWrapper from "@/components/shared/DataTableCells/CellWrapper";
 import { Tag, TagProps } from "@/components/ui/tag";
 import { AggregatedCandidate } from "@/types/optimizations";
-import { computeCandidateStatuses } from "@/components/pages-shared/experiments/OptimizationProgressChart/optimizationChartUtils";
-
-type TrialStatus = "baseline" | "passed" | "pruned" | "running" | "evaluating";
+import {
+  computeCandidateStatuses,
+  type TrialStatus,
+} from "@/components/pages-shared/experiments/OptimizationProgressChart/optimizationChartUtils";
 
 const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
   baseline: "gray",
   passed: "blue",
   pruned: "pink",
   running: "yellow",
-  evaluating: "orange",
 };
 
 const TrialStatusCell = (context: CellContext<unknown, unknown>) => {
   const row = context.row.original as AggregatedCandidate;
   const { custom } = context.column.columnDef.meta ?? {};
-  const {
-    candidates,
-    isOptimizationFinished,
-    bestCandidateId,
-    inProgressStepIndex,
-  } = (custom ?? {}) as {
+  const { candidates, bestCandidateId } = (custom ?? {}) as {
     candidates: AggregatedCandidate[];
-    isOptimizationFinished?: boolean;
     bestCandidateId?: string;
-    inProgressStepIndex?: number;
   };
 
   const isBest = bestCandidateId === row.candidateId;
 
-  const statusMap = computeCandidateStatuses(
-    candidates ?? [],
-    isOptimizationFinished,
-    inProgressStepIndex,
-  );
+  const statusMap = computeCandidateStatuses(candidates ?? []);
   const status = statusMap.get(row.candidateId) ?? "pruned";
 
   return (

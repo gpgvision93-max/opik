@@ -9,19 +9,13 @@ export type FeedbackScore = {
   value: number;
 };
 
-export type TrialStatus =
-  | "baseline"
-  | "passed"
-  | "pruned"
-  | "running"
-  | "evaluating";
+export type TrialStatus = "baseline" | "passed" | "pruned" | "running";
 
 export const TRIAL_STATUS_COLORS: Record<TrialStatus, string> = {
   baseline: "var(--color-gray)",
   passed: "var(--color-blue)",
   pruned: "var(--color-pink)",
   running: "var(--color-yellow)",
-  evaluating: "var(--color-orange)",
 };
 
 export const TRIAL_STATUS_LABELS: Record<TrialStatus, string> = {
@@ -29,7 +23,6 @@ export const TRIAL_STATUS_LABELS: Record<TrialStatus, string> = {
   passed: "Passed",
   pruned: "Pruned",
   running: "Running",
-  evaluating: "Evaluating",
 };
 
 export const TRIAL_STATUS_ORDER: readonly TrialStatus[] = [
@@ -37,7 +30,6 @@ export const TRIAL_STATUS_ORDER: readonly TrialStatus[] = [
   "passed",
   "pruned",
   "running",
-  "evaluating",
 ] as const;
 
 export type CandidateDataPoint = {
@@ -62,79 +54,42 @@ export type InProgressInfo = {
 
 /**
  * Compute status for each candidate:
- * - Step 0 candidates = "baseline"
- * - "pruned" when a candidate has no children AND we're confident it won't
- *   get any: either the optimization is finished, or a candidate exists
- *   at step X+2 (meaning step X+1 has fully produced its generation).
- *   After completion, last-step candidates that scored below the best are
- *   also pruned (they have no children and aren't the winner).
- * - Otherwise "passed"
+ * - Step 0 = "baseline"
+ * - score == null (still being evaluated) = "running"
+ * - scored higher than best parent = "passed"
+ * - scored equal or lower than best parent = "pruned"
  */
 export const computeCandidateStatuses = (
   candidates: AggregatedCandidate[],
-  isOptimizationFinished = false,
-  inProgressStepIndex?: number,
 ): Map<string, TrialStatus> => {
   const statusMap = new Map<string, TrialStatus>();
   if (!candidates.length) return statusMap;
 
-  const maxStep = Math.max(...candidates.map((c) => c.stepIndex));
-
-  // Collect which steps exist — include the in-progress ghost step so that
-  // candidates two steps behind it can be marked as pruned immediately.
-  const stepsWithCandidates = new Set(candidates.map((c) => c.stepIndex));
-  if (inProgressStepIndex != null) {
-    stepsWithCandidates.add(inProgressStepIndex);
-  }
-
-  // Build set of candidate IDs that are referenced as parents
-  const referencedParents = new Set<string>();
+  const candidateById = new Map<string, AggregatedCandidate>();
   for (const c of candidates) {
-    for (const pid of c.parentCandidateIds) {
-      referencedParents.add(pid);
-    }
+    candidateById.set(c.candidateId, c);
   }
-
-  // Find the best score across all non-baseline candidates
-  let bestScore: number | undefined;
-  for (const c of candidates) {
-    if (c.stepIndex === 0) continue;
-    if (c.score != null && (bestScore == null || c.score > bestScore)) {
-      bestScore = c.score;
-    }
-  }
-
-  const effectiveMaxStep =
-    inProgressStepIndex != null
-      ? Math.max(maxStep, inProgressStepIndex)
-      : maxStep;
 
   for (const c of candidates) {
     if (c.stepIndex === 0) {
       statusMap.set(c.candidateId, "baseline");
-    } else if (c.score == null && !isOptimizationFinished) {
+    } else if (c.score == null) {
       statusMap.set(c.candidateId, "running");
-    } else if (
-      !referencedParents.has(c.candidateId) &&
-      c.stepIndex < effectiveMaxStep &&
-      (isOptimizationFinished || stepsWithCandidates.has(c.stepIndex + 2))
-    ) {
-      statusMap.set(c.candidateId, "pruned");
-    } else if (
-      isOptimizationFinished &&
-      c.stepIndex === maxStep &&
-      !referencedParents.has(c.candidateId) &&
-      bestScore != null &&
-      (c.score == null || c.score < bestScore)
-    ) {
-      statusMap.set(c.candidateId, "pruned");
-    } else if (
-      !isOptimizationFinished &&
-      !referencedParents.has(c.candidateId)
-    ) {
-      statusMap.set(c.candidateId, "evaluating");
     } else {
-      statusMap.set(c.candidateId, "passed");
+      const bestParentScore = c.parentCandidateIds.reduce<number | undefined>(
+        (best, pid) => {
+          const parent = candidateById.get(pid);
+          if (parent?.score == null) return best;
+          return best == null ? parent.score : Math.max(best, parent.score);
+        },
+        undefined,
+      );
+
+      if (bestParentScore == null || c.score > bestParentScore) {
+        statusMap.set(c.candidateId, "passed");
+      } else {
+        statusMap.set(c.candidateId, "pruned");
+      }
     }
   }
 
@@ -147,14 +102,8 @@ export const computeCandidateStatuses = (
  */
 export const buildCandidateChartData = (
   candidates: AggregatedCandidate[],
-  isOptimizationFinished = false,
-  inProgressStepIndex?: number,
 ): CandidateDataPoint[] => {
-  const statusMap = computeCandidateStatuses(
-    candidates,
-    isOptimizationFinished,
-    inProgressStepIndex,
-  );
+  const statusMap = computeCandidateStatuses(candidates);
 
   return candidates
     .slice()

@@ -50,17 +50,9 @@ const OptimizationProgressChartContainer: React.FC<
     ? CALCULATING_BASELINE_MESSAGE
     : INITIALIZING_MESSAGE;
 
-  const isOptimizationFinished =
-    !!status && !IN_PROGRESS_OPTIMIZATION_STATUSES.includes(status);
-
   const chartData = useMemo(
-    () =>
-      buildCandidateChartData(
-        candidates,
-        isOptimizationFinished,
-        inProgressInfo?.stepIndex,
-      ),
-    [candidates, isOptimizationFinished, inProgressInfo?.stepIndex],
+    () => buildCandidateChartData(candidates),
+    [candidates],
   );
 
   const noData = useMemo(

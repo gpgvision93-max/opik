@@ -199,14 +199,32 @@ const OptimizationProgressChartContent: React.FC<
               strokeOpacity={0.4}
             />
           )}
-          <Dot
-            cx={cx}
-            cy={cy}
-            fill={color}
-            strokeWidth={1.5}
-            stroke="white"
-            r={radius}
-          />
+          {isBest && isInProgress && !inProgressInfo ? (
+            <circle
+              cx={cx}
+              cy={cy}
+              r={radius}
+              fill={color}
+              strokeWidth={1.5}
+              stroke="white"
+            >
+              <animate
+                attributeName="opacity"
+                values="1;0.4;1"
+                dur="3s"
+                repeatCount="indefinite"
+              />
+            </circle>
+          ) : (
+            <Dot
+              cx={cx}
+              cy={cy}
+              fill={color}
+              strokeWidth={1.5}
+              stroke="white"
+              r={radius}
+            />
+          )}
           {isBest && (
             <>
               <rect
@@ -239,6 +257,8 @@ const OptimizationProgressChartContent: React.FC<
       onTrialSelect,
       onTrialClick,
       overlapOffsets,
+      isInProgress,
+      inProgressInfo,
     ],
   );
 
@@ -348,9 +368,9 @@ const OptimizationProgressChartContent: React.FC<
           cx={ghostCx}
           cy={ghostCy}
           r={6}
-          fill="var(--color-blue)"
+          fill={TRIAL_STATUS_COLORS.running}
           fillOpacity={0.2}
-          stroke="var(--color-blue)"
+          stroke={TRIAL_STATUS_COLORS.running}
           strokeWidth={1.5}
           strokeOpacity={0.4}
           style={{ cursor: "pointer" }}

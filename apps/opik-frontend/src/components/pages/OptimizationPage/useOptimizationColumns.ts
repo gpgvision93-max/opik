@@ -23,10 +23,8 @@ type UseOptimizationColumnsParams = {
   columnsOrder: string[];
   selectedColumns: string[];
   sortableBy: string[];
-  isOptimizationFinished?: boolean;
   bestCandidateId?: string;
   isEvaluationSuite?: boolean;
-  inProgressStepIndex?: number;
 };
 
 export const useOptimizationColumns = ({
@@ -34,10 +32,8 @@ export const useOptimizationColumns = ({
   columnsOrder,
   selectedColumns,
   sortableBy,
-  isOptimizationFinished,
   bestCandidateId,
   isEvaluationSuite,
-  inProgressStepIndex,
 }: UseOptimizationColumnsParams) => {
   const columnsDef: ColumnData<AggregatedCandidate>[] = useMemo(() => {
     return [
@@ -111,9 +107,7 @@ export const useOptimizationColumns = ({
         cell: TrialStatusCell as never,
         customMeta: {
           candidates,
-          isOptimizationFinished,
           bestCandidateId,
-          inProgressStepIndex,
         },
       },
       {
@@ -123,13 +117,7 @@ export const useOptimizationColumns = ({
         cell: TimeCell as never,
       },
     ];
-  }, [
-    candidates,
-    isOptimizationFinished,
-    bestCandidateId,
-    isEvaluationSuite,
-    inProgressStepIndex,
-  ]);
+  }, [candidates, bestCandidateId, isEvaluationSuite]);
 
   const columns = useMemo(() => {
     return [

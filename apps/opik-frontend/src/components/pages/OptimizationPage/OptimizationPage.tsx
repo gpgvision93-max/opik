@@ -104,19 +104,13 @@ const OptimizationPage: React.FC = () => {
     [candidates, navigate, optimizationId, workspaceName],
   );
 
-  const isFinished =
-    !!optimization?.status &&
-    !IN_PROGRESS_OPTIMIZATION_STATUSES.includes(optimization.status);
-
   const { columnsDef, columns } = useOptimizationColumns({
     candidates,
     columnsOrder,
     selectedColumns,
     sortableBy,
-    isOptimizationFinished: isFinished,
     bestCandidateId: bestCandidate?.candidateId,
     isEvaluationSuite,
-    inProgressStepIndex: inProgressInfo?.stepIndex,
   });
 
   if (isOptimizationPending || isExperimentsPending) {
