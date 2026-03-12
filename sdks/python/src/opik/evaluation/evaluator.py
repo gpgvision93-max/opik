@@ -1205,7 +1205,7 @@ def evaluate_optimization_suite_trial(
     task_threads: int = 16,
     evaluator_model: Optional[str] = None,
     experiment_type: Optional[str] = None,
-) -> evaluation_result.EvaluationResult:
+) -> "suite_types.EvaluationSuiteResult":
     """
     Run an optimization trial on a dataset configured as an evaluation suite.
 
@@ -1251,7 +1251,7 @@ def evaluate_optimization_suite_trial(
             Use "mini-batch" for minibatch evaluations.
 
     Returns:
-        EvaluationResult containing test results for the optimization trial.
+        EvaluationSuiteResult containing test results for the optimization trial.
     """
     return _run_suite_evaluation(
         dataset=dataset,
