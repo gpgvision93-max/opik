@@ -401,6 +401,13 @@ public class DatasetResourceClient {
     }
 
     public DatasetItemPage getDatasetItemsWithExperimentItems(UUID datasetId, List<UUID> experimentIds, String search,
+            List<? extends Filter> filters, List<?> sorting, String apiKey, String workspaceName) {
+        return getDatasetItemsWithExperimentItems(datasetId, experimentIds, search, filters, sorting, null, null,
+                apiKey,
+                workspaceName);
+    }
+
+    public DatasetItemPage getDatasetItemsWithExperimentItems(UUID datasetId, List<UUID> experimentIds, String search,
             List<? extends Filter> filters, List<?> sorting, Integer page, Integer size,
             String apiKey, String workspaceName) {
         var experimentIdsQueryParam = JsonUtils.writeValueAsString(experimentIds);
