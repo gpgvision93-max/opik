@@ -40,9 +40,11 @@ import { OpikQueryLanguage } from "@/query";
 import {
   searchTracesWithFilters,
   searchThreadsWithFilters,
+  searchSpansWithFilters,
   searchAndWaitForDone,
   parseFilterString,
   parseThreadFilterString,
+  parseSpanFilterString,
 } from "@/utils/searchHelpers";
 import { SearchTimeoutError } from "@/errors";
 import {
@@ -50,6 +52,7 @@ import {
   TracesAnnotationQueue,
   ThreadsAnnotationQueue,
 } from "@/annotation-queue";
+import { AgentConfig } from "@/agent-config";
 
 interface TraceData extends Omit<ITrace, "startTime"> {
   startTime?: Date;
@@ -566,6 +569,7 @@ export class OpikClient {
    * @param type Optional experiment type (defaults to "regular")
    * @param optimizationId Optional ID of an optimization associated with the experiment
    * @param datasetVersionId Optional ID of the dataset version to link the experiment to
+   * @param evaluationMethod @internal Used by evaluation suites — not part of the public API
    * @returns The created Experiment object
    */
   public createExperiment = async ({
@@ -576,6 +580,8 @@ export class OpikClient {
     type = ExperimentType.Regular,
     optimizationId,
     datasetVersionId,
+    evaluationMethod,
+    tags,
   }: {
     datasetName: string;
     name?: string;
@@ -584,6 +590,8 @@ export class OpikClient {
     type?: ExperimentType;
     optimizationId?: string;
     datasetVersionId?: string;
+    evaluationMethod?: OpikApi.ExperimentWriteEvaluationMethod;
+    tags?: string[];
   }): Promise<Experiment> => {
     logger.debug(`Creating experiment for dataset "${datasetName}"`);
 
@@ -598,7 +606,7 @@ export class OpikClient {
     );
 
     const id = generateId();
-    const experiment = new Experiment({ id, name, datasetName, prompts }, this);
+    const experiment = new Experiment({ id, name, datasetName, prompts, tags }, this);
 
     try {
       await this.api.experiments.createExperiment({
@@ -610,6 +618,8 @@ export class OpikClient {
         type,
         optimizationId,
         datasetVersionId,
+        tags,
+        evaluationMethod,
       });
 
       logger.debug("Experiment created with id:", id);
@@ -1151,15 +1161,18 @@ export class OpikClient {
    * Supported OQL format: `<COLUMN> <OPERATOR> <VALUE> [AND <COLUMN> <OPERATOR> <VALUE>]*`
    *
    * Supported columns:
-   * - `id`, `name`: String fields
+   * - `id`, `name`, `description`: String fields
+   * - `created_by`, `last_updated_by`: String fields
+   * - `template_structure`: String field (e.g., "text" or "chat")
+   * - `created_at`, `last_updated_at`: Date/time fields (ISO 8601 format)
    * - `tags`: List field (use "contains" operator only)
-   * - `created_by`: String field
+   * - `version_count`: Number field
    *
    * Supported operators by column:
-   * - `id`: =, !=, contains, not_contains, starts_with, ends_with, >, <
-   * - `name`: =, !=, contains, not_contains, starts_with, ends_with, >, <
-   * - `created_by`: =, !=, contains, not_contains, starts_with, ends_with, >, <
-   * - `tags`: contains (only)
+   * - String fields (`id`, `name`, `description`, `created_by`, `last_updated_by`, `template_structure`): =, !=, contains, not_contains, starts_with, ends_with, >, <
+   * - Date/time fields (`created_at`, `last_updated_at`): =, >, <, >=, <=
+   * - Number fields (`version_count`): =, !=, >, <, >=, <=
+   * - List fields (`tags`): contains
    *
    * @returns Promise resolving to array of matching latest prompt versions
    * @throws Error if OQL filter syntax is invalid
@@ -1179,6 +1192,15 @@ export class OpikClient {
    *
    * // Filter by creator
    * const prompts = await client.searchPrompts('created_by = "user@example.com"');
+   *
+   * // Filter by template structure
+   * const chatPrompts = await client.searchPrompts('template_structure = "chat"');
+   *
+   * // Filter by date range
+   * const recentPrompts = await client.searchPrompts('created_at >= "2024-01-01T00:00:00Z"');
+   *
+   * // Filter by version count
+   * const multiVersion = await client.searchPrompts('version_count > 5');
    * ```
    */
   public searchPrompts = async (
@@ -1187,10 +1209,10 @@ export class OpikClient {
     logger.debug("Searching prompts", { filterString });
 
     try {
-      // Parse OQL filter string to JSON (aligned with Python SDK)
+      // Parse OQL filter string to JSON
       let filters: string | undefined;
       if (filterString) {
-        const oql = new OpikQueryLanguage(filterString);
+        const oql = OpikQueryLanguage.forPrompts(filterString);
         const filterExpressions = oql.getFilterExpressions();
         filters = filterExpressions
           ? JSON.stringify(filterExpressions)
@@ -1313,7 +1335,7 @@ export class OpikClient {
    * ```
    */
   private async executeSearch<T, TFilter>(
-    resourceType: "traces" | "threads",
+    resourceType: "traces" | "threads" | "spans",
     options: {
       projectName?: string;
       filterString?: string;
@@ -1456,6 +1478,71 @@ export class OpikClient {
     );
   };
 
+  /**
+   * Search for spans in a project with optional filtering.
+   *
+   * Spans represent individual operations or steps within traces, such as LLM calls or function executions.
+   * This method allows you to search and filter spans using Opik Query Language (OQL).
+   *
+   * @param options - Search options
+   * @param options.projectName - Name of the project to search in. Defaults to the client's configured project.
+   * @param options.filterString - Filter string using Opik Query Language (OQL).
+   *   Supports filtering by: model, provider, type, metadata, feedback_scores, usage, duration, etc.
+   *   Examples: 'model = "gpt-4"', 'provider = "openai"', 'type = "llm"', 'metadata.version = "1.0"'
+   * @param options.maxResults - Maximum number of spans to return (default: 1000)
+   * @param options.truncate - Whether to truncate large fields in the response (default: true)
+   * @param options.waitForAtLeast - If specified, polls until at least this many spans are found
+   * @param options.waitForTimeout - Timeout in seconds when using waitForAtLeast (default: 60)
+   * @returns Promise resolving to an array of spans
+   * @throws {SearchTimeoutError} If waitForAtLeast is specified and timeout is reached
+   *
+   * @example
+   * ```typescript
+   * // Get all spans in a project
+   * const spans = await client.searchSpans({ projectName: "My Project" });
+   *
+   * // Filter by model
+   * const gpt4Spans = await client.searchSpans({
+   *   projectName: "My Project",
+   *   filterString: 'model = "gpt-4"'
+   * });
+   *
+   * // Filter by provider and type
+   * const openaiLLMSpans = await client.searchSpans({
+   *   projectName: "My Project",
+   *   filterString: 'provider = "openai" and type = "llm"'
+   * });
+   *
+   * // Filter by metadata
+   * const prodSpans = await client.searchSpans({
+   *   projectName: "My Project",
+   *   filterString: 'metadata.environment = "production"'
+   * });
+   *
+   * // Wait for at least 5 spans
+   * const spans = await client.searchSpans({
+   *   projectName: "My Project",
+   *   waitForAtLeast: 5,
+   *   waitForTimeout: 30
+   * });
+   * ```
+   */
+  public searchSpans = async (options?: {
+    projectName?: string;
+    filterString?: string;
+    maxResults?: number;
+    truncate?: boolean;
+    waitForAtLeast?: number;
+    waitForTimeout?: number;
+  }): Promise<OpikApi.SpanPublic[]> => {
+    return this.executeSearch<OpikApi.SpanPublic, OpikApi.SpanFilterPublic>(
+      "spans",
+      options ?? {},
+      parseSpanFilterString,
+      searchSpansWithFilters
+    );
+  };
+
   private logFeedbackScores(
     scores: FeedbackScoreData[],
     batchQueue: TraceFeedbackScoresBatchQueue | SpanFeedbackScoresBatchQueue
@@ -1553,6 +1640,28 @@ export class OpikClient {
    * });
    * ```
    */
+  /**
+   * Returns an AgentConfig instance scoped to the given project.
+   * Use it to create blueprints, masks, and manage environment labels.
+   *
+   * @param options.projectName - Project name (defaults to client's configured project)
+   * @returns AgentConfig domain object
+   *
+   * @example
+   * ```typescript
+   * const agentConfig = client.getAgentConfig();
+   * const blueprint = await agentConfig.createBlueprint({
+   *   values: { temperature: "0.8", model: "gpt-4" },
+   *   description: "Initial config",
+   * });
+   * console.log(blueprint.values); // { temperature: "0.8", model: "gpt-4" }
+   * ```
+   */
+  public getAgentConfig = (options?: { projectName?: string }): AgentConfig => {
+    const projectName = options?.projectName ?? this.config.projectName;
+    return new AgentConfig(projectName, this);
+  };
+
   public updatePromptVersionTags = async (
     versionIds: string[],
     options?: {
