@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Coins } from "lucide-react";
 
 import {
@@ -24,11 +24,28 @@ type OptimizationKPICardsProps = {
   baselineCandidate?: AggregatedCandidate;
   bestCandidate?: AggregatedCandidate;
   isEvaluationSuite?: boolean;
+  optimizationCreatedAt?: string;
+  isInProgress?: boolean;
 };
 
 const OptimizationKPICards: React.FunctionComponent<
   OptimizationKPICardsProps
-> = ({ experiments, baselineCandidate, bestCandidate, isEvaluationSuite }) => {
+> = ({
+  experiments,
+  baselineCandidate,
+  bestCandidate,
+  isEvaluationSuite,
+  optimizationCreatedAt,
+  isInProgress,
+}) => {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!isInProgress) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isInProgress]);
+
   const kpiData = useMemo(() => {
     const totalOptCost = experiments.reduce(
       (sum, e) => sum + (e.total_estimated_cost ?? 0),
@@ -36,17 +53,21 @@ const OptimizationKPICards: React.FunctionComponent<
     );
 
     let totalDuration: number | undefined;
-    if (experiments.length >= 2) {
-      const sorted = experiments
-        .slice()
-        .sort((a, b) => a.created_at.localeCompare(b.created_at));
-      const first = new Date(sorted[0].created_at).getTime();
-      const last = new Date(sorted[sorted.length - 1].created_at).getTime();
-      totalDuration = (last - first) / 1000;
+    if (optimizationCreatedAt && experiments.length > 0) {
+      const start = new Date(optimizationCreatedAt).getTime();
+      const end = isInProgress
+        ? now
+        : new Date(
+            experiments.reduce(
+              (latest, e) => (e.created_at > latest ? e.created_at : latest),
+              experiments[0].created_at,
+            ),
+          ).getTime();
+      totalDuration = (end - start) / 1000;
     }
 
     return { totalOptCost, totalDuration };
-  }, [experiments]);
+  }, [experiments, optimizationCreatedAt, isInProgress, now]);
 
   const configs = getMetricKPICardConfigs({ isEvaluationSuite });
 

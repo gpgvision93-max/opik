@@ -115,6 +115,9 @@ export const useOptimizationColumns = ({
         label: "Created",
         type: COLUMN_TYPE.time,
         cell: TimeCell as never,
+        customMeta: {
+          timeMode: "absolute",
+        },
       },
     ];
   }, [candidates, bestCandidateId, isEvaluationSuite]);

@@ -161,6 +161,11 @@ const OptimizationPage: React.FC = () => {
               baselineCandidate={baselineCandidate}
               bestCandidate={bestCandidate}
               isEvaluationSuite={isEvaluationSuite}
+              optimizationCreatedAt={optimization?.created_at}
+              isInProgress={
+                !!optimization?.status &&
+                IN_PROGRESS_OPTIMIZATION_STATUSES.includes(optimization.status)
+              }
             />
           </div>
 
