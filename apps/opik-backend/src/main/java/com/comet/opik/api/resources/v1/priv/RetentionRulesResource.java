@@ -70,7 +70,7 @@ public class RetentionRulesResource {
 
         log.info("Created retention rule '{}' in workspace '{}'", created.id(), workspaceId);
 
-        URI uri = uriInfo.getAbsolutePathBuilder().path("/%s".formatted(created.id().toString())).build();
+        URI uri = uriInfo.getAbsolutePathBuilder().path(created.id().toString()).build();
         return Response.created(uri).entity(created).build();
     }
 

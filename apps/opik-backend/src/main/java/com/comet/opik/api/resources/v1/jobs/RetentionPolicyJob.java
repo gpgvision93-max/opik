@@ -17,7 +17,6 @@ import ru.vyarus.dropwizard.guice.module.yaml.bind.Config;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 
 import static com.comet.opik.infrastructure.lock.LockService.Lock;
 
@@ -59,7 +58,7 @@ public class RetentionPolicyJob implements Managed {
             Duration interval = config.getInterval();
             subscription = Flux.interval(interval, timerScheduler)
                     .onBackpressureDrop(tick -> log.debug("Retention policy backpressure drop, tick '{}'", tick))
-                    .concatMap(tick -> executeTick()
+                    .concatMap(tick -> executeTick(tick)
                             .onErrorResume(error -> {
                                 log.error("Retention policy tick failed, will retry next interval", error);
                                 return Mono.empty();
@@ -82,9 +81,8 @@ public class RetentionPolicyJob implements Managed {
         }
     }
 
-    private Mono<Void> executeTick() {
-        Instant now = Instant.now();
-        int fraction = computeCurrentFraction(now);
+    private Mono<Void> executeTick(long tick) {
+        int fraction = computeCurrentFraction(tick);
 
         return lockService.lockUsingToken(RUN_LOCK, Duration.ofSeconds(config.getLockTimeoutSeconds()))
                 .flatMap(acquired -> {
@@ -93,15 +91,12 @@ public class RetentionPolicyJob implements Managed {
                         return Mono.empty();
                     }
 
-                    return retentionPolicyService.executeRetentionCycle(fraction, now)
+                    return retentionPolicyService.executeRetentionCycle(fraction, Instant.now())
                             .doFinally(__ -> lockService.unlockUsingToken(RUN_LOCK).subscribe());
                 });
     }
 
-    int computeCurrentFraction(Instant now) {
-        int minuteOfDay = now.atZone(ZoneOffset.UTC).getHour() * 60
-                + now.atZone(ZoneOffset.UTC).getMinute();
-        int intervalMinutes = (int) config.getInterval().toMinutes();
-        return (minuteOfDay / intervalMinutes) % config.getTotalFractions();
+    int computeCurrentFraction(long tick) {
+        return (int) (tick % config.getTotalFractions());
     }
 }

@@ -50,7 +50,7 @@ public class RetentionPolicyService {
      */
     public Mono<Void> executeRetentionCycle(int fraction, Instant now) {
         var range = RetentionUtils.computeWorkspaceRange(fraction, config.getTotalFractions());
-        log.info("Retention cycle starting: fraction={}, range=[{}, {})", fraction, range[0], range[1]);
+        log.info("Retention cycle starting: fraction='{}', range=['{}', '{}')", fraction, range[0], range[1]);
 
         return Mono.fromCallable(() -> template.inTransaction(READ_ONLY, handle -> {
             var dao = handle.attach(RetentionRuleDAO.class);
@@ -69,8 +69,7 @@ public class RetentionPolicyService {
 
                     return executeDeletes(grouped, now);
                 })
-                .doOnSuccess(__ -> log.info("Retention cycle completed: fraction={}", fraction))
-                .doOnError(error -> log.error("Retention cycle failed: fraction={}", fraction, error));
+                .doOnSuccess(__ -> log.info("Retention cycle completed: fraction='{}'", fraction));
     }
 
     private Mono<Void> executeDeletes(Map<RetentionPeriod, List<String>> grouped, Instant now) {
@@ -129,6 +128,7 @@ public class RetentionPolicyService {
                 .collect(Collectors.groupingBy(RetentionRule::workspaceId))
                 .values().stream()
                 .map(rulesForWs -> rulesForWs.stream().min(priorityOrder).orElseThrow())
+                .filter(rule -> Boolean.TRUE.equals(rule.applyToPast()))
                 .collect(Collectors.groupingBy(
                         RetentionRule::retention,
                         Collectors.mapping(RetentionRule::workspaceId, Collectors.toList())));
