@@ -44,7 +44,7 @@ public record DatasetItem(
         @JsonView({
                 DatasetItem.View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) List<ExperimentItem> experimentItems,
         @JsonView({
-                DatasetItem.View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) Map<String, ExperimentRunSummary> experimentRunSummaries,
+                DatasetItem.View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) Map<String, ExperimentRunSummary> runSummariesByExperiment,
         @JsonView({DatasetItem.View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) UUID datasetId,
         @JsonView({DatasetItem.View.Public.class}) @Schema(accessMode = Schema.AccessMode.READ_ONLY) Instant createdAt,
         @JsonView({

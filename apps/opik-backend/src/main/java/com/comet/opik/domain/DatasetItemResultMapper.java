@@ -190,7 +190,7 @@ public class DatasetItemResultMapper {
                 .executionPolicy(getExecutionPolicy(row, rowMetadata))
                 .datasetItemId(datasetItemId)
                 .experimentItems(experimentItems)
-                .experimentRunSummaries(AssertionResultMapper.computeRunSummaries(experimentItems))
+                .runSummariesByExperiment(AssertionResultMapper.computeRunSummaries(experimentItems))
                 .lastUpdatedAt(row.get("last_updated_at", Instant.class))
                 .createdAt(row.get("created_at", Instant.class))
                 .createdBy(row.get("created_by", String.class))
