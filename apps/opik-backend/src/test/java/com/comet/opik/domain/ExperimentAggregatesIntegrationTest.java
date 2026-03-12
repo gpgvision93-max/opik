@@ -1720,6 +1720,7 @@ class ExperimentAggregatesIntegrationTest {
                 .block();
 
         assertThat(beforeAggregation).isNotNull();
+        assertThat(beforeAggregation.content()).isNotEmpty();
 
         // Populate experiment_aggregates for all experiments
         experiments.parallelStream()
@@ -1737,6 +1738,7 @@ class ExperimentAggregatesIntegrationTest {
                 .block();
 
         assertThat(afterAggregation).isNotNull();
+        assertThat(afterAggregation.content()).isNotEmpty();
 
         assertThat(afterAggregation)
                 .as("FIND must return identical results before and after populating experiment_aggregates for scenario: %s",
@@ -1793,6 +1795,7 @@ class ExperimentAggregatesIntegrationTest {
                 .block();
 
         assertThat(beforeAggregation).isNotNull();
+        assertThat(beforeAggregation.content()).isNotEmpty();
 
         // Populate experiment_aggregates for all experiments
         List.of(exp1, exp2, exp3)
@@ -1810,6 +1813,7 @@ class ExperimentAggregatesIntegrationTest {
                 .block();
 
         assertThat(afterAggregation).isNotNull();
+        assertThat(afterAggregation.content()).isNotEmpty();
 
         assertThat(afterAggregation)
                 .as("FIND_GROUPS must return identical results before and after populating experiment_aggregates for scenario: %s",
@@ -1863,6 +1867,7 @@ class ExperimentAggregatesIntegrationTest {
                 .block();
 
         assertThat(beforeAggregation).isNotNull();
+        assertThat(beforeAggregation.content()).isNotEmpty();
 
         // Populate experiment_aggregates for all experiments
         List.of(exp1, exp2, exp3)
@@ -1880,6 +1885,7 @@ class ExperimentAggregatesIntegrationTest {
                 .block();
 
         assertThat(afterAggregation).isNotNull();
+        assertThat(afterAggregation.content()).isNotEmpty();
 
         assertThat(afterAggregation)
                 .as("FIND_GROUPS_AGGREGATIONS must return identical results before and after populating experiment_aggregates for scenario: %s",
