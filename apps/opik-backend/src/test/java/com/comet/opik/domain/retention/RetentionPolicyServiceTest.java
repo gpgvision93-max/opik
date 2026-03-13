@@ -25,6 +25,7 @@ import com.comet.opik.extensions.RegisterApp;
 import com.comet.opik.infrastructure.db.TransactionTemplateAsync;
 import com.redis.testcontainers.RedisContainer;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,6 +41,7 @@ import ru.vyarus.dropwizard.guice.test.ClientSupport;
 import ru.vyarus.dropwizard.guice.test.jupiter.ext.TestDropwizardAppExtension;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -162,11 +164,11 @@ class RetentionPolicyServiceTest {
             createTestFeedbackScore(recentTraceId, apiKey, wsName);
             createTestComment(recentTraceId, apiKey, wsName);
 
-            // Verify data exists before retention cycle
-            assertThat(countRows("traces", wsId)).isEqualTo(2);
-            assertThat(countRows("spans", wsId)).isEqualTo(2);
-            assertThat(countRows("feedback_scores", wsId)).isEqualTo(2);
-            assertThat(countRows("comments", wsId)).isEqualTo(2);
+            // Wait for ClickHouse async inserts to become visible
+            awaitData("traces", wsId, 2);
+            awaitData("spans", wsId, 2);
+            awaitData("authored_feedback_scores", wsId, 2);
+            awaitData("comments", wsId, 2);
 
             // Execute retention cycle for fraction 0 (our workspace falls in this range)
             retentionPolicyService.executeRetentionCycle(0, now).block();
@@ -174,7 +176,7 @@ class RetentionPolicyServiceTest {
             // Verify: old data deleted, recent data kept
             assertThat(countRows("traces", wsId)).isEqualTo(1);
             assertThat(countRows("spans", wsId)).isEqualTo(1);
-            assertThat(countRows("feedback_scores", wsId)).isEqualTo(1);
+            assertThat(countRows("authored_feedback_scores", wsId)).isEqualTo(1);
             assertThat(countRows("comments", wsId)).isEqualTo(1);
 
             // Verify the remaining rows are the recent ones
@@ -194,6 +196,8 @@ class RetentionPolicyServiceTest {
             UUID traceId = idGenerator.generateId(Instant.now().minus(30, ChronoUnit.DAYS));
             createTestTrace(traceId, farApiKey, farWsName);
 
+            awaitData("traces", farWsId, 1);
+
             // Execute fraction 47 - no retention rules exist for this workspace
             retentionPolicyService.executeRetentionCycle(47, Instant.now()).block();
 
@@ -203,7 +207,7 @@ class RetentionPolicyServiceTest {
         @Test
         @DisplayName("Unlimited retention rules are ignored")
         void unlimitedRetentionRulesAreIgnored() {
-            String unlimitedWsId = "00000002-0000-0000-0000-000000000000";
+            String unlimitedWsId = randomFraction0WorkspaceId();
             String unlimitedApiKey = UUID.randomUUID().toString();
             String unlimitedWsName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
             String unlimitedUser = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
@@ -215,6 +219,8 @@ class RetentionPolicyServiceTest {
 
             UUID traceId = idGenerator.generateId(Instant.now().minus(500, ChronoUnit.DAYS));
             createTestTrace(traceId, unlimitedApiKey, unlimitedWsName);
+
+            awaitData("traces", unlimitedWsId, 1);
 
             retentionPolicyService.executeRetentionCycle(0, Instant.now()).block();
 
@@ -262,17 +268,17 @@ class RetentionPolicyServiceTest {
             createTestFeedbackScore(recentTraceId, apiKey, wsName);
             createTestComment(recentTraceId, apiKey, wsName);
 
-            assertThat(countRows("traces", wsId)).isEqualTo(2);
-            assertThat(countRows("spans", wsId)).isEqualTo(2);
-            assertThat(countRows("feedback_scores", wsId)).isEqualTo(2);
-            assertThat(countRows("comments", wsId)).isEqualTo(2);
+            awaitData("traces", wsId, 2);
+            awaitData("spans", wsId, 2);
+            awaitData("authored_feedback_scores", wsId, 2);
+            awaitData("comments", wsId, 2);
 
             retentionPolicyService.executeRetentionCycle(0, now).block();
 
             // Only recent rows remain
             assertThat(countRows("traces", wsId)).isEqualTo(1);
             assertThat(countRows("spans", wsId)).isEqualTo(1);
-            assertThat(countRows("feedback_scores", wsId)).isEqualTo(1);
+            assertThat(countRows("authored_feedback_scores", wsId)).isEqualTo(1);
             assertThat(countRows("comments", wsId)).isEqualTo(1);
 
             assertThat(countRowsById("traces", recentTraceId)).isEqualTo(1);
@@ -297,6 +303,9 @@ class RetentionPolicyServiceTest {
             UUID otherSpanId = idGenerator.generateId(oldTime);
             createTestTrace(otherTraceId, otherApiKey, otherWsName);
             createTestSpan(otherSpanId, otherTraceId, otherApiKey, otherWsName);
+
+            awaitData("traces", otherWsId, 1);
+            awaitData("spans", otherWsId, 1);
 
             retentionPolicyService.executeRetentionCycle(0, Instant.now()).block();
 
@@ -338,7 +347,7 @@ class RetentionPolicyServiceTest {
             UUID traceId5d = idGenerator.generateId(now.minus(5, ChronoUnit.DAYS));
             createTestTrace(traceId5d, apiKey, wsName);
 
-            assertThat(countRows("traces", wsId)).isEqualTo(2);
+            awaitData("traces", wsId, 2);
 
             retentionPolicyService.executeRetentionCycle(0, now).block();
 
@@ -371,6 +380,8 @@ class RetentionPolicyServiceTest {
             // 30 days old: within org rule (60d)
             UUID recentTraceId = idGenerator.generateId(now.minus(30, ChronoUnit.DAYS));
             createTestTrace(recentTraceId, wsOnlyOrgApiKey, wsOnlyOrgName);
+
+            awaitData("traces", wsOnlyOrg, 2);
 
             retentionPolicyService.executeRetentionCycle(0, now).block();
 
@@ -412,6 +423,9 @@ class RetentionPolicyServiceTest {
             createTestTrace(trace14d, ws14dApiKey, ws14dName);
             createTestTrace(trace400d, ws400dApiKey, ws400dName);
 
+            awaitData("traces", ws14d, 1);
+            awaitData("traces", ws400d, 1);
+
             retentionPolicyService.executeRetentionCycle(0, now).block();
 
             // ws14d: 30 days > 14 day retention -> deleted
@@ -439,6 +453,8 @@ class RetentionPolicyServiceTest {
             UUID oldTraceId = idGenerator.generateId(Instant.now().minus(90, ChronoUnit.DAYS));
             createTestTrace(oldTraceId, wsDisabledApiKey, wsDisabledName);
 
+            awaitData("traces", wsDisabled, 1);
+
             retentionPolicyService.executeRetentionCycle(0, Instant.now()).block();
 
             // Data should still be there - rule was deactivated
@@ -453,6 +469,14 @@ class RetentionPolicyServiceTest {
     private static String randomFraction0WorkspaceId() {
         int seq = WORKSPACE_COUNTER.incrementAndGet();
         return String.format("0000%04x-0000-0000-0000-%012x", seq, System.nanoTime() & 0xFFFFFFFFFFFFL);
+    }
+
+    // Waits for ClickHouse async inserts to become visible (eventual consistency).
+    private void awaitData(String table, String wsId, long expectedCount) {
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(500))
+                .untilAsserted(() -> assertThat(countRows(table, wsId)).isEqualTo(expectedCount));
     }
 
     // -- Resource client insert helpers --
