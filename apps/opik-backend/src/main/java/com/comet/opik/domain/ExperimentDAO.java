@@ -321,6 +321,7 @@ class ExperimentDAO {
                         )
                     ) AS duration_values,
                     count(DISTINCT ei.trace_id) as trace_count,
+                    count(DISTINCT ei.dataset_item_id) as dataset_item_count,
                     avgMap(usage) as usage,
                     sum(total_estimated_cost) as total_estimated_cost_sum,
                     if(isFinite(avg(total_estimated_cost)), toDecimal128(avg(total_estimated_cost), 12), toDecimal128(0, 12)) as total_estimated_cost_avg
@@ -590,6 +591,7 @@ class ExperimentDAO {
                     agg.feedback_scores_avg as feedback_scores,
                     agg.experiment_scores as experiment_scores_agg,
                     agg.trace_count as trace_count,
+                    agg.dataset_item_count as dataset_item_count,
                     agg.duration_values AS duration,
                     agg.usage as usage,
                     agg.total_estimated_cost_sum as total_estimated_cost,
@@ -648,6 +650,7 @@ class ExperimentDAO {
                     fs.feedback_scores as feedback_scores,
                     es.experiment_scores as experiment_scores_agg,
                     ed.trace_count as trace_count,
+                    ed.dataset_item_count as dataset_item_count,
                     ed.duration_values AS duration,
                     ed.usage as usage,
                     ed.total_estimated_cost_sum as total_estimated_cost,
@@ -1153,6 +1156,7 @@ class ExperimentDAO {
                         )
                     ) AS duration_values,
                     count(DISTINCT ei.trace_id) as trace_count,
+                    count(DISTINCT ei.dataset_item_id) as dataset_item_count,
                     sum(total_estimated_cost) as total_estimated_cost_sum,
                     if(isFinite(avg(total_estimated_cost)), toDecimal128(avg(total_estimated_cost), 12), toDecimal128(0, 12)) as total_estimated_cost_avg
                 FROM experiment_items_final ei
@@ -1379,6 +1383,7 @@ class ExperimentDAO {
                     fs.feedback_scores as feedback_scores,
                     es.experiment_scores as experiment_scores,
                     ed.trace_count as trace_count,
+                    ed.dataset_item_count as dataset_item_count,
                     ed.duration_values AS duration,
                     ed.total_estimated_cost_sum as total_estimated_cost,
                     ed.total_estimated_cost_avg as total_estimated_cost_avg,
@@ -1401,6 +1406,20 @@ class ExperimentDAO {
                 <endif>
                 <endif>
             ) experiments_full
+            SELECT
+                count(DISTINCT id) as experiment_count,
+                sum(trace_count) as trace_count,
+                sum(dataset_item_count) as dataset_item_count,
+                sum(total_estimated_cost) as total_estimated_cost,
+                avg(total_estimated_cost_avg) as total_estimated_cost_avg,
+                avgMap(feedback_scores) as feedback_scores,
+                avgMap(experiment_scores) as experiment_scores,
+                avgMap(duration) as duration,
+                avg(pass_rate) as pass_rate_avg,
+                sum(passed_count) as passed_count_sum,
+                sum(total_count) as total_count_sum,
+                <groupSelects>
+            FROM experiments_full
             GROUP BY <groupBy>
             SETTINGS log_comment = '<log_comment>'
             ;
@@ -1411,6 +1430,7 @@ class ExperimentDAO {
                 *,
                 null AS feedback_scores,
                 null AS trace_count,
+                null AS dataset_item_count,
                 null AS duration,
                 null AS total_estimated_cost,
                 null AS total_estimated_cost_avg,
@@ -1736,6 +1756,7 @@ class ExperimentDAO {
                     .feedbackScores(getFeedbackScores(row, "feedback_scores"))
                     .comments(parseCommentsFromJson(row.get("comments_array_agg", String.class)))
                     .traceCount(row.get("trace_count", Long.class))
+                    .datasetItemCount(row.get("dataset_item_count", Long.class))
                     .duration(ExperimentGroupMappers.getDuration(row))
                     .totalEstimatedCost(ExperimentGroupMappers.getCostValue(row, "total_estimated_cost"))
                     .totalEstimatedCostAvg(ExperimentGroupMappers.getCostValue(row, "total_estimated_cost_avg"))
