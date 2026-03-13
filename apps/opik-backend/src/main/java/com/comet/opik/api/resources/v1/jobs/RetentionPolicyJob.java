@@ -1,6 +1,6 @@
 package com.comet.opik.api.resources.v1.jobs;
 
-import com.comet.opik.domain.retention.RetentionPolicyService;
+import com.comet.opik.domain.RetentionPolicyService;
 import com.comet.opik.infrastructure.RetentionConfig;
 import com.comet.opik.infrastructure.lock.LockService;
 import io.dropwizard.lifecycle.Managed;

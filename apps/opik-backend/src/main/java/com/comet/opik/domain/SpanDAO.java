@@ -71,7 +71,7 @@ import static java.util.function.Predicate.not;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 @Slf4j
-public class SpanDAO {
+class SpanDAO {
 
     private static final String SPAN_SEARCH_CLAUSE = """
             (ilike(id, :search_text)
