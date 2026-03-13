@@ -8,6 +8,7 @@ import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
 import { Button } from "@/components/ui/button";
 import { ATTACHMENT_ICON_MAP } from "@/constants/attachments";
 import VideoThumbnail from "../VideoThumbnail/VideoThumbnail";
+import CSVThumbnail from "../CSVThumbnail/CSVThumbnail";
 
 export type AttachmentThumbnailProps = {
   previewData: AttachmentPreviewData;
@@ -99,6 +100,8 @@ const AttachmentThumbnail: React.FC<AttachmentThumbnailProps> = ({
         />
       ) : type === ATTACHMENT_TYPE.VIDEO ? (
         <VideoThumbnail videoUrl={url} name={name} />
+      ) : type === ATTACHMENT_TYPE.CSV && allowedDomain ? (
+        <CSVThumbnail url={url} name={name} />
       ) : (
         <div className="flex size-full items-center justify-center rounded-sm bg-primary-foreground">
           <Icon className="size-8 text-slate-300" strokeWidth={1.33} />
