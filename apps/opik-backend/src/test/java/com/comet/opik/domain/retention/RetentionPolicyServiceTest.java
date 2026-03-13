@@ -44,6 +44,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.comet.opik.api.resources.utils.ClickHouseContainerUtils.DATABASE_NAME;
 import static com.comet.opik.api.resources.utils.TestDropwizardAppExtensionUtils.newTestDropwizardAppExtension;
@@ -129,8 +130,15 @@ class RetentionPolicyServiceTest {
         @Test
         @DisplayName("Deletes expired data and keeps recent data")
         void deletesExpiredDataAndKeepsRecentData() {
+            // Use unique workspace per test run to avoid data accumulation on surefire retries
+            String wsId = randomFraction0WorkspaceId();
+            String apiKey = UUID.randomUUID().toString();
+            String wsName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
+            String user = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
+            AuthTestUtils.mockTargetWorkspace(wireMock.server(), apiKey, wsName, wsId, user);
+
             var rule = retentionClient.buildWorkspaceRule(RetentionPeriod.SHORT_14D).build();
-            retentionClient.createAndGet(rule, API_KEY, TEST_WORKSPACE_NAME);
+            retentionClient.createAndGet(rule, apiKey, wsName);
 
             Instant now = Instant.now();
             Instant oldTime = now.minus(30, ChronoUnit.DAYS);
@@ -143,31 +151,31 @@ class RetentionPolicyServiceTest {
             UUID recentSpanId = idGenerator.generateId(recentTime);
 
             // Insert old data (should be deleted - trace/span IDs are older than retention cutoff)
-            createTestTrace(oldTraceId, API_KEY, TEST_WORKSPACE_NAME);
-            createTestSpan(oldSpanId, oldTraceId, API_KEY, TEST_WORKSPACE_NAME);
-            createTestFeedbackScore(oldTraceId, API_KEY, TEST_WORKSPACE_NAME);
-            createTestComment(oldTraceId, API_KEY, TEST_WORKSPACE_NAME);
+            createTestTrace(oldTraceId, apiKey, wsName);
+            createTestSpan(oldSpanId, oldTraceId, apiKey, wsName);
+            createTestFeedbackScore(oldTraceId, apiKey, wsName);
+            createTestComment(oldTraceId, apiKey, wsName);
 
             // Insert recent data (should NOT be deleted - IDs are newer than retention cutoff)
-            createTestTrace(recentTraceId, API_KEY, TEST_WORKSPACE_NAME);
-            createTestSpan(recentSpanId, recentTraceId, API_KEY, TEST_WORKSPACE_NAME);
-            createTestFeedbackScore(recentTraceId, API_KEY, TEST_WORKSPACE_NAME);
-            createTestComment(recentTraceId, API_KEY, TEST_WORKSPACE_NAME);
+            createTestTrace(recentTraceId, apiKey, wsName);
+            createTestSpan(recentSpanId, recentTraceId, apiKey, wsName);
+            createTestFeedbackScore(recentTraceId, apiKey, wsName);
+            createTestComment(recentTraceId, apiKey, wsName);
 
             // Verify data exists before retention cycle
-            assertThat(countRows("traces", workspaceId)).isEqualTo(2);
-            assertThat(countRows("spans", workspaceId)).isEqualTo(2);
-            assertThat(countRows("feedback_scores", workspaceId)).isEqualTo(2);
-            assertThat(countRows("comments", workspaceId)).isEqualTo(2);
+            assertThat(countRows("traces", wsId)).isEqualTo(2);
+            assertThat(countRows("spans", wsId)).isEqualTo(2);
+            assertThat(countRows("feedback_scores", wsId)).isEqualTo(2);
+            assertThat(countRows("comments", wsId)).isEqualTo(2);
 
             // Execute retention cycle for fraction 0 (our workspace falls in this range)
             retentionPolicyService.executeRetentionCycle(0, now).block();
 
             // Verify: old data deleted, recent data kept
-            assertThat(countRows("traces", workspaceId)).isEqualTo(1);
-            assertThat(countRows("spans", workspaceId)).isEqualTo(1);
-            assertThat(countRows("feedback_scores", workspaceId)).isEqualTo(1);
-            assertThat(countRows("comments", workspaceId)).isEqualTo(1);
+            assertThat(countRows("traces", wsId)).isEqualTo(1);
+            assertThat(countRows("spans", wsId)).isEqualTo(1);
+            assertThat(countRows("feedback_scores", wsId)).isEqualTo(1);
+            assertThat(countRows("comments", wsId)).isEqualTo(1);
 
             // Verify the remaining rows are the recent ones
             assertThat(countRowsById("traces", recentTraceId)).isEqualTo(1);
@@ -220,22 +228,18 @@ class RetentionPolicyServiceTest {
     @TestInstance(TestInstance.Lifecycle.PER_CLASS)
     class DeletionVerification {
 
-        private static final String WS_DELETION = "00000003-0000-0000-0000-000000000000";
-        private static final String WS_DELETION_API_KEY = UUID.randomUUID().toString();
-        private static final String WS_DELETION_NAME = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
-        private static final String WS_DELETION_USER = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
-
-        @BeforeAll
-        void setUp() {
-            AuthTestUtils.mockTargetWorkspace(wireMock.server(), WS_DELETION_API_KEY, WS_DELETION_NAME,
-                    WS_DELETION, WS_DELETION_USER);
-        }
-
         @Test
         @DisplayName("Deletion removes only rows with IDs older than cutoff across all tables")
         void deletesOnlyOldRowsAcrossAllTables() {
+            // Use unique workspace per test run to avoid data accumulation on surefire retries
+            String wsId = randomFraction0WorkspaceId();
+            String apiKey = UUID.randomUUID().toString();
+            String wsName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
+            String user = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
+            AuthTestUtils.mockTargetWorkspace(wireMock.server(), apiKey, wsName, wsId, user);
+
             var rule = retentionClient.buildWorkspaceRule(RetentionPeriod.BASE_60D).build();
-            retentionClient.createAndGet(rule, WS_DELETION_API_KEY, WS_DELETION_NAME);
+            retentionClient.createAndGet(rule, apiKey, wsName);
 
             Instant now = Instant.now();
             Instant oldTime = now.minus(90, ChronoUnit.DAYS);
@@ -247,29 +251,29 @@ class RetentionPolicyServiceTest {
             UUID recentSpanId = idGenerator.generateId(recentTime);
 
             // Old data (90 days old > 60 day retention -> deleted)
-            createTestTrace(oldTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
-            createTestSpan(oldSpanId, oldTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
-            createTestFeedbackScore(oldTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
-            createTestComment(oldTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
+            createTestTrace(oldTraceId, apiKey, wsName);
+            createTestSpan(oldSpanId, oldTraceId, apiKey, wsName);
+            createTestFeedbackScore(oldTraceId, apiKey, wsName);
+            createTestComment(oldTraceId, apiKey, wsName);
 
             // Recent data (30 days old < 60 day retention -> kept)
-            createTestTrace(recentTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
-            createTestSpan(recentSpanId, recentTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
-            createTestFeedbackScore(recentTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
-            createTestComment(recentTraceId, WS_DELETION_API_KEY, WS_DELETION_NAME);
+            createTestTrace(recentTraceId, apiKey, wsName);
+            createTestSpan(recentSpanId, recentTraceId, apiKey, wsName);
+            createTestFeedbackScore(recentTraceId, apiKey, wsName);
+            createTestComment(recentTraceId, apiKey, wsName);
 
-            assertThat(countRows("traces", WS_DELETION)).isEqualTo(2);
-            assertThat(countRows("spans", WS_DELETION)).isEqualTo(2);
-            assertThat(countRows("feedback_scores", WS_DELETION)).isEqualTo(2);
-            assertThat(countRows("comments", WS_DELETION)).isEqualTo(2);
+            assertThat(countRows("traces", wsId)).isEqualTo(2);
+            assertThat(countRows("spans", wsId)).isEqualTo(2);
+            assertThat(countRows("feedback_scores", wsId)).isEqualTo(2);
+            assertThat(countRows("comments", wsId)).isEqualTo(2);
 
             retentionPolicyService.executeRetentionCycle(0, now).block();
 
             // Only recent rows remain
-            assertThat(countRows("traces", WS_DELETION)).isEqualTo(1);
-            assertThat(countRows("spans", WS_DELETION)).isEqualTo(1);
-            assertThat(countRows("feedback_scores", WS_DELETION)).isEqualTo(1);
-            assertThat(countRows("comments", WS_DELETION)).isEqualTo(1);
+            assertThat(countRows("traces", wsId)).isEqualTo(1);
+            assertThat(countRows("spans", wsId)).isEqualTo(1);
+            assertThat(countRows("feedback_scores", wsId)).isEqualTo(1);
+            assertThat(countRows("comments", wsId)).isEqualTo(1);
 
             assertThat(countRowsById("traces", recentTraceId)).isEqualTo(1);
             assertThat(countRowsById("spans", recentSpanId)).isEqualTo(1);
@@ -280,7 +284,7 @@ class RetentionPolicyServiceTest {
         @Test
         @DisplayName("Deletion does not touch rows in other workspaces")
         void deletionIsScopedToTargetWorkspaces() {
-            String otherWsId = "00000004-0000-0000-0000-000000000000";
+            String otherWsId = randomFraction0WorkspaceId();
             String otherApiKey = UUID.randomUUID().toString();
             String otherWsName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
             String otherUser = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
@@ -307,44 +311,39 @@ class RetentionPolicyServiceTest {
     @TestInstance(TestInstance.Lifecycle.PER_CLASS)
     class RulePriorityResolution {
 
-        private static final String WS_PRIORITY = "00000005-0000-0000-0000-000000000000";
-        private static final String WS_PRIORITY_API_KEY = UUID.randomUUID().toString();
-        private static final String WS_PRIORITY_NAME = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
-        private static final String WS_PRIORITY_USER = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
-
-        @BeforeAll
-        void setUp() {
-            AuthTestUtils.mockTargetWorkspace(wireMock.server(), WS_PRIORITY_API_KEY, WS_PRIORITY_NAME,
-                    WS_PRIORITY, WS_PRIORITY_USER);
-        }
-
         @Test
         @DisplayName("Workspace rule takes priority over organization rule")
         void workspaceRuleTakesPriorityOverOrgRule() {
+            String wsId = randomFraction0WorkspaceId();
+            String apiKey = UUID.randomUUID().toString();
+            String wsName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
+            String user = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
+            AuthTestUtils.mockTargetWorkspace(wireMock.server(), apiKey, wsName, wsId, user);
+
             // Org rule: 400 days (very permissive)
             var orgRule = retentionClient.buildOrganizationRule(RetentionPeriod.EXTENDED_400D).build();
-            retentionClient.createAndGet(orgRule, WS_PRIORITY_API_KEY, WS_PRIORITY_NAME);
+            retentionClient.createAndGet(orgRule, apiKey, wsName);
 
             // Workspace rule: 14 days (restrictive) - should win
             var wsRule = retentionClient.buildWorkspaceRule(RetentionPeriod.SHORT_14D).build();
-            retentionClient.createAndGet(wsRule, WS_PRIORITY_API_KEY, WS_PRIORITY_NAME);
+            retentionClient.createAndGet(wsRule, apiKey, wsName);
 
             Instant now = Instant.now();
 
             // 30 days old: within org rule (400d) but outside workspace rule (14d)
             UUID traceId30d = idGenerator.generateId(now.minus(30, ChronoUnit.DAYS));
-            createTestTrace(traceId30d, WS_PRIORITY_API_KEY, WS_PRIORITY_NAME);
+            createTestTrace(traceId30d, apiKey, wsName);
 
             // 5 days old: within both rules
             UUID traceId5d = idGenerator.generateId(now.minus(5, ChronoUnit.DAYS));
-            createTestTrace(traceId5d, WS_PRIORITY_API_KEY, WS_PRIORITY_NAME);
+            createTestTrace(traceId5d, apiKey, wsName);
 
-            assertThat(countRows("traces", WS_PRIORITY)).isEqualTo(2);
+            assertThat(countRows("traces", wsId)).isEqualTo(2);
 
             retentionPolicyService.executeRetentionCycle(0, now).block();
 
             // Workspace rule (14d) wins: 30-day trace deleted, 5-day trace kept
-            assertThat(countRows("traces", WS_PRIORITY)).isEqualTo(1);
+            assertThat(countRows("traces", wsId)).isEqualTo(1);
             assertThat(countRowsById("traces", traceId5d)).isEqualTo(1);
             assertThat(countRowsById("traces", traceId30d)).isZero();
         }
@@ -352,7 +351,7 @@ class RetentionPolicyServiceTest {
         @Test
         @DisplayName("Organization rule applies when no workspace rule exists")
         void orgRuleAppliesWhenNoWorkspaceRule() {
-            String wsOnlyOrg = "00000006-0000-0000-0000-000000000000";
+            String wsOnlyOrg = randomFraction0WorkspaceId();
             String wsOnlyOrgApiKey = UUID.randomUUID().toString();
             String wsOnlyOrgName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
             String wsOnlyOrgUser = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
@@ -383,13 +382,13 @@ class RetentionPolicyServiceTest {
         @Test
         @DisplayName("Multiple workspaces with different retention periods are handled correctly")
         void multipleWorkspacesDifferentRetention() {
-            String ws14d = "00000007-0000-0000-0000-000000000000";
+            String ws14d = randomFraction0WorkspaceId();
             String ws14dApiKey = UUID.randomUUID().toString();
             String ws14dName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
             String ws14dUser = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
             AuthTestUtils.mockTargetWorkspace(wireMock.server(), ws14dApiKey, ws14dName, ws14d, ws14dUser);
 
-            String ws400d = "00000008-0000-0000-0000-000000000000";
+            String ws400d = randomFraction0WorkspaceId();
             String ws400dApiKey = UUID.randomUUID().toString();
             String ws400dName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
             String ws400dUser = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
@@ -425,7 +424,7 @@ class RetentionPolicyServiceTest {
         @Test
         @DisplayName("Disabled rules are not executed")
         void disabledRulesNotExecuted() {
-            String wsDisabled = "00000009-0000-0000-0000-000000000000";
+            String wsDisabled = randomFraction0WorkspaceId();
             String wsDisabledApiKey = UUID.randomUUID().toString();
             String wsDisabledName = "workspace" + RandomStringUtils.secure().nextAlphanumeric(36);
             String wsDisabledUser = "user-" + RandomStringUtils.secure().nextAlphanumeric(36);
@@ -445,6 +444,15 @@ class RetentionPolicyServiceTest {
             // Data should still be there - rule was deactivated
             assertThat(countRows("traces", wsDisabled)).isEqualTo(1);
         }
+    }
+
+    // Generates unique workspace IDs in fraction 0's hex range (00xxxxxx-...)
+    // so each test run gets its own workspace even on surefire retries.
+    private static final AtomicInteger WORKSPACE_COUNTER = new AtomicInteger(0);
+
+    private static String randomFraction0WorkspaceId() {
+        int seq = WORKSPACE_COUNTER.incrementAndGet();
+        return String.format("0000%04x-0000-0000-0000-%012x", seq, System.nanoTime() & 0xFFFFFFFFFFFFL);
     }
 
     // -- Resource client insert helpers --
