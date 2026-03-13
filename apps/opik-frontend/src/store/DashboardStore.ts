@@ -37,7 +37,6 @@ interface DashboardStoreState {
     | null;
   widgetResolver: WidgetResolver | null;
   previewWidget: DashboardWidget | null;
-  hasUnsavedChanges: boolean;
   readOnly: boolean;
 }
 
@@ -82,8 +81,6 @@ interface DashboardActions {
 
   setPreviewWidget: (widget: DashboardWidget | null) => void;
   updatePreviewWidget: (data: Partial<DashboardWidget>) => void;
-
-  setHasUnsavedChanges: (hasChanges: boolean) => void;
 
   setReadOnly: (readOnly: boolean) => void;
 
@@ -131,7 +128,6 @@ export const useDashboardStore = create<DashboardStore>()(
         onAddEditWidgetCallback: null,
         widgetResolver: null,
         previewWidget: null,
-        hasUnsavedChanges: false,
         readOnly: false,
 
         addSection: (title?: string) => {
@@ -430,10 +426,6 @@ export const useDashboardStore = create<DashboardStore>()(
           set({ previewWidget }, false, "updatePreviewWidget");
         },
 
-        setHasUnsavedChanges: (hasChanges) => {
-          set({ hasUnsavedChanges: hasChanges }, false, "setHasUnsavedChanges");
-        },
-
         setReadOnly: (readOnly) => {
           set({ readOnly }, false, "setReadOnly");
         },
@@ -444,7 +436,7 @@ export const useDashboardStore = create<DashboardStore>()(
             {
               sections: emptyDashboard.sections,
               version: emptyDashboard.version,
-              lastModified: Date.now(),
+              lastModified: 0,
               readOnly: false,
             },
             false,
@@ -543,11 +535,6 @@ export const selectSetPreviewWidget = (state: DashboardStore) =>
 
 export const selectUpdatePreviewWidget = (state: DashboardStore) =>
   state.updatePreviewWidget;
-
-export const selectHasUnsavedChanges = (state: DashboardStore) =>
-  state.hasUnsavedChanges;
-export const selectSetHasUnsavedChanges = (state: DashboardStore) =>
-  state.setHasUnsavedChanges;
 
 export const selectReadOnly = (state: DashboardStore) => state.readOnly;
 export const selectSetReadOnly = (state: DashboardStore) => state.setReadOnly;

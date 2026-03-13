@@ -42,7 +42,6 @@ const CUSTOM_VIEW_ICON_COLOR = "text-chart-orange";
 interface InsightsViewSelectorProps {
   value: string | null;
   onChange: (id: string | null) => void;
-  disabled?: boolean;
   onViewCreated?: (dashboardId: string) => void;
   onViewDeleted?: (deletedDashboardId: string) => void;
 }
@@ -100,7 +99,6 @@ const buildDashboardOption = (dashboard: Dashboard): InsightsViewOption => ({
 const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
   value,
   onChange,
-  disabled = false,
   onViewCreated,
   onViewDeleted,
 }) => {
@@ -163,22 +161,12 @@ const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
   const selectedName = selectedOption?.label ?? "Select a view";
 
   const renderTrigger = () => (
-    <TooltipWrapper
-      content={
-        disabled
-          ? "Save or discard your changes before switching"
-          : selectedName
-      }
-    >
+    <TooltipWrapper content={selectedName}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           size="sm"
-          className={cn("max-w-[400px] gap-1.5", {
-            "disabled:cursor-not-allowed disabled:border-input disabled:bg-muted-disabled disabled:text-muted-gray disabled:placeholder:text-muted-gray hover:disabled:shadow-none":
-              disabled,
-          })}
-          disabled={disabled}
+          className="max-w-[400px] gap-1.5"
           type="button"
         >
           {React.createElement(selectedIcon, {

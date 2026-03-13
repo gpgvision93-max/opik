@@ -87,7 +87,7 @@ const DashboardFormSchema = z.object({
 
 type DashboardFormData = z.infer<typeof DashboardFormSchema>;
 
-export type DashboardDialogMode = "create" | "edit" | "clone" | "save_as";
+export type DashboardDialogMode = "create" | "edit" | "clone";
 
 type AddEditCloneDashboardDialogProps = {
   mode: DashboardDialogMode;
@@ -135,7 +135,7 @@ const AddEditCloneDashboardDialog: React.FC<
   const isPending = isCreating || isUpdating;
 
   const getInitialName = () => {
-    if (mode === "clone" || mode === "save_as") {
+    if (mode === "clone") {
       return `${dashboard!.name} (Copy)`;
     }
 
@@ -171,12 +171,6 @@ const AddEditCloneDashboardDialog: React.FC<
       title: "Clone dashboard",
       description: null,
       buttonText: "Clone dashboard",
-      showDescription: false,
-    },
-    save_as: {
-      title: "Save dashboard as",
-      description: null,
-      buttonText: "Save as new dashboard",
       showDescription: false,
     },
   }[mode];
@@ -279,7 +273,7 @@ const AddEditCloneDashboardDialog: React.FC<
 
         if (mode === "create") {
           dashboardConfig = generateEmptyDashboard();
-        } else if (mode === "save_as" || mode === "clone") {
+        } else if (mode === "clone") {
           dashboardConfig = regenerateAllIds(dashboard!.config);
         }
 

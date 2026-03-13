@@ -13,7 +13,7 @@ import {
 import { DASHBOARD_TYPE } from "@/types/dashboard";
 import Loader from "@/components/shared/Loader/Loader";
 import { useDashboardLifecycle } from "@/components/pages-shared/dashboards/hooks/useDashboardLifecycle";
-import DashboardSaveActions from "@/components/pages-shared/dashboards/DashboardSaveActions/DashboardSaveActions";
+import DashboardAutoSaveIndicator from "@/components/pages-shared/dashboards/DashboardAutoSaveIndicator/DashboardAutoSaveIndicator";
 import ShareDashboardButton from "@/components/pages-shared/dashboards/ShareDashboardButton/ShareDashboardButton";
 import DashboardContent from "@/components/pages-shared/dashboards/DashboardContent/DashboardContent";
 
@@ -23,7 +23,7 @@ const DashboardPage: React.FunctionComponent = () => {
   };
   const setBreadcrumbParam = useBreadcrumbsStore((state) => state.setParam);
 
-  const { dashboard, isPending, save, discard } = useDashboardLifecycle({
+  const { dashboard, isPending, saveStatus } = useDashboardLifecycle({
     dashboardId,
     enabled: Boolean(dashboardId),
   });
@@ -77,11 +77,7 @@ const DashboardPage: React.FunctionComponent = () => {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <DashboardSaveActions
-            onSave={save}
-            onDiscard={discard}
-            dashboard={dashboard}
-          />
+          <DashboardAutoSaveIndicator saveStatus={saveStatus} />
           {showDateRange && (
             <MetricDateRangeSelect
               value={dateRange}

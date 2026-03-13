@@ -6,9 +6,11 @@ import {
   selectClearDashboard,
   selectSetReadOnly,
 } from "@/store/DashboardStore";
-import useDashboardById from "@/api/dashboards/useDashboardById";
 import { widgetResolver } from "@/components/pages-shared/dashboards/widgets/widgetRegistry";
-import { useDashboardSave } from "./useDashboardSave";
+import {
+  useDashboardPersistence,
+  DashboardSaveStatus,
+} from "./useDashboardPersistence";
 import {
   Dashboard,
   DASHBOARD_SCOPE,
@@ -26,8 +28,7 @@ interface UseDashboardLifecycleParams {
 interface UseDashboardLifecycleReturn {
   dashboard: Dashboard | undefined;
   isPending: boolean;
-  save: () => Promise<void>;
-  discard: () => void;
+  saveStatus: DashboardSaveStatus;
 }
 
 export const useDashboardLifecycle = ({
@@ -58,15 +59,6 @@ export const useDashboardLifecycle = ({
     } as Dashboard;
   }, [isTemplate, dashboardId]);
 
-  const { data: backendDashboard, isPending: isBackendPending } =
-    useDashboardById(
-      { dashboardId: dashboardId || "" },
-      { enabled: Boolean(dashboardId) && enabled && !isTemplate },
-    );
-
-  const dashboard = isTemplate ? templateDashboard : backendDashboard;
-  const isPending = isTemplate ? false : isBackendPending;
-
   const loadDashboardFromBackend = useDashboardStore(
     (state) => state.loadDashboardFromBackend,
   );
@@ -74,18 +66,38 @@ export const useDashboardLifecycle = ({
   const setWidgetResolver = useDashboardStore(selectSetWidgetResolver);
   const setReadOnly = useDashboardStore(selectSetReadOnly);
 
+  const {
+    dashboard: backendDashboard,
+    isPending: isBackendPending,
+    resolvedConfig,
+    saveStatus,
+  } = useDashboardPersistence({
+    dashboardId: dashboardId || "",
+    enabled: Boolean(dashboardId) && enabled && !isTemplate,
+  });
+
   useEffect(() => {
-    if (dashboard?.config) {
-      loadDashboardFromBackend(dashboard.config);
-      setReadOnly(isTemplate);
+    if (isTemplate && templateDashboard?.config) {
+      loadDashboardFromBackend(templateDashboard.config);
+      setReadOnly(true);
+    } else if (resolvedConfig) {
+      loadDashboardFromBackend(resolvedConfig);
+      setReadOnly(false);
+    } else {
+      return;
     }
-    return () => clearDashboard();
+
+    return () => {
+      clearDashboard();
+    };
   }, [
-    clearDashboard,
-    dashboard,
+    isTemplate,
+    templateDashboard?.id,
+    templateDashboard?.config,
+    resolvedConfig,
     loadDashboardFromBackend,
     setReadOnly,
-    isTemplate,
+    clearDashboard,
   ]);
 
   useEffect(() => {
@@ -93,15 +105,17 @@ export const useDashboardLifecycle = ({
     return () => setWidgetResolver(null);
   }, [setWidgetResolver]);
 
-  const { save, discard } = useDashboardSave({
-    dashboardId: dashboardId || "",
-    enabled: Boolean(dashboardId && dashboard) && enabled && !isTemplate,
-  });
+  if (isTemplate) {
+    return {
+      dashboard: templateDashboard,
+      isPending: false,
+      saveStatus: "idle" as DashboardSaveStatus,
+    };
+  }
 
   return {
-    dashboard,
-    isPending,
-    save,
-    discard,
+    dashboard: backendDashboard,
+    isPending: isBackendPending,
+    saveStatus,
   };
 };

@@ -6,8 +6,8 @@ import {
   useMetricDateRangeWithQueryAndStorage,
   MetricDateRangeSelect,
 } from "@/components/pages-shared/traces/MetricDateRangeSelect";
-import DashboardSaveActions from "@/components/pages-shared/dashboards/DashboardSaveActions/DashboardSaveActions";
 import DashboardContent from "@/components/pages-shared/dashboards/DashboardContent/DashboardContent";
+import DashboardAutoSaveIndicator from "@/components/pages-shared/dashboards/DashboardAutoSaveIndicator/DashboardAutoSaveIndicator";
 import InsightsViewSelector from "@/components/pages/TracesPage/InsightsTab/InsightsViewSelector";
 import ShareDashboardButton from "@/components/pages-shared/dashboards/ShareDashboardButton/ShareDashboardButton";
 import useQueryParamAndLocalStorageState from "@/hooks/useQueryParamAndLocalStorageState";
@@ -15,7 +15,6 @@ import { useDashboardLifecycle } from "@/components/pages-shared/dashboards/hook
 import {
   useDashboardStore,
   selectSetRuntimeConfig,
-  selectHasUnsavedChanges,
 } from "@/store/DashboardStore";
 import PageBodyStickyContainer from "@/components/layout/PageBodyStickyContainer/PageBodyStickyContainer";
 import {
@@ -67,12 +66,11 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
     }
   }, [dashboardId, setDashboardId, canViewDashboards]);
 
-  const { dashboard, isPending, save, discard } = useDashboardLifecycle({
+  const { dashboard, isPending, saveStatus } = useDashboardLifecycle({
     dashboardId: dashboardId || null,
     enabled: Boolean(dashboardId),
   });
 
-  const hasUnsavedChanges = useDashboardStore(selectHasUnsavedChanges);
   const setRuntimeConfig = useDashboardStore(selectSetRuntimeConfig);
 
   const { dateRange, handleDateRangeChange, minDate, maxDate, dateRangeValue } =
@@ -122,21 +120,11 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
             onChange={setDashboardId}
             onViewCreated={handleDashboardCreated}
             onViewDeleted={handleDashboardDeleted}
-            disabled={hasUnsavedChanges}
           />
         )}
 
         <div className="flex shrink-0 items-center gap-2">
-          {dashboard && (
-            <DashboardSaveActions
-              onSave={save}
-              onDiscard={discard}
-              dashboard={dashboard}
-              navigateOnCreate={false}
-              onDashboardCreated={handleDashboardCreated}
-              hideSaveAs
-            />
-          )}
+          <DashboardAutoSaveIndicator saveStatus={saveStatus} />
           <MetricDateRangeSelect
             value={dateRange}
             onChangeValue={handleDateRangeChange}
