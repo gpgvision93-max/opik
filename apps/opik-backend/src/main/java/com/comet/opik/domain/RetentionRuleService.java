@@ -1,9 +1,8 @@
-package com.comet.opik.domain.retention;
+package com.comet.opik.domain;
 
 import com.comet.opik.api.retention.RetentionLevel;
 import com.comet.opik.api.retention.RetentionRule;
 import com.comet.opik.api.retention.RetentionRule.RetentionRulePage;
-import com.comet.opik.domain.IdGenerator;
 import com.comet.opik.infrastructure.auth.RequestContext;
 import com.google.inject.ImplementedBy;
 import jakarta.inject.Inject;

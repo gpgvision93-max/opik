@@ -1,4 +1,4 @@
-package com.comet.opik.domain.retention;
+package com.comet.opik.domain;
 
 import com.comet.opik.api.Comment;
 import com.comet.opik.api.FeedbackScoreItem.FeedbackScoreBatchItem;
@@ -18,8 +18,6 @@ import com.comet.opik.api.resources.utils.resources.RetentionRuleResourceClient;
 import com.comet.opik.api.resources.utils.resources.SpanResourceClient;
 import com.comet.opik.api.resources.utils.resources.TraceResourceClient;
 import com.comet.opik.api.retention.RetentionPeriod;
-import com.comet.opik.domain.IdGenerator;
-import com.comet.opik.domain.SpanType;
 import com.comet.opik.extensions.DropwizardAppExtensionProvider;
 import com.comet.opik.extensions.RegisterApp;
 import com.comet.opik.infrastructure.db.TransactionTemplateAsync;

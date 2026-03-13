@@ -1,14 +1,10 @@
-package com.comet.opik.domain.retention;
+package com.comet.opik.domain;
 
 import com.comet.opik.api.retention.RetentionLevel;
 import com.comet.opik.api.retention.RetentionPeriod;
 import com.comet.opik.api.retention.RetentionRule;
-import com.comet.opik.domain.CommentDAO;
-import com.comet.opik.domain.FeedbackScoreDAO;
-import com.comet.opik.domain.IdGenerator;
-import com.comet.opik.domain.SpanDAO;
-import com.comet.opik.domain.TraceDAO;
 import com.comet.opik.infrastructure.RetentionConfig;
+import com.comet.opik.utils.RetentionUtils;
 import com.google.common.collect.Lists;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

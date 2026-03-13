@@ -1,4 +1,4 @@
-package com.comet.opik.domain.retention;
+package com.comet.opik.utils;
 
 import lombok.experimental.UtilityClass;
 

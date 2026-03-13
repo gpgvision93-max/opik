@@ -1,4 +1,4 @@
-package com.comet.opik.domain.retention;
+package com.comet.opik.domain;
 
 import com.comet.opik.api.retention.RetentionLevel;
 import com.comet.opik.api.retention.RetentionRule;
