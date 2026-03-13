@@ -56,7 +56,8 @@ import static java.util.stream.Collectors.toMap;
 public interface PromptService {
     Prompt create(Prompt promptRequest);
 
-    PromptPage find(String name, int page, int size, List<SortingField> sortingFields, List<? extends Filter> filters);
+    PromptPage find(String name, UUID projectId, int page, int size, List<SortingField> sortingFields,
+            List<? extends Filter> filters);
 
     PromptVersion createPromptVersion(CreatePromptVersion promptVersion);
 
@@ -85,6 +86,8 @@ public interface PromptService {
     Mono<Map<UUID, PromptVersion>> findVersionByIds(Set<UUID> ids);
 
     PromptVersion retrievePromptVersion(String name, String commit);
+
+    PromptVersion retrievePromptVersion(String name, String commit, UUID projectId);
 
     PromptVersion restorePromptVersion(UUID promptId, UUID versionId);
 
@@ -201,7 +204,7 @@ class PromptServiceImpl implements PromptService {
     }
 
     @Override
-    public PromptPage find(String name, int page, int size, List<SortingField> sortingFields,
+    public PromptPage find(String name, UUID projectId, int page, int size, List<SortingField> sortingFields,
             List<? extends Filter> filters) {
 
         String workspaceId = requestContext.get().getWorkspaceId();
@@ -218,11 +221,12 @@ class PromptServiceImpl implements PromptService {
         return transactionTemplate.inTransaction(handle -> {
             PromptDAO promptDAO = handle.attach(PromptDAO.class);
 
-            long total = promptDAO.count(name, workspaceId, filtersSQL, filterMapping);
+            long total = promptDAO.count(name, workspaceId, projectId, filtersSQL, filterMapping);
 
             var offset = (page - 1) * size;
 
-            List<Prompt> content = promptDAO.find(name, workspaceId, offset, size, sortingFieldsSql, filtersSQL,
+            List<Prompt> content = promptDAO.find(name, workspaceId, projectId, offset, size, sortingFieldsSql,
+                    filtersSQL,
                     filterMapping);
 
             return PromptPage.builder()
@@ -268,6 +272,23 @@ class PromptServiceImpl implements PromptService {
             PromptDAO promptDAO = handle.attach(PromptDAO.class);
 
             return promptDAO.findByName(name, workspaceId);
+        });
+    }
+
+    private Prompt findByName(String workspaceId, String name, UUID projectId) {
+        if (projectId == null) {
+            return findByName(workspaceId, name);
+        }
+
+        return transactionTemplate.inTransaction(READ_ONLY, handle -> {
+            PromptDAO promptDAO = handle.attach(PromptDAO.class);
+
+            // Project-scoped first, then workspace-wide fallback
+            Prompt prompt = promptDAO.findByNameAndProjectId(name, workspaceId, projectId);
+            if (prompt == null) {
+                prompt = promptDAO.findByName(name, workspaceId);
+            }
+            return prompt;
         });
     }
 
@@ -603,13 +624,18 @@ class PromptServiceImpl implements PromptService {
 
     @Override
     public PromptVersion retrievePromptVersion(@NonNull String name, String commit) {
+        return retrievePromptVersion(name, commit, null);
+    }
+
+    @Override
+    public PromptVersion retrievePromptVersion(@NonNull String name, String commit, UUID projectId) {
         String workspaceId = requestContext.get().getWorkspaceId();
 
         return transactionTemplate.inTransaction(READ_ONLY, handle -> {
             PromptDAO promptDAO = handle.attach(PromptDAO.class);
             PromptVersionDAO promptVersionDAO = handle.attach(PromptVersionDAO.class);
 
-            Prompt prompt = promptDAO.findByName(name, workspaceId);
+            Prompt prompt = findByName(workspaceId, name, projectId);
 
             if (prompt == null) {
                 throw new NotFoundException(PROMPT_NOT_FOUND);

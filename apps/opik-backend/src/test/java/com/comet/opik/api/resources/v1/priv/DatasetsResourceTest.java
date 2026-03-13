@@ -63,6 +63,7 @@ import com.comet.opik.api.resources.utils.WireMockUtils;
 import com.comet.opik.api.resources.utils.resources.DatasetResourceClient;
 import com.comet.opik.api.resources.utils.resources.ExperimentResourceClient;
 import com.comet.opik.api.resources.utils.resources.OptimizationResourceClient;
+import com.comet.opik.api.resources.utils.resources.ProjectResourceClient;
 import com.comet.opik.api.resources.utils.resources.PromptResourceClient;
 import com.comet.opik.api.resources.utils.resources.SpanResourceClient;
 import com.comet.opik.api.resources.utils.resources.TraceResourceClient;
@@ -260,6 +261,7 @@ class DatasetsResourceTest {
     private SpanResourceClient spanResourceClient;
     private TransactionTemplate mySqlTemplate;
     private OptimizationResourceClient optimizationResourceClient;
+    private ProjectResourceClient projectResourceClient;
 
     @BeforeAll
     void setUpAll(ClientSupport client, TransactionTemplate mySqlTemplate) {
@@ -278,6 +280,7 @@ class DatasetsResourceTest {
         traceResourceClient = new TraceResourceClient(this.client, baseURI);
         spanResourceClient = new SpanResourceClient(this.client, baseURI);
         optimizationResourceClient = new OptimizationResourceClient(client, baseURI, factory);
+        projectResourceClient = new ProjectResourceClient(client, baseURI, factory);
     }
 
     @AfterAll
@@ -426,7 +429,7 @@ class DatasetsResourceTest {
         void getDatasetById__whenApiKeyIsPresent__thenReturnProperResponse(String apiKey, Visibility visibility,
                 int expectedCode) {
 
-            Dataset dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            Dataset dataset = buildDataset().toBuilder()
                     .id(null)
                     .visibility(visibility)
                     .build();
@@ -461,7 +464,7 @@ class DatasetsResourceTest {
         void getDatasetByName__whenApiKeyIsPresent__thenReturnProperResponse(String apiKey, Visibility visibility,
                 int expectedCode) {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .visibility(visibility)
                     .build();
@@ -530,7 +533,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(okApikey, TEST_WORKSPACE, WORKSPACE_ID);
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -564,7 +567,7 @@ class DatasetsResourceTest {
         void deleteDataset__whenApiKeyIsPresent__thenReturnProperResponse(String apiKey, boolean shouldSucceed,
                 io.dropwizard.jersey.errors.ErrorMessage errorMessage) {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -641,7 +644,7 @@ class DatasetsResourceTest {
                 Visibility visibility,
                 int expectedCode) {
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .visibility(visibility)
                     .build());
@@ -690,7 +693,7 @@ class DatasetsResourceTest {
                 int expectedCode) {
             String name = UUID.randomUUID().toString();
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .name(name)
                     .visibility(visibility)
@@ -742,7 +745,7 @@ class DatasetsResourceTest {
         void deleteDatasetItems__whenApiKeyIsPresent__thenReturnProperResponse(String apiKey, boolean shouldSucceed,
                 io.dropwizard.jersey.errors.ErrorMessage errorMessage) {
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -792,7 +795,7 @@ class DatasetsResourceTest {
                 int expectedCode) {
             String name = UUID.randomUUID().toString();
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .name(name)
                     .visibility(visibility)
@@ -886,7 +889,7 @@ class DatasetsResourceTest {
         void createDataset__whenSessionTokenIsPresent__thenReturnProperResponse(String sessionToken,
                 boolean shouldSucceed, String workspaceName) {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -918,7 +921,7 @@ class DatasetsResourceTest {
                 Visibility visibility,
                 String workspaceName, int expectedCode) {
 
-            Dataset dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            Dataset dataset = buildDataset().toBuilder()
                     .id(null)
                     .visibility(visibility)
                     .build();
@@ -953,7 +956,7 @@ class DatasetsResourceTest {
                 Visibility visibility,
                 String workspaceName, int expectedCode) {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .visibility(visibility)
                     .build();
@@ -1023,7 +1026,7 @@ class DatasetsResourceTest {
         void updateDataset__whenSessionTokenIsPresent__thenReturnProperResponse(String sessionToken,
                 boolean shouldSucceed, String workspaceName) {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -1057,7 +1060,7 @@ class DatasetsResourceTest {
         void deleteDataset__whenSessionTokenIsPresent__thenReturnProperResponse(String sessionToken,
                 boolean shouldSucceed, String workspaceName) {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -1132,7 +1135,7 @@ class DatasetsResourceTest {
                 String workspaceName, int expectedCode) {
             mockGetWorkspaceIdByName(workspaceName, WORKSPACE_ID);
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .visibility(visibility)
                     .build());
@@ -1180,7 +1183,7 @@ class DatasetsResourceTest {
                 String workspaceName, int expectedCode) {
             String name = UUID.randomUUID().toString();
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .name(name)
                     .visibility(visibility)
@@ -1233,7 +1236,7 @@ class DatasetsResourceTest {
         void deleteDatasetItems__whenSessionTokenIsPresent__thenReturnProperResponse(String sessionToken,
                 boolean shouldSucceed, String workspaceName) {
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -1286,7 +1289,7 @@ class DatasetsResourceTest {
 
             String name = UUID.randomUUID().toString();
 
-            var datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .name(name)
                     .visibility(visibility)
@@ -1334,7 +1337,7 @@ class DatasetsResourceTest {
         @DisplayName("Success")
         void create__success() {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -1345,7 +1348,7 @@ class DatasetsResourceTest {
         @DisplayName("when description is multiline, then accept the request")
         void create__whenDescriptionIsMultiline__thenAcceptTheRequest() {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .description("""
                             Test
@@ -1367,12 +1370,12 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset1 = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset1 = buildDataset().toBuilder()
                     .id(null)
                     .name(name)
                     .build();
 
-            var dataset2 = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset2 = buildDataset().toBuilder()
                     .id(null)
                     .name(name)
                     .build();
@@ -1385,7 +1388,7 @@ class DatasetsResourceTest {
         @DisplayName("when description is null, then accept the request")
         void create__whenDescriptionIsNull__thenAcceptNameCreate() {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .description(null)
                     .build();
 
@@ -1395,7 +1398,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("when type is evaluation_suite, then create and return type in response")
         void create__whenTypeIsEvaluationSuite__thenReturnTypeInResponse() {
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .type(DatasetType.EVALUATION_SUITE)
                     .build();
@@ -1407,7 +1410,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("when type is null, then default to dataset")
         void create__whenTypeIsNull__thenDefaultToDataset() {
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .type(null)
                     .build();
@@ -1419,11 +1422,11 @@ class DatasetsResourceTest {
 
         private Stream<Arguments> invalidDataset() {
             return Stream.of(
-                    arguments(factory.manufacturePojo(Dataset.class).toBuilder().name(null).build(),
+                    arguments(buildDataset().toBuilder().name(null).build(),
                             "name must not be blank"),
-                    arguments(factory.manufacturePojo(Dataset.class).toBuilder().name("").build(),
+                    arguments(buildDataset().toBuilder().name("").build(),
                             "name must not be blank"),
-                    arguments(factory.manufacturePojo(Dataset.class).toBuilder().description("a".repeat(256)).build(),
+                    arguments(buildDataset().toBuilder().description("a".repeat(256)).build(),
                             "description cannot exceed 255 characters"));
         }
 
@@ -1449,7 +1452,7 @@ class DatasetsResourceTest {
         @DisplayName("when dataset name already exists, then reject the request")
         void create__whenDatasetNameAlreadyExists__thenRejectNameCreate() {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -1462,8 +1465,8 @@ class DatasetsResourceTest {
         @DisplayName("when dataset id already exists, then reject the request")
         void create__whenDatasetIdAlreadyExists__thenRejectNameCreate() {
 
-            var dataset = factory.manufacturePojo(Dataset.class);
-            var dataset2 = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset();
+            var dataset2 = buildDataset().toBuilder()
                     .id(dataset.id())
                     .build();
 
@@ -1494,7 +1497,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("Success")
         void getDatasetById() {
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -1524,7 +1527,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("when retrieving dataset by name, then return dataset")
         void getDatasetByIdentifier() {
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -1568,7 +1571,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("when dataset has optimizations linked to it, then return dataset with optimizations summary")
         void getDatasetById__whenDatasetHasOptimizationsLinkedToIt__thenReturnDatasetWithOptimizationSummary() {
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             createAndAssert(dataset);
 
             Instant beforeCreateOptimizations = Instant.now();
@@ -1590,7 +1593,7 @@ class DatasetsResourceTest {
         @DisplayName("when dataset has experiments linked to it, then return dataset with experiment summary")
         void getDatasetById__whenDatasetHasExperimentsLinkedToIt__thenReturnDatasetWithExperimentSummary() {
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
 
             createAndAssert(dataset);
 
@@ -1689,7 +1692,7 @@ class DatasetsResourceTest {
             String workspaceId = UUID.randomUUID().toString();
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
             var id = createAndAssert(dataset, apiKey, workspaceName);
@@ -1751,13 +1754,13 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> expected1 = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
-            List<Dataset> expected2 = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> expected1 = buildDatasets();
+            List<Dataset> expected2 = buildDatasets();
 
             expected1.forEach(dataset -> createAndAssert(dataset, apiKey, workspaceName));
             expected2.forEach(dataset -> createAndAssert(dataset, apiKey, workspaceName));
 
-            Dataset dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            Dataset dataset = buildDataset().toBuilder()
                     .name("The most expressive LLM: " + UUID.randomUUID()
                             + " \uD83D\uDE05\uD83E\uDD23\uD83D\uDE02\uD83D\uDE42\uD83D\uDE43\uD83E\uDEE0")
                     .description("Emoji Test \uD83E\uDD13\uD83E\uDDD0")
@@ -1801,8 +1804,8 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> expected1 = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
-            List<Dataset> expected2 = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> expected1 = buildDatasets();
+            List<Dataset> expected2 = buildDatasets();
 
             expected1.forEach(dataset -> createAndAssert(dataset, apiKey, workspaceName));
             expected2.forEach(dataset -> createAndAssert(dataset, apiKey, workspaceName));
@@ -1834,7 +1837,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> expected = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> expected = buildDatasets();
 
             expected.forEach(dataset -> createAndAssert(dataset, apiKey, workspaceName));
 
@@ -1863,7 +1866,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> expected = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> expected = buildDatasets();
             Set<DatasetLastExperimentCreated> datasetsLastExperimentCreated = new HashSet<>();
 
             expected.forEach(dataset -> {
@@ -1893,7 +1896,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> datasets = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class).stream()
+            List<Dataset> datasets = buildDatasets().stream()
                     .map(d -> d.toBuilder()
                             .lastUpdatedBy(USER)
                             .createdBy(USER)
@@ -2040,7 +2043,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> expected = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> expected = buildDatasets();
             Set<DatasetLastOptimizationCreated> datasetsLastOptimizationCreated = new HashSet<>();
 
             expected.forEach(dataset -> {
@@ -2135,7 +2138,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> datasets = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> datasets = buildDatasets();
 
             Set<DatasetLastOptimizationCreated> datasetsLastOptimizationCreated = new HashSet<>();
             Set<DatasetLastExperimentCreated> datasetsLastExperimentCreated = new HashSet<>();
@@ -2379,17 +2382,17 @@ class DatasetsResourceTest {
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
             List<Dataset> datasets = List.of(
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("MySQL, realtime chatboot: " + datasetSuffix).build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("Chatboot using mysql: " + datasetSuffix)
                             .build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("Chatboot MYSQL expert: " + datasetSuffix)
                             .build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("Chatboot expert (my SQL): " + datasetSuffix).build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("Chatboot expert: " + datasetSuffix)
                             .build());
 
@@ -2428,19 +2431,19 @@ class DatasetsResourceTest {
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
             List<Dataset> datasets = List.of(
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("MySQL: " + datasetSuffix)
                             .build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("Chat-boot using mysql: " + datasetSuffix)
                             .build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("MYSQL CHATBOOT expert: " + datasetSuffix)
                             .build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("Expert Chatboot: " + datasetSuffix)
                             .build(),
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name("My chat expert: " + datasetSuffix)
                             .build());
 
@@ -2480,11 +2483,11 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            Dataset dataset1 = factory.manufacturePojo(Dataset.class).toBuilder()
+            Dataset dataset1 = buildDataset().toBuilder()
                     .name(name)
                     .build();
 
-            Dataset dataset2 = factory.manufacturePojo(Dataset.class).toBuilder()
+            Dataset dataset2 = buildDataset().toBuilder()
                     .name(name)
                     .build();
 
@@ -2517,7 +2520,7 @@ class DatasetsResourceTest {
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
             List<Dataset> datasets = List.of(
-                    factory.manufacturePojo(Dataset.class).toBuilder()
+                    buildDataset().toBuilder()
                             .name(name)
                             .build());
 
@@ -2546,7 +2549,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> datasets = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> datasets = buildDatasets();
 
             datasets.forEach(dataset -> createAndAssert(dataset, apiKey, workspaceName));
 
@@ -2657,7 +2660,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            List<Dataset> datasets = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class);
+            List<Dataset> datasets = buildDatasets();
 
             datasets.forEach(dataset -> createAndAssert(dataset, apiKey, workspaceName));
 
@@ -2801,7 +2804,7 @@ class DatasetsResourceTest {
         }
 
         private Dataset createDatasetWithExperiment(String apiKey, String workspaceName, String datasetNamePrefix) {
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .name(datasetNamePrefix == null
                             ? UUID.randomUUID().toString()
                             : datasetNamePrefix + " " + UUID.randomUUID())
@@ -2829,7 +2832,7 @@ class DatasetsResourceTest {
         }
 
         private Dataset createDatasetWithOptimization(String apiKey, String workspaceName) {
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             createAndAssert(dataset, apiKey, workspaceName);
 
             var optimization = optimizationResourceClient.createPartialOptimization().datasetName(dataset.name())
@@ -2864,7 +2867,7 @@ class DatasetsResourceTest {
             List<Dataset> expectedDatasets = IntStream.range(0, expectedMatchCount)
                     .parallel()
                     .mapToObj(i -> {
-                        var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+                        var dataset = buildDataset().toBuilder()
                                 .name(UUID.randomUUID().toString())
                                 .build();
 
@@ -2945,7 +2948,7 @@ class DatasetsResourceTest {
             List<Dataset> expectedDatasets = IntStream.range(0, expectedMatchCount)
                     .parallel()
                     .mapToObj(i -> {
-                        var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+                        var dataset = buildDataset().toBuilder()
                                 .name(UUID.randomUUID().toString())
                                 .build();
 
@@ -3009,10 +3012,10 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var regularDataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var regularDataset = buildDataset().toBuilder()
                     .type(DatasetType.DATASET)
                     .build();
-            var evaluationSuite = factory.manufacturePojo(Dataset.class).toBuilder()
+            var evaluationSuite = buildDataset().toBuilder()
                     .type(DatasetType.EVALUATION_SUITE)
                     .build();
 
@@ -3043,10 +3046,10 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var regularDataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var regularDataset = buildDataset().toBuilder()
                     .type(DatasetType.DATASET)
                     .build();
-            var evaluationSuite = factory.manufacturePojo(Dataset.class).toBuilder()
+            var evaluationSuite = buildDataset().toBuilder()
                     .type(DatasetType.EVALUATION_SUITE)
                     .build();
 
@@ -3091,6 +3094,13 @@ class DatasetsResourceTest {
                             .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
                                     equalTo(WorkspaceUserPermission.DATASET_VIEW.getValue()))));
         }
+    }
+
+    private List<Dataset> buildDatasets() {
+        return PodamFactoryUtils.manufacturePojoList(factory, Dataset.class)
+                .stream()
+                .map(dataset -> dataset.toBuilder().projectId(null).build())
+                .toList();
     }
 
     private Experiment getExperiment(String apiKey, String workspaceName, Experiment experiment) {
@@ -3146,7 +3156,7 @@ class DatasetsResourceTest {
         @MethodSource
         @DisplayName("Success")
         void updateDataset(DatasetUpdate datasetUpdate) {
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -3209,7 +3219,7 @@ class DatasetsResourceTest {
         @DisplayName("when updating request is not valid, then return 422")
         void updateDataset__whenUpdatingRequestIsNotValid__thenReturn422(DatasetUpdate datasetUpdate,
                 String errorMessage) {
-            var id = factory.manufacturePojo(Dataset.class).id();
+            var id = buildDataset().id();
 
             try (var actualResponse = client.target(BASE_RESOURCE_URI.formatted(baseURI))
                     .path(id.toString())
@@ -3229,7 +3239,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("when updating only name, then update only name")
         void updateDataset__whenUpdatingOnlyName__thenUpdateOnlyName() {
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -3269,7 +3279,7 @@ class DatasetsResourceTest {
         @DisplayName("Success")
         void deleteDataset() {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -3307,7 +3317,7 @@ class DatasetsResourceTest {
             var workspaceId = UUID.randomUUID().toString();
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var ids = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class).stream()
+            var ids = buildDatasets().stream()
                     .map(dataset -> createAndAssert(dataset, apiKey, workspaceName)).toList();
             var idsToDelete = ids.subList(0, 3);
             var notDeletedIds = ids.subList(3, ids.size());
@@ -3362,7 +3372,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("when deleting by dataset name, then return no content")
         void deleteDataset__whenDeletingByDatasetName__thenReturnNoContent() {
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
 
             var id = createAndAssert(dataset);
 
@@ -3393,7 +3403,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("when deleting by dataset name and dataset does not exist, then return no content")
         void deleteDataset__whenDeletingByDatasetNameAndDatasetDoesNotExist__thenReturnNotFound() {
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
 
             try (var actualResponse = client.target(BASE_RESOURCE_URI.formatted(baseURI))
                     .path("delete")
@@ -3414,7 +3424,7 @@ class DatasetsResourceTest {
         @DisplayName("when deleting dataset should update optimization dataset_deleted")
         void deletingDataset__shouldUpdateOptimizationDatasetDeleted__thenReturnNotFound(
                 Consumer<Dataset> datasetDeleteAction) {
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             createAndAssert(dataset);
 
             var optimizations = IntStream.range(0, 10)
@@ -3762,7 +3772,7 @@ class DatasetsResourceTest {
         @DisplayName("when dataset item batch has max size, then return no content and create")
         void createDatasetItem__whenDatasetItemBatchHasMaxSize__thenReturnNoContentAndCreate() {
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset = buildDataset().toBuilder()
                     .id(null)
                     .build();
 
@@ -3795,7 +3805,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName2, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
 
             var datasetId = createAndAssert(dataset, apiKey, workspaceName2);
 
@@ -3840,7 +3850,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName1, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
 
             var datasetId = createAndAssert(dataset, apiKey, workspaceName1);
 
@@ -5255,10 +5265,10 @@ class DatasetsResourceTest {
         @DisplayName("Success: delete by filters with dataset_id prevents cross-dataset deletion")
         void deleteDatasetItems__whenUsingFiltersWithDatasetId__thenOnlyDeletesFromTargetDataset() {
             // Create two different datasets
-            var dataset1Id = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset1Id = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
-            var dataset2Id = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            var dataset2Id = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5413,7 +5423,7 @@ class DatasetsResourceTest {
         @DisplayName("Success")
         void getDatasetItemsByDatasetId() {
 
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5442,7 +5452,7 @@ class DatasetsResourceTest {
         @DisplayName("when defining page size, then return page with limit respected")
         void getDatasetItemsByDatasetId__whenDefiningPageSize__thenReturnPageWithLimitRespected() {
 
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5474,7 +5484,7 @@ class DatasetsResourceTest {
         @DisplayName("when items were updated, then return correct items count")
         void getDatasetItemsByDatasetId__whenItemsWereUpdated__thenReturnCorrectItemsCount() {
 
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5517,7 +5527,7 @@ class DatasetsResourceTest {
         @DisplayName("when items have data with same keys and different types, then return columns types and count")
         void getDatasetItemsByDatasetId__whenItemsHaveDataWithSameKeysAndDifferentTypes__thenReturnColumnsTypesAndCount() {
 
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5565,7 +5575,7 @@ class DatasetsResourceTest {
         @MethodSource("com.comet.opik.api.resources.utils.ImageTruncationArgProvider#provideTestArguments")
         void getDatasetItemsByDatasetId_withTruncation(JsonNode original, JsonNode expected, boolean truncate) {
 
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5668,7 +5678,7 @@ class DatasetsResourceTest {
                 Function<String, Map<String, JsonNode>> matchingDataSupplier,
                 Function<String, Map<String, JsonNode>> nonMatchingDataSupplier) {
 
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5739,7 +5749,7 @@ class DatasetsResourceTest {
                 Function<String, Map<String, JsonNode>> matchingDataSupplier,
                 Function<String, Map<String, JsonNode>> nonMatchingDataSupplier) {
 
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5796,7 +5806,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("Success: filter dataset items by tags")
         void getDatasetItemsByDatasetId__whenFilteringByTags__thenSucceed() {
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5837,7 +5847,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("Success: filter dataset items by multiple tags")
         void getDatasetItemsByDatasetId__whenFilteringByMultipleTags__thenSucceed() {
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5871,7 +5881,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("Success: filter dataset items by non-existent tag")
         void getDatasetItemsByDatasetId__whenFilteringByNonExistentTag__thenReturnEmpty() {
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -5902,7 +5912,7 @@ class DatasetsResourceTest {
         @Test
         @DisplayName("Success: filter dataset items without tags")
         void getDatasetItemsByDatasetId__whenFilteringItemsWithoutTags__thenSucceed() {
-            UUID datasetId = createAndAssert(factory.manufacturePojo(Dataset.class).toBuilder()
+            UUID datasetId = createAndAssert(buildDataset().toBuilder()
                     .id(null)
                     .build());
 
@@ -6038,7 +6048,7 @@ class DatasetsResourceTest {
             createAndAssert(traceMissingFields, workspaceName, apiKey);
 
             // Creating the dataset
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             // Creating 5 dataset items for the dataset above
@@ -6260,7 +6270,7 @@ class DatasetsResourceTest {
 
             // Creating dataset and experiment items
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
 
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
@@ -6453,7 +6463,7 @@ class DatasetsResourceTest {
             traceResourceClient.batchCreateTraces(traces, apiKey, workspaceName);
 
             // Creating the dataset
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             // Creating 5 dataset items for the dataset above
@@ -6583,7 +6593,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             List<DatasetItem> items = PodamFactoryUtils.manufacturePojoList(factory, DatasetItem.class);
@@ -6676,7 +6686,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             List<DatasetItem> datasetItems = new ArrayList<>();
@@ -6774,7 +6784,7 @@ class DatasetsResourceTest {
             createAndAssert(trace, workspaceName, apiKey);
 
             // Creating the dataset
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             // Creating a dataset item
@@ -6985,7 +6995,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             List<DatasetItem> datasetItems = new ArrayList<>();
@@ -7242,7 +7252,7 @@ class DatasetsResourceTest {
             createAndAssert(trace2, workspaceName, apiKey);
 
             // Create the dataset
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             // Create dataset items with conditional search term placement
@@ -7323,6 +7333,10 @@ class DatasetsResourceTest {
         }
     }
 
+    private Dataset buildDataset() {
+        return factory.manufacturePojo(Dataset.class).toBuilder().projectId(null).build();
+    }
+
     private DatasetItemPage assertDatasetExperimentPage(UUID datasetId, UUID experimentId,
             List<? extends Filter> filters,
             String apiKey, String workspaceName, Set<Column> columns, List<DatasetItem> datasetItems) {
@@ -7365,7 +7379,7 @@ class DatasetsResourceTest {
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
             // Create dataset
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder().id(null).build();
+            var dataset = buildDataset().toBuilder().id(null).build();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             // Create project and traces
@@ -7536,7 +7550,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder().id(null).build();
+            var dataset = buildDataset().toBuilder().id(null).build();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             String projectName = GENERATOR.generate().toString();
@@ -7619,7 +7633,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder().id(null).build();
+            var dataset = buildDataset().toBuilder().id(null).build();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             String projectName = GENERATOR.generate().toString();
@@ -7691,7 +7705,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder().id(null).build();
+            var dataset = buildDataset().toBuilder().id(null).build();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             String projectName = GENERATOR.generate().toString();
@@ -7782,7 +7796,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class).toBuilder().id(null).build();
+            var dataset = buildDataset().toBuilder().id(null).build();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             String projectName = GENERATOR.generate().toString();
@@ -7955,7 +7969,7 @@ class DatasetsResourceTest {
 
             traces.parallelStream().forEach(trace -> createAndAssert(trace, workspaceName, apiKey));
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             var datasetItemBatch = factory.manufacturePojo(DatasetItemBatch.class).toBuilder()
@@ -8014,7 +8028,7 @@ class DatasetsResourceTest {
 
             traces.parallelStream().forEach(trace -> createAndAssert(trace, workspaceName, apiKey));
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             var datasetItemBatch = factory.manufacturePojo(DatasetItemBatch.class).toBuilder()
@@ -8099,7 +8113,7 @@ class DatasetsResourceTest {
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
             // Create dataset without any experiment items
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             var datasetItemBatch = factory.manufacturePojo(DatasetItemBatch.class).toBuilder()
@@ -8360,7 +8374,7 @@ class DatasetsResourceTest {
     }
 
     private List<Dataset> prepareDatasetsListWithOnePublic() {
-        var datasets = PodamFactoryUtils.manufacturePojoList(factory, Dataset.class).stream()
+        var datasets = buildDatasets().stream()
                 .map(project -> project.toBuilder()
                         .visibility(PRIVATE)
                         .build())
@@ -8384,7 +8398,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
 
             // Note: Use datasetName instead of datasetId because ExperimentService.create
@@ -8569,7 +8583,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
 
             // Note: Use datasetName instead of datasetId because ExperimentService.create
@@ -8721,7 +8735,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
 
             // Note: Use datasetName instead of datasetId because ExperimentService.create
@@ -8906,7 +8920,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
 
             // Note: Use datasetName instead of datasetId because ExperimentService.create
@@ -9048,7 +9062,7 @@ class DatasetsResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
 
             // Note: Use datasetName instead of datasetId because ExperimentService.create
@@ -9219,7 +9233,7 @@ class DatasetsResourceTest {
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
             // Create dataset
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             // Create dataset item
@@ -9347,7 +9361,7 @@ class DatasetsResourceTest {
 
             var projectName = RandomStringUtils.randomAlphanumeric(10);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             var datasetItemBatch = factory.manufacturePojo(DatasetItemBatch.class).toBuilder()
@@ -9452,7 +9466,7 @@ class DatasetsResourceTest {
 
             var projectName = RandomStringUtils.randomAlphanumeric(10);
 
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             var datasetItemBatch = factory.manufacturePojo(DatasetItemBatch.class).toBuilder()
@@ -9565,7 +9579,7 @@ class DatasetsResourceTest {
             var projectName = RandomStringUtils.randomAlphanumeric(10);
 
             // Create dataset
-            var dataset = factory.manufacturePojo(Dataset.class);
+            var dataset = buildDataset();
             var datasetId = createAndAssert(dataset, apiKey, workspaceName);
 
             // Create 3 dataset items
@@ -9627,6 +9641,94 @@ class DatasetsResourceTest {
                 assertThat(actualPage.content()).hasSize(1);
                 assertThat(actualPage.content().getFirst().id()).isEqualTo(targetItemId);
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("Project-scoped dataset operations")
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    class ProjectScopedDatasets {
+
+        @Test
+        @DisplayName("Create dataset with project_id persists and returns project_id")
+        void createDatasetWithProjectId() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = UUID.randomUUID().toString();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var projectId = projectResourceClient.createProject("project-" + UUID.randomUUID(), apiKey, workspaceName);
+
+            var dataset = buildDataset().toBuilder()
+                    .id(null)
+                    .projectId(projectId)
+                    .build();
+
+            var id = datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
+            var fetchedDataset = datasetResourceClient.getDatasetById(id, apiKey, workspaceName);
+
+            assertDataset(fetchedDataset, dataset);
+        }
+
+        @Test
+        @DisplayName("Create dataset with non-existing project_id returns conflict")
+        void createDatasetWithNonExistingProjectId() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = UUID.randomUUID().toString();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var dataset = buildDataset().toBuilder()
+                    .id(null)
+                    .projectId(factory.manufacturePojo(UUID.class))
+                    .build();
+
+            try (var response = datasetResourceClient.callCreateDataset(dataset, apiKey, workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_CONFLICT);
+            }
+        }
+
+        @Test
+        @DisplayName("Find datasets filtered by project_id returns only project datasets")
+        void findDatasetsByProjectId() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = UUID.randomUUID().toString();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var projectId = projectResourceClient.createProject("project-" + UUID.randomUUID(), apiKey, workspaceName);
+            var otherProjectId = projectResourceClient.createProject("project-" + UUID.randomUUID(), apiKey,
+                    workspaceName);
+
+            var projectDataset = buildDataset().toBuilder()
+                    .id(null)
+                    .projectId(projectId)
+                    .build();
+            datasetResourceClient.createDataset(projectDataset, apiKey, workspaceName);
+
+            var otherProjectDataset = buildDataset().toBuilder()
+                    .id(null)
+                    .projectId(otherProjectId)
+                    .build();
+            datasetResourceClient.createDataset(otherProjectDataset, apiKey, workspaceName);
+
+            var workspaceDataset = buildDataset().toBuilder()
+                    .id(null)
+                    .projectId(null)
+                    .build();
+            datasetResourceClient.createDataset(workspaceDataset, apiKey, workspaceName);
+
+            var page = datasetResourceClient.getDatasetsByProjectId(projectId, workspaceName, apiKey);
+
+            assertThat(page.content()).hasSize(1);
+            assertDataset(page.content().getFirst(), projectDataset);
+        }
+
+        private void assertDataset(Dataset actual, Dataset expected) {
+            assertThat(actual)
+                    .usingRecursiveComparison()
+                    .ignoringFields(DATASET_IGNORED_FIELDS)
+                    .isEqualTo(expected);
         }
     }
 }

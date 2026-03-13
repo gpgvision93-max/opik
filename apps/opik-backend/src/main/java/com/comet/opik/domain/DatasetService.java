@@ -81,6 +81,8 @@ public interface DatasetService {
 
     Dataset findByName(String workspaceId, String name, Visibility visibility);
 
+    Dataset findByName(String workspaceId, String name, UUID projectId, Visibility visibility);
+
     void delete(DatasetIdentifier identifier);
 
     void delete(UUID id);
@@ -306,6 +308,28 @@ class DatasetServiceImpl implements DatasetService {
         return verifyVisibility(dataset, visibility);
     }
 
+    @Override
+    public Dataset findByName(@NonNull String workspaceId, @NonNull String name, UUID projectId,
+            Visibility visibility) {
+        if (projectId == null) {
+            return findByName(workspaceId, name, visibility);
+        }
+
+        Dataset dataset = template.inTransaction(READ_ONLY, handle -> {
+            var dao = handle.attach(DatasetDAO.class);
+
+            // Project-scoped first, then workspace-wide fallback
+            return dao.findByNameAndProjectId(workspaceId, name, projectId)
+                    .or(() -> dao.findByName(workspaceId, name))
+                    .orElseThrow(this::newNotFoundException);
+        });
+
+        log.info("Found dataset with name '{}', id '{}', workspaceId '{}', projectId '{}'",
+                name, dataset.id(), workspaceId, projectId);
+
+        return verifyVisibility(dataset, visibility);
+    }
+
     /**
      * Deletes a dataset by name.
      * <br>
@@ -463,11 +487,13 @@ class DatasetServiceImpl implements DatasetService {
             var repository = handle.attach(DatasetDAO.class);
             int offset = (page - 1) * size;
 
-            long count = repository.findCount(workspaceId, criteria.name(), criteria.withExperimentsOnly(),
+            long count = repository.findCount(workspaceId, criteria.name(), criteria.projectId(),
+                    criteria.withExperimentsOnly(),
                     criteria.withOptimizationsOnly(), visibility, filtersSQL, filterMapping);
 
             List<Dataset> datasets = enrichDatasetWithAdditionalInformation(
-                    repository.find(size, offset, workspaceId, criteria.name(), criteria.withExperimentsOnly(),
+                    repository.find(size, offset, workspaceId, criteria.name(), criteria.projectId(),
+                            criteria.withExperimentsOnly(),
                             criteria.withOptimizationsOnly(),
                             sortingFieldsSql, visibility, filtersSQL, filterMapping));
 
