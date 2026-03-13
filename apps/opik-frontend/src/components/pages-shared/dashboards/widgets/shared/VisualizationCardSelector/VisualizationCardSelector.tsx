@@ -1,11 +1,10 @@
 import React from "react";
-import { ChartLine, ChartBarBig, Pentagon } from "lucide-react";
+import { ChartLine, ChartBarBig } from "lucide-react";
 import { CHART_TYPE } from "@/constants/chart";
 import CardSelector, {
   CardOption,
 } from "@/components/shared/CardSelector/CardSelector";
-
-// TODO lala custom pentagon icon
+import CustomPentagon from "@/icons/custom-pentagon.svg?react";
 
 const ALL_OPTIONS: Record<CHART_TYPE, CardOption> = {
   [CHART_TYPE.line]: {
@@ -23,7 +22,7 @@ const ALL_OPTIONS: Record<CHART_TYPE, CardOption> = {
   [CHART_TYPE.radar]: {
     value: CHART_TYPE.radar,
     label: "Radar chart",
-    icon: <Pentagon className="size-4" />,
+    icon: <CustomPentagon className="size-4" />,
     iconColor: "text-chart-blue",
   },
 };

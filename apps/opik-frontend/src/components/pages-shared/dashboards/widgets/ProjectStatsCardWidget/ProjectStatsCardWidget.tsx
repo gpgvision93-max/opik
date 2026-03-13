@@ -153,7 +153,7 @@ const ProjectStatsCardWidget: React.FunctionComponent<
       return (
         <DashboardWidget.EmptyState
           title="Project not configured"
-          message="This widget needs a project to display data. Select a default project for the dashboard or set a custom one in the widget settings."
+          message="This widget needs a project to display data. Set one in the widget settings."
           action={editAction}
         />
       );

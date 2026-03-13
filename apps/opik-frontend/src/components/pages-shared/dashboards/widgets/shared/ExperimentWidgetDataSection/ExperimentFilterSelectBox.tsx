@@ -35,7 +35,6 @@ const ExperimentFilterSelectBox: React.FC<ExperimentFilterSelectBoxProps> = ({
       value={selectedIds}
       onValueChange={handleChange}
       multiselect
-      showClearButton
       className={className}
     />
   );

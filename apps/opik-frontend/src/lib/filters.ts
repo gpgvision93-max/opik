@@ -118,6 +118,7 @@ export const generateExperimentIdFilter = (experimentId?: string) => {
 
 export const generateDashboardScopeFilter = (scope: string): Filter[] => [
   createFilter({
+    id: `dashboard-scope-filter-${scope}`,
     field: "scope",
     type: COLUMN_TYPE.string,
     operator: "=",
@@ -129,6 +130,7 @@ export const generateDashboardTypeFilter = (
   dashboardType: string,
 ): Filter[] => [
   createFilter({
+    id: `dashboard-type-filter-${dashboardType}`,
     field: "type",
     type: COLUMN_TYPE.string,
     operator: "=",

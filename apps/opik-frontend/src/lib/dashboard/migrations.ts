@@ -124,7 +124,7 @@ const migrateDashboardV3toV4 = (
           {
             id: "experiment-ids-filter",
             field: "experiment_ids",
-            type: "list",
+            type: "string",
             operator: "=",
             key: "",
             value: validIds.join(","),

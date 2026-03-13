@@ -32,13 +32,33 @@ type ExperimentColumnData = {
   dataset_id?: string;
 };
 
-const EXPERIMENT_DATA_COLUMNS: ColumnData<ExperimentColumnData>[] = [
+const EXPERIMENT_FILTER_COLUMNS: ColumnData<ExperimentColumnData>[] = [
   {
     id: EXPERIMENT_IDS_FILTER_FIELD,
     label: "Experiments",
     type: COLUMN_TYPE.string,
     disposable: true,
   },
+  {
+    id: COLUMN_DATASET_ID,
+    label: "Dataset",
+    type: COLUMN_TYPE.string,
+    disposable: true,
+  },
+  {
+    id: "tags",
+    label: "Tags",
+    type: COLUMN_TYPE.list,
+    iconType: "tags",
+  },
+  {
+    id: COLUMN_METADATA_ID,
+    label: "Configuration",
+    type: COLUMN_TYPE.dictionary,
+  },
+];
+
+const EXPERIMENT_GROUP_COLUMNS: ColumnData<ExperimentColumnData>[] = [
   {
     id: COLUMN_DATASET_ID,
     label: "Dataset",
@@ -208,7 +228,7 @@ const ExperimentWidgetDataSection = <T extends FieldValues>({
   return (
     <div className={cn("flex flex-col", className)}>
       <FiltersSection
-        columns={EXPERIMENT_DATA_COLUMNS as ColumnData<unknown>[]}
+        columns={EXPERIMENT_FILTER_COLUMNS as ColumnData<unknown>[]}
         config={dataConfig}
         filters={filters}
         onChange={setFilters}
@@ -220,7 +240,7 @@ const ExperimentWidgetDataSection = <T extends FieldValues>({
 
       {groupsFieldName && (
         <GroupsAccordionSection
-          columns={EXPERIMENT_DATA_COLUMNS as ColumnData<unknown>[]}
+          columns={EXPERIMENT_GROUP_COLUMNS as ColumnData<unknown>[]}
           config={dataConfig}
           groups={groups || []}
           onChange={setGroups}

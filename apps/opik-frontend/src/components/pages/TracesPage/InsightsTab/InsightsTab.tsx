@@ -24,7 +24,6 @@ import {
   DEPRECATED_PROJECT_PERFORMANCE_ID,
 } from "@/lib/dashboard/templates";
 import { Separator } from "@/components/ui/separator";
-import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
 import { useActiveWorkspaceName } from "@/store/AppStore";
 import { usePermissions } from "@/contexts/PermissionsContext";
 
@@ -110,16 +109,6 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
     [dashboardId, setDashboardId],
   );
 
-  const viewSelector = (
-    <InsightsViewSelector
-      value={dashboardId || null}
-      onChange={setDashboardId}
-      onViewCreated={handleDashboardCreated}
-      onViewDeleted={handleDashboardDeleted}
-      disabled={hasUnsavedChanges}
-    />
-  );
-
   return (
     <>
       <PageBodyStickyContainer
@@ -127,14 +116,15 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
         direction="bidirectional"
         limitWidth
       >
-        {canViewDashboards &&
-          (hasUnsavedChanges ? (
-            <TooltipWrapper content="Save or discard your changes before switching">
-              <div>{viewSelector}</div>
-            </TooltipWrapper>
-          ) : (
-            viewSelector
-          ))}
+        {canViewDashboards && (
+          <InsightsViewSelector
+            value={dashboardId || null}
+            onChange={setDashboardId}
+            onViewCreated={handleDashboardCreated}
+            onViewDeleted={handleDashboardDeleted}
+            disabled={hasUnsavedChanges}
+          />
+        )}
 
         <div className="flex shrink-0 items-center gap-2">
           {dashboard && (
@@ -144,6 +134,7 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
               dashboard={dashboard}
               navigateOnCreate={false}
               onDashboardCreated={handleDashboardCreated}
+              hideSaveAs
             />
           )}
           <MetricDateRangeSelect

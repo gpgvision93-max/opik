@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { SquareActivity } from "lucide-react";
 
 import DashboardContent from "@/components/pages-shared/dashboards/DashboardContent/DashboardContent";
 import ShareDashboardButton from "@/components/pages-shared/dashboards/ShareDashboardButton/ShareDashboardButton";
@@ -16,6 +15,7 @@ import { EXPERIMENT_COMPARISON_TEMPLATE } from "@/lib/dashboard/templates";
 import { DASHBOARD_TYPE } from "@/types/dashboard";
 import CompareExperimentsButton from "@/components/pages/CompareExperimentsPage/CompareExperimentsButton/CompareExperimentsButton";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface ExperimentInsightsTabProps {
   experimentsIds: string[];
@@ -67,9 +67,14 @@ const ExperimentInsightsTab: React.FunctionComponent<
         limitWidth
       >
         <div className="flex h-8 items-center gap-1.5 rounded-md border px-3">
-          <SquareActivity className="size-3.5 shrink-0 text-chart-pink" />
+          <EXPERIMENT_COMPARISON_TEMPLATE.icon
+            className={cn(
+              "size-3.5 shrink-0",
+              EXPERIMENT_COMPARISON_TEMPLATE.iconColor,
+            )}
+          />
           <span className="comet-body-s-accented text-foreground">
-            Experiments overview
+            {EXPERIMENT_COMPARISON_TEMPLATE.name}
           </span>
         </div>
 

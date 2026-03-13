@@ -1,15 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import {
-  ChartLine,
-  ChevronDown,
-  CopyPlus,
-  Pencil,
-  Plus,
-  SquareActivity,
-  Trash,
-} from "lucide-react";
-import { format } from "date-fns";
-
+import { ChartLine, ChevronDown, Plus } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -17,15 +7,17 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Tag } from "@/components/ui/tag";
 import { ListAction } from "@/components/ui/list-action";
 import SearchInput from "@/components/shared/SearchInput/SearchInput";
 import ConfirmDialog from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import AddEditCloneDashboardDialog, {
-  DashboardDialogMode,
-  DashboardDialogLabels,
-  DashboardDialogToastConfig,
-} from "@/components/pages-shared/dashboards/AddEditCloneDashboardDialog/AddEditCloneDashboardDialog";
+import InsightsViewDialog, {
+  InsightsViewDialogMode,
+} from "./InsightsViewDialog";
+import {
+  BuiltInViewItem,
+  CustomViewItem,
+  InsightsViewOption,
+} from "./InsightsViewItems";
 import useDashboardsList from "@/api/dashboards/useDashboardsList";
 import useDashboardBatchDeleteMutation from "@/api/dashboards/useDashboardBatchDeleteMutation";
 import useAppStore from "@/store/AppStore";
@@ -36,47 +28,16 @@ import {
   DashboardTemplate,
 } from "@/types/dashboard";
 import { PROJECT_TEMPLATE_LIST } from "@/lib/dashboard/templates";
-import { isTemplateId } from "@/lib/dashboard/utils";
 import {
   generateDashboardScopeFilter,
   generateDashboardTypeFilter,
 } from "@/lib/filters";
 import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/date";
 
-const VIEW_DIALOG_LABELS: DashboardDialogLabels = {
-  create: {
-    title: "Create view",
-    buttonText: "Create view",
-  },
-  edit: {
-    title: "Edit view",
-    buttonText: "Rename view",
-  },
-  clone: {
-    title: "Duplicate view",
-    description:
-      "Create a copy to customize it without affecting the original.",
-    buttonText: "Duplicate view",
-  },
-};
-
-const VIEW_TOAST_CONFIG: DashboardDialogToastConfig = {
-  create: {
-    title: "View created",
-    description: "Start customizing it by adding widgets",
-    actionLabel: "Add your first widget",
-  },
-  clone: {
-    title: "View created",
-    description: "Start customizing it by adding or editing widgets",
-    actionLabel: "Add a widget",
-  },
-  edit: {
-    title: "View updated",
-    description: "Your changes have been saved.",
-  },
-};
+const CUSTOM_VIEW_ICON = ChartLine;
+const CUSTOM_VIEW_ICON_COLOR = "text-chart-orange";
 
 interface InsightsViewSelectorProps {
   value: string | null;
@@ -88,7 +49,7 @@ interface InsightsViewSelectorProps {
 
 interface DialogState {
   isOpen: boolean;
-  mode: DashboardDialogMode;
+  mode: InsightsViewDialogMode;
   dashboard?: Dashboard;
 }
 
@@ -104,6 +65,37 @@ const getWidgetCount = (dashboard: Dashboard): number => {
     return 0;
   }
 };
+
+const formatDashboardDescription = (dashboard: Dashboard): string => {
+  const widgetCount = getWidgetCount(dashboard);
+  const lastUpdated = dashboard.last_updated_at
+    ? formatDate(dashboard.last_updated_at)
+    : "";
+
+  return [`${widgetCount} widget${widgetCount !== 1 ? "s" : ""}`, lastUpdated]
+    .filter(Boolean)
+    .join(", ");
+};
+
+const TEMPLATE_OPTIONS: InsightsViewOption[] = PROJECT_TEMPLATE_LIST.map(
+  (template) => ({
+    value: template.id,
+    label: template.name,
+    description: template.description,
+    icon: template.icon,
+    iconColor: template.iconColor,
+    isBuiltIn: true,
+  }),
+);
+
+const buildDashboardOption = (dashboard: Dashboard): InsightsViewOption => ({
+  value: dashboard.id,
+  label: dashboard.name,
+  description: formatDashboardDescription(dashboard),
+  icon: CUSTOM_VIEW_ICON,
+  iconColor: CUSTOM_VIEW_ICON_COLOR,
+  isBuiltIn: false,
+});
 
 const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
   value,
@@ -152,32 +144,52 @@ const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
     [dashboardsData?.content],
   );
 
-  const templates = PROJECT_TEMPLATE_LIST;
-
-  const filteredTemplates = useMemo(
-    () =>
-      templates.filter((t) =>
-        t.name.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [search, templates],
+  const allOptions = useMemo(
+    () => [...TEMPLATE_OPTIONS, ...dashboards.map(buildDashboardOption)],
+    [dashboards],
   );
 
-  const filteredDashboards = useMemo(
-    () =>
-      dashboards.filter((d) =>
-        d.name.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [dashboards, search],
+  const searchLower = search.toLowerCase();
+  const filteredOptions = allOptions.filter((o) =>
+    o.label.toLowerCase().includes(searchLower),
   );
+  const filteredBuiltIn = filteredOptions.filter((o) => o.isBuiltIn);
+  const filteredCustom = filteredOptions.filter((o) => !o.isBuiltIn);
 
-  const selectedItem = useMemo(() => {
-    if (isTemplateId(value)) {
-      return templates.find((t) => t.id === value);
-    }
-    return dashboards.find((d) => d.id === value);
-  }, [value, dashboards, templates]);
+  const selectedOption = allOptions.find((o) => o.value === value) ?? null;
 
-  const selectedName = selectedItem?.name ?? "Select a view";
+  const selectedIcon = selectedOption?.icon ?? CUSTOM_VIEW_ICON;
+  const selectedIconColor = selectedOption?.iconColor ?? CUSTOM_VIEW_ICON_COLOR;
+  const selectedName = selectedOption?.label ?? "Select a view";
+
+  const renderTrigger = () => (
+    <TooltipWrapper
+      content={
+        disabled
+          ? "Save or discard your changes before switching"
+          : selectedName
+      }
+    >
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn("max-w-[400px] gap-1.5", {
+            "disabled:cursor-not-allowed disabled:border-input disabled:bg-muted-disabled disabled:text-muted-gray disabled:placeholder:text-muted-gray hover:disabled:shadow-none":
+              disabled,
+          })}
+          disabled={disabled}
+          type="button"
+        >
+          {React.createElement(selectedIcon, {
+            className: cn("size-3.5 shrink-0", selectedIconColor),
+          })}
+          <span className="comet-body-s-accented truncate">{selectedName}</span>
+          <ChevronDown className="ml-1 size-3.5 shrink-0 text-light-slate" />
+        </Button>
+      </PopoverTrigger>
+    </TooltipWrapper>
+  );
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -264,34 +276,13 @@ const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
     }
   }, []);
 
-  const hasResults =
-    filteredTemplates.length > 0 || filteredDashboards.length > 0;
-  const showSeparator =
-    filteredTemplates.length > 0 && filteredDashboards.length > 0;
+  const hasResults = filteredOptions.length > 0;
+  const showSeparator = filteredBuiltIn.length > 0 && filteredCustom.length > 0;
 
   return (
     <>
       <Popover open={isPopoverOpen} onOpenChange={handleOpenChange}>
-        <TooltipWrapper content={selectedName}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn("max-w-[400px] gap-1.5", {
-                "disabled:cursor-not-allowed disabled:border-input disabled:bg-muted-disabled disabled:text-muted-gray disabled:placeholder:text-muted-gray hover:disabled:shadow-none":
-                  disabled,
-              })}
-              disabled={disabled}
-              type="button"
-            >
-              <SquareActivity className="size-3.5 shrink-0 text-chart-pink" />
-              <span className="comet-body-s-accented truncate">
-                {selectedName}
-              </span>
-              <ChevronDown className="ml-1 size-3.5 shrink-0 text-light-slate" />
-            </Button>
-          </PopoverTrigger>
-        </TooltipWrapper>
+        {renderTrigger()}
 
         <PopoverContent
           className="w-[392px] p-1"
@@ -317,29 +308,39 @@ const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
               </div>
             ) : (
               <>
-                {filteredTemplates.map((template) => (
+                {filteredBuiltIn.map((option) => (
                   <BuiltInViewItem
-                    key={template.id}
-                    template={template}
-                    isSelected={value === template.id}
+                    key={option.value}
+                    option={option}
+                    isSelected={value === option.value}
                     onSelect={handleSelect}
-                    onDuplicate={handleDuplicateTemplate}
+                    onDuplicate={() => {
+                      const template = PROJECT_TEMPLATE_LIST.find(
+                        (t) => t.id === option.value,
+                      );
+                      if (template) handleDuplicateTemplate(template);
+                    }}
                   />
                 ))}
 
                 {showSeparator && <Separator className="my-1" />}
 
-                {filteredDashboards.map((dashboard) => (
-                  <CustomViewItem
-                    key={dashboard.id}
-                    dashboard={dashboard}
-                    isSelected={value === dashboard.id}
-                    onSelect={handleSelect}
-                    onEdit={handleEditDashboard}
-                    onDuplicate={handleDuplicateDashboard}
-                    onDelete={handleDeleteDashboard}
-                  />
-                ))}
+                {filteredCustom.map((option) => {
+                  const dashboard = dashboards.find(
+                    (d) => d.id === option.value,
+                  )!;
+                  return (
+                    <CustomViewItem
+                      key={option.value}
+                      option={option}
+                      isSelected={value === option.value}
+                      onSelect={handleSelect}
+                      onEdit={() => handleEditDashboard(dashboard)}
+                      onDuplicate={() => handleDuplicateDashboard(dashboard)}
+                      onDelete={() => handleDeleteDashboard(dashboard)}
+                    />
+                  );
+                })}
               </>
             )}
           </div>
@@ -352,18 +353,13 @@ const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
         </PopoverContent>
       </Popover>
 
-      <AddEditCloneDashboardDialog
+      <InsightsViewDialog
         key={resetDialogKeyRef.current}
         mode={dialogState.mode}
         dashboard={dialogState.dashboard}
         open={dialogState.isOpen}
         setOpen={closeDialog}
         onCreateSuccess={handleDialogCreateSuccess}
-        navigateOnCreate={false}
-        dashboardType={DASHBOARD_TYPE.MULTI_PROJECT}
-        dashboardScope={DASHBOARD_SCOPE.INSIGHTS}
-        labels={VIEW_DIALOG_LABELS}
-        toastConfig={VIEW_TOAST_CONFIG}
       />
 
       <ConfirmDialog
@@ -371,162 +367,11 @@ const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
         setOpen={(open) => setDeleteState({ isOpen: open })}
         onConfirm={confirmDelete}
         title="Delete view"
-        description={`Are you sure you want to delete "${deleteState.dashboard?.name}"? This action cannot be undone.`}
+        description="Are you sure you want to delete this dashboard? This action cannot be undone."
         confirmText="Delete"
         confirmButtonVariant="destructive"
       />
     </>
-  );
-};
-
-interface BuiltInViewItemProps {
-  template: DashboardTemplate;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  onDuplicate: (template: DashboardTemplate) => void;
-}
-
-const BuiltInViewItem: React.FC<BuiltInViewItemProps> = ({
-  template,
-  isSelected,
-  onSelect,
-  onDuplicate,
-}) => {
-  return (
-    <div
-      className={cn(
-        "group cursor-pointer rounded px-4 py-2.5 hover:bg-primary-foreground",
-        isSelected && "bg-primary-foreground",
-      )}
-      onClick={() => onSelect(template.id)}
-    >
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center justify-between">
-          <div className="flex min-w-0 items-center gap-2">
-            <SquareActivity className="size-4 shrink-0 text-chart-pink" />
-            <span className="comet-body-s-accented truncate text-foreground">
-              {template.name}
-            </span>
-            <Tag variant="pink" size="sm" className="shrink-0">
-              Built-in
-            </Tag>
-          </div>
-          <div className="shrink-0 opacity-0 group-hover:opacity-100">
-            <TooltipWrapper content="Duplicate">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="text-muted-slate hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDuplicate(template);
-                }}
-              >
-                <CopyPlus className="size-3.5" />
-              </Button>
-            </TooltipWrapper>
-          </div>
-        </div>
-        <div className="comet-body-s text-light-slate">
-          {template.description}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-interface CustomViewItemProps {
-  dashboard: Dashboard;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  onEdit: (dashboard: Dashboard) => void;
-  onDuplicate: (dashboard: Dashboard) => void;
-  onDelete: (dashboard: Dashboard) => void;
-}
-
-const CustomViewItem: React.FC<CustomViewItemProps> = ({
-  dashboard,
-  isSelected,
-  onSelect,
-  onEdit,
-  onDuplicate,
-  onDelete,
-}) => {
-  const widgetCount = getWidgetCount(dashboard);
-  const lastUpdated = dashboard.last_updated_at
-    ? format(new Date(dashboard.last_updated_at), "dd MMM yyyy HH:mm")
-    : "";
-
-  const subtext = [
-    `${widgetCount} widget${widgetCount !== 1 ? "s" : ""}`,
-    lastUpdated,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  return (
-    <div
-      className={cn(
-        "group cursor-pointer rounded px-4 py-2.5 hover:bg-primary-foreground",
-        isSelected && "bg-primary-foreground",
-      )}
-      onClick={() => onSelect(dashboard.id)}
-    >
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center justify-between">
-          <div className="flex min-w-0 items-center gap-2 pr-2">
-            <ChartLine className="size-4 shrink-0 text-muted-slate" />
-            <span className="comet-body-s-accented truncate text-foreground">
-              {dashboard.name}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-stretch gap-1.5 rounded-sm p-0.5 opacity-0 group-hover:opacity-100">
-            <TooltipWrapper content="Rename">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="text-muted-slate hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(dashboard);
-                }}
-              >
-                <Pencil className="size-3.5" />
-              </Button>
-            </TooltipWrapper>
-            <Separator orientation="vertical" />
-            <TooltipWrapper content="Duplicate">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="text-muted-slate hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDuplicate(dashboard);
-                }}
-              >
-                <CopyPlus className="size-3.5" />
-              </Button>
-            </TooltipWrapper>
-            <Separator orientation="vertical" />
-            <TooltipWrapper content="Delete">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="text-muted-slate hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(dashboard);
-                }}
-              >
-                <Trash className="size-3.5" />
-              </Button>
-            </TooltipWrapper>
-          </div>
-        </div>
-        <div className="comet-body-s truncate text-light-slate">{subtext}</div>
-      </div>
-    </div>
   );
 };
 

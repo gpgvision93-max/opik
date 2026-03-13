@@ -25,6 +25,7 @@ interface DashboardSaveActionsProps {
   dashboard: Dashboard;
   navigateOnCreate?: boolean;
   onDashboardCreated?: (dashboardId: string) => void;
+  hideSaveAs?: boolean;
 }
 
 const DashboardSaveActions: React.FunctionComponent<
@@ -35,6 +36,7 @@ const DashboardSaveActions: React.FunctionComponent<
   dashboard,
   navigateOnCreate = true,
   onDashboardCreated,
+  hideSaveAs = false,
 }) => {
   const { toast } = useToast();
   const hasUnsavedChanges = useDashboardStore(selectHasUnsavedChanges);
@@ -126,22 +128,33 @@ const DashboardSaveActions: React.FunctionComponent<
         Discard changes
       </Button>
 
-      <ButtonWithDropdown>
-        <ButtonWithDropdownTrigger
+      {hideSaveAs ? (
+        <Button
           variant="default"
           size="sm"
-          onPrimaryClick={handleSave}
+          onClick={handleSave}
           disabled={isSaving}
         >
           Save changes
-        </ButtonWithDropdownTrigger>
-        <ButtonWithDropdownContent align="end">
-          <ButtonWithDropdownItem onClick={openSaveAsDialog}>
-            <Copy className="mr-2 size-4" />
-            Save as new
-          </ButtonWithDropdownItem>
-        </ButtonWithDropdownContent>
-      </ButtonWithDropdown>
+        </Button>
+      ) : (
+        <ButtonWithDropdown>
+          <ButtonWithDropdownTrigger
+            variant="default"
+            size="sm"
+            onPrimaryClick={handleSave}
+            disabled={isSaving}
+          >
+            Save changes
+          </ButtonWithDropdownTrigger>
+          <ButtonWithDropdownContent align="end">
+            <ButtonWithDropdownItem onClick={openSaveAsDialog}>
+              <Copy className="mr-2 size-4" />
+              Save as new
+            </ButtonWithDropdownItem>
+          </ButtonWithDropdownContent>
+        </ButtonWithDropdown>
+      )}
 
       <Separator orientation="vertical" className="mx-2 h-4" />
 
@@ -156,15 +169,17 @@ const DashboardSaveActions: React.FunctionComponent<
         confirmButtonVariant="destructive"
       />
 
-      <AddEditCloneDashboardDialog
-        key={`save-as-${saveAsDialogKey.current}`}
-        mode="save_as"
-        open={saveAsDialogOpen}
-        setOpen={handleSaveAsDialogClose}
-        dashboard={saveAsDialogDashboard.current}
-        onCreateSuccess={handleSaveAsSuccess}
-        navigateOnCreate={navigateOnCreate}
-      />
+      {!hideSaveAs && (
+        <AddEditCloneDashboardDialog
+          key={`save-as-${saveAsDialogKey.current}`}
+          mode="save_as"
+          open={saveAsDialogOpen}
+          setOpen={handleSaveAsDialogClose}
+          dashboard={saveAsDialogDashboard.current}
+          onCreateSuccess={handleSaveAsSuccess}
+          navigateOnCreate={navigateOnCreate}
+        />
+      )}
 
       {NavigationBlockerDialog}
     </>

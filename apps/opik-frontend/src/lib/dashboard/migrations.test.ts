@@ -586,7 +586,7 @@ describe("migrateDashboardConfig", () => {
         {
           id: "experiment-ids-filter",
           field: "experiment_ids",
-          type: "list",
+          type: "string",
           operator: "=",
           key: "",
           value: "exp-1,exp-2",
@@ -681,7 +681,7 @@ describe("migrateDashboardConfig", () => {
         {
           id: "experiment-ids-filter",
           field: "experiment_ids",
-          type: "list",
+          type: "string",
           operator: "=",
           key: "",
           value: "own-exp",
@@ -731,7 +731,7 @@ describe("migrateDashboardConfig", () => {
         {
           id: "experiment-ids-filter",
           field: "experiment_ids",
-          type: "list",
+          type: "string",
           operator: "=",
           key: "",
           value: "exp-1",

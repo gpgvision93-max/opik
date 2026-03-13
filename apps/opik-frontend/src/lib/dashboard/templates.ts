@@ -8,7 +8,7 @@ import { DASHBOARD_VERSION, createTemplateId } from "@/lib/dashboard/utils";
 import { METRIC_NAME_TYPE } from "@/api/projects/useProjectMetric";
 import { CHART_TYPE } from "@/constants/chart";
 import { TRACE_DATA_TYPE } from "@/constants/traces";
-import { LayoutDashboard, FlaskConical } from "lucide-react";
+import { SquareActivity } from "lucide-react";
 
 import { BREAKDOWN_FIELD } from "@/types/dashboard";
 
@@ -16,10 +16,10 @@ export const EXPERIMENT_COMPARISON_TEMPLATE: DashboardTemplate = {
   id: createTemplateId(TEMPLATE_TYPE.EXPERIMENT_COMPARISON),
   type: TEMPLATE_TYPE.EXPERIMENT_COMPARISON,
   scope: TEMPLATE_SCOPE.EXPERIMENTS,
-  name: "Experiment insights",
+  name: "Experiments overview",
   description:
     "Monitor experiment results and evaluation metrics over time to spot quality changes.",
-  icon: FlaskConical,
+  icon: SquareActivity,
   iconColor: "text-chart-pink",
   config: {
     version: DASHBOARD_VERSION,
@@ -80,8 +80,8 @@ const PROJECT_OVERVIEW_TEMPLATE: DashboardTemplate = {
   name: "Project overview",
   description:
     "At-a-glance health check: traces, errors, latency, cost, and quality trends.",
-  icon: LayoutDashboard,
-  iconColor: "text-template-icon-metrics",
+  icon: SquareActivity,
+  iconColor: "text-chart-pink",
   config: {
     version: DASHBOARD_VERSION,
     sections: [
