@@ -87,7 +87,8 @@ public class RetentionPolicyService {
                 .collect(Collectors.groupingBy(RetentionRule::workspaceId))
                 .values().stream()
                 .map(rulesForWs -> rulesForWs.stream().min(priorityOrder).orElseThrow())
-                .filter(rule -> rule.retention() != null && rule.retention().getDays() > 0)
+                .filter(rule -> rule.retention() != null && rule.retention().getDays() != null
+                        && rule.retention().getDays() > 0)
                 .map(rule -> {
                     var cutoff = now.minus(rule.retention().getDays(), ChronoUnit.DAYS);
                     var cutoffId = uuidMapper.toLowerBound(cutoff);

@@ -24,7 +24,7 @@ public class RetentionConfig {
 
     /** Max time (seconds) the job can hold the distributed lock. */
     @Valid @JsonProperty
-    @Min(1) private int lockTimeoutSeconds = 1800;
+    @Min(1) @Max(7200) private int lockTimeoutSeconds = 1800;
 
     /** Derived: interval between executions. */
     public Duration getInterval() {

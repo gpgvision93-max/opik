@@ -50,8 +50,7 @@ class RetentionRuleServiceImpl implements RetentionRuleService {
         String workspaceId = requestContext.get().getWorkspaceId();
         String userName = requestContext.get().getUserName();
 
-        UUID id = rule.id() != null ? rule.id() : idGenerator.generateId();
-        IdGenerator.validateVersion(id, "retention_rule");
+        UUID id = idGenerator.generateId();
 
         RetentionLevel level = inferLevel(rule);
 
