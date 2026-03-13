@@ -51,6 +51,15 @@ public class DatasetResourceClient {
     private final ClientSupport client;
     private final String baseURI;
 
+    public Response callCreateDataset(Dataset dataset, String apiKey, String workspaceName) {
+        return client.target(RESOURCE_PATH.formatted(baseURI))
+                .request()
+                .accept(MediaType.APPLICATION_JSON_TYPE)
+                .header(HttpHeaders.AUTHORIZATION, apiKey)
+                .header(WORKSPACE_HEADER, workspaceName)
+                .post(Entity.json(dataset));
+    }
+
     public UUID createDataset(Dataset dataset, String apiKey, String workspaceName) {
         try (var actualResponse = client.target(RESOURCE_PATH.formatted(baseURI))
                 .request()
@@ -92,6 +101,22 @@ public class DatasetResourceClient {
         try (var actualResponse = client.target(RESOURCE_PATH.formatted(baseURI))
                 .queryParam("page", 1)
                 .queryParam("size", 100)
+                .request()
+                .accept(MediaType.APPLICATION_JSON_TYPE)
+                .header(HttpHeaders.AUTHORIZATION, apiKey)
+                .header(WORKSPACE_HEADER, workspaceName)
+                .get()) {
+
+            assertThat(actualResponse.getStatusInfo().getStatusCode()).isEqualTo(200);
+            return actualResponse.readEntity(DatasetPage.class);
+        }
+    }
+
+    public DatasetPage getDatasetsByProjectId(UUID projectId, String workspaceName, String apiKey) {
+        try (var actualResponse = client.target(RESOURCE_PATH.formatted(baseURI))
+                .queryParam("page", 1)
+                .queryParam("size", 100)
+                .queryParam("project_id", projectId)
                 .request()
                 .accept(MediaType.APPLICATION_JSON_TYPE)
                 .header(HttpHeaders.AUTHORIZATION, apiKey)
