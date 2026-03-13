@@ -20,5 +20,8 @@ export default function useOllieCompute(enabled: boolean = false) {
     enabled,
     staleTime: Infinity,
     retry: 2,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }

@@ -1,13 +1,20 @@
-import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import api, { OLLIE_REST_ENDPOINT } from "@/api/api";
 
-export default function useOllieWarm(enabled: boolean) {
-  const hasFired = useRef(false);
+const warmOllie = async () => {
+  await api.post(`${OLLIE_REST_ENDPOINT}warm`);
+  return null;
+};
 
-  useEffect(() => {
-    if (enabled && !hasFired.current) {
-      hasFired.current = true;
-      api.post(`${OLLIE_REST_ENDPOINT}warm`).catch(() => {});
-    }
-  }, [enabled]);
+export default function useOllieWarm(enabled: boolean) {
+  useQuery({
+    queryKey: ["ollie-warm"],
+    queryFn: warmOllie,
+    enabled,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
 }
