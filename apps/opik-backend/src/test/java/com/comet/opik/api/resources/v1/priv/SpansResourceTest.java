@@ -44,6 +44,7 @@ import com.comet.opik.domain.SpanType;
 import com.comet.opik.domain.cost.CostService;
 import com.comet.opik.extensions.DropwizardAppExtensionProvider;
 import com.comet.opik.extensions.RegisterApp;
+import com.comet.opik.infrastructure.auth.WorkspaceUserPermission;
 import com.comet.opik.infrastructure.usagelimit.Quota;
 import com.comet.opik.podam.PodamFactoryUtils;
 import com.comet.opik.utils.AttachmentPayloadUtilsTest;
@@ -143,6 +144,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.matching;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -292,6 +294,30 @@ class SpansResourceTest {
 
         SpanAssertions.assertPage(actualPage, page, expectedSpans.size(), expectedTotal);
         SpanAssertions.assertSpan(actualPage.content(), expectedSpans, unexpectedSpans, USER);
+    }
+
+    @Nested
+    @DisplayName("Required permissions")
+    class RequiredPermissionsTest {
+
+        @Test
+        @DisplayName("Create span passes required permissions to auth endpoint")
+        void createSpanPassesRequiredPermissionsToAuthEndpoint() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var span = podamFactory.manufacturePojo(Span.class);
+
+            wireMock.server().resetRequests();
+            spanResourceClient.createSpan(span, apiKey, workspaceName);
+
+            wireMock.server().verify(
+                    postRequestedFor(urlPathEqualTo("/opik/auth"))
+                            .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
+                                    equalTo(WorkspaceUserPermission.TRACE_SPAN_THREAD_LOG.getValue()))));
+        }
     }
 
     @Nested

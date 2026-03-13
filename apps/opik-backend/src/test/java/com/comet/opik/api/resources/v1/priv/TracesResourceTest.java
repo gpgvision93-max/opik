@@ -65,6 +65,7 @@ import com.comet.opik.domain.SpanType;
 import com.comet.opik.domain.cost.CostService;
 import com.comet.opik.extensions.DropwizardAppExtensionProvider;
 import com.comet.opik.extensions.RegisterApp;
+import com.comet.opik.infrastructure.auth.WorkspaceUserPermission;
 import com.comet.opik.infrastructure.db.TransactionTemplateAsync;
 import com.comet.opik.infrastructure.usagelimit.Quota;
 import com.comet.opik.podam.InRangeStrategy;
@@ -162,6 +163,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.matching;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static java.util.UUID.randomUUID;
 import static java.util.function.Predicate.not;
@@ -260,6 +262,78 @@ class TracesResourceTest {
 
     private UUID getProjectId(String projectName, String workspaceName, String apiKey) {
         return projectResourceClient.getByName(projectName, apiKey, workspaceName).id();
+    }
+
+    @Nested
+    @DisplayName("Required permissions")
+    class RequiredPermissionsTest {
+
+        @Test
+        @DisplayName("Delete trace by id passes required permissions to auth endpoint")
+        void deleteTraceByIdPassesRequiredPermissionsToAuthEndpoint() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var trace = factory.manufacturePojo(Trace.class).toBuilder()
+                    .projectName(DEFAULT_PROJECT)
+                    .build();
+            var id = traceResourceClient.createTrace(trace, apiKey, workspaceName);
+
+            wireMock.server().resetRequests();
+            traceResourceClient.callDeleteTrace(id, apiKey, workspaceName).close();
+
+            wireMock.server().verify(
+                    postRequestedFor(urlPathEqualTo("/opik/auth"))
+                            .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
+                                    equalTo(WorkspaceUserPermission.TRACE_DELETE.getValue()))));
+        }
+
+        @Test
+        @DisplayName("Delete traces batch passes required permissions to auth endpoint")
+        void deleteTracesBatchPassesRequiredPermissionsToAuthEndpoint() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var trace = factory.manufacturePojo(Trace.class).toBuilder()
+                    .projectName(DEFAULT_PROJECT)
+                    .build();
+            var id = traceResourceClient.createTrace(trace, apiKey, workspaceName);
+            var projectId = getProjectId(DEFAULT_PROJECT, workspaceName, apiKey);
+
+            wireMock.server().resetRequests();
+            traceResourceClient.deleteTraces(
+                    new BatchDeleteByProject(Set.of(id), projectId), workspaceName, apiKey);
+
+            wireMock.server().verify(
+                    postRequestedFor(urlPathEqualTo("/opik/auth"))
+                            .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
+                                    equalTo(WorkspaceUserPermission.TRACE_DELETE.getValue()))));
+        }
+
+        @Test
+        @DisplayName("Create trace passes required permissions to auth endpoint")
+        void createTracePassesRequiredPermissionsToAuthEndpoint() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var trace = factory.manufacturePojo(Trace.class).toBuilder()
+                    .projectName(DEFAULT_PROJECT)
+                    .build();
+
+            wireMock.server().resetRequests();
+            traceResourceClient.createTrace(trace, apiKey, workspaceName);
+
+            wireMock.server().verify(
+                    postRequestedFor(urlPathEqualTo("/opik/auth"))
+                            .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
+                                    equalTo(WorkspaceUserPermission.TRACE_SPAN_THREAD_LOG.getValue()))));
+        }
     }
 
     @Nested
