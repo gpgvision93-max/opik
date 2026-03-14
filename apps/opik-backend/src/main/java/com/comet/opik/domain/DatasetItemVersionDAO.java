@@ -1777,11 +1777,11 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
 
     private static final String SELECT_EXECUTION_POLICIES_BY_DATASET_ITEM_IDS = """
             SELECT DISTINCT
-                dataset_item_id,
+                id,
                 dataset_version_id,
                 execution_policy
             FROM dataset_item_versions
-            WHERE dataset_item_id IN :datasetItemIds
+            WHERE id IN :datasetItemIds
             AND dataset_version_id IN :datasetVersionIds
             AND workspace_id = :workspace_id
             """;
@@ -3604,10 +3604,10 @@ class DatasetItemVersionDAOImpl implements DatasetItemVersionDAO {
             return makeFluxContextAware(bindWorkspaceIdToFlux(statement))
                     .doFinally(signalType -> endSegment(segment))
                     .flatMap(result -> result.map((row, rowMetadata) -> {
-                        var datasetItemId = UUID.fromString(row.get("dataset_item_id", String.class));
+                        var id = UUID.fromString(row.get("id", String.class));
                         var versionId = UUID.fromString(row.get("dataset_version_id", String.class));
                         var policy = ExecutionPolicyMapper.fromJson(row.get("execution_policy", String.class));
-                        return new DatasetItemPolicyEntry(versionId, datasetItemId, policy);
+                        return new DatasetItemPolicyEntry(versionId, id, policy);
                     }))
                     .filter(entry -> entry.policy() != null);
         });
