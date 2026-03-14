@@ -61,27 +61,7 @@ const OptimizationProgressChartContainer: React.FC<
   );
 
   const renderContent = useCallback(() => {
-    if (!chartData.length) {
-      if (isInProgress) {
-        return (
-          <div className="flex min-h-32 flex-col items-center justify-center gap-2">
-            <Spinner size="small" />
-            <div className="comet-body-s text-muted-slate transition-opacity duration-300">
-              {baselineMessage}
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <NoData
-          className="min-h-32 text-light-slate"
-          message="No data to show"
-        />
-      );
-    }
-
-    if (noData) {
+    if (!chartData.length || noData) {
       if (isInProgress) {
         return (
           <div className="flex min-h-32 flex-col items-center justify-center gap-2">

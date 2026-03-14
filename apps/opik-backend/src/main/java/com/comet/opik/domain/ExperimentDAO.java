@@ -1338,6 +1338,7 @@ class ExperimentDAO {
             SELECT
                 count(DISTINCT id) as experiment_count,
                 sum(trace_count) as trace_count,
+                sum(dataset_item_count) as dataset_item_count,
                 sum(total_estimated_cost) as total_estimated_cost,
                 avg(total_estimated_cost_avg) as total_estimated_cost_avg,
                 avgMap(feedback_scores) as feedback_scores,
@@ -1409,20 +1410,6 @@ class ExperimentDAO {
                 <endif>
                 <endif>
             ) experiments_full
-            SELECT
-                count(DISTINCT id) as experiment_count,
-                sum(trace_count) as trace_count,
-                sum(dataset_item_count) as dataset_item_count,
-                sum(total_estimated_cost) as total_estimated_cost,
-                avg(total_estimated_cost_avg) as total_estimated_cost_avg,
-                avgMap(feedback_scores) as feedback_scores,
-                avgMap(experiment_scores) as experiment_scores,
-                avgMap(duration) as duration,
-                avg(pass_rate) as pass_rate_avg,
-                sum(passed_count) as passed_count_sum,
-                sum(total_count) as total_count_sum,
-                <groupSelects>
-            FROM experiments_full
             GROUP BY <groupBy>
             SETTINGS log_comment = '<log_comment>'
             ;
