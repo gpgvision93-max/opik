@@ -15,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import SelectBox from "@/components/shared/SelectBox/SelectBox";
 import VisualizationCardSelector from "@/components/pages-shared/dashboards/widgets/shared/VisualizationCardSelector/VisualizationCardSelector";
 import { LoadableSelectBox } from "@/components/shared/LoadableSelectBox/LoadableSelectBox";
 import ProjectsSelectBox from "@/components/pages-shared/automations/ProjectsSelectBox";
@@ -443,8 +442,8 @@ const ProjectMetricsEditor = forwardRef<WidgetEditorHandle>((_, ref) => {
               <FormItem>
                 <FormLabel>Metric type</FormLabel>
                 <FormControl>
-                  <SelectBox
-                    className={cn({
+                  <LoadableSelectBox
+                    buttonClassName={cn("w-full", {
                       "border-destructive": Boolean(validationErrors?.message),
                     })}
                     value={field.value}

@@ -355,7 +355,7 @@ const InsightsViewSelector: React.FC<InsightsViewSelectorProps> = ({
         setOpen={(open) => setDeleteState({ isOpen: open })}
         onConfirm={confirmDelete}
         title="Delete view"
-        description="Are you sure you want to delete this dashboard? This action cannot be undone."
+        description="Are you sure you want to delete this view? This action cannot be undone."
         confirmText="Delete"
         confirmButtonVariant="destructive"
       />

@@ -23,6 +23,7 @@ import {
   DEPRECATED_PROJECT_PERFORMANCE_ID,
 } from "@/lib/dashboard/templates";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { useActiveWorkspaceName } from "@/store/AppStore";
 import { usePermissions } from "@/contexts/PermissionsContext";
 
@@ -33,7 +34,9 @@ interface InsightsTabProps {
   projectId: string;
 }
 
-const DEFAULT_TEMPLATE_ID = PROJECT_TEMPLATE_LIST[0].id;
+const DEFAULT_TEMPLATE = PROJECT_TEMPLATE_LIST[0];
+const DEFAULT_TEMPLATE_ID = DEFAULT_TEMPLATE.id;
+const DefaultTemplateIcon = DEFAULT_TEMPLATE.icon;
 
 const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
   projectId,
@@ -110,17 +113,26 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
   return (
     <>
       <PageBodyStickyContainer
-        className="flex items-center justify-between gap-4 pb-3 pt-2"
+        className="flex flex-wrap items-center justify-between gap-x-8 gap-y-2 pb-3 pt-2"
         direction="bidirectional"
         limitWidth
       >
-        {canViewDashboards && (
+        {canViewDashboards ? (
           <InsightsViewSelector
             value={dashboardId || null}
             onChange={setDashboardId}
             onViewCreated={handleDashboardCreated}
             onViewDeleted={handleDashboardDeleted}
           />
+        ) : (
+          <div className="flex h-8 items-center gap-1.5 rounded-md border px-3">
+            <DefaultTemplateIcon
+              className={cn("size-3.5 shrink-0", DEFAULT_TEMPLATE.iconColor)}
+            />
+            <span className="comet-body-s-accented text-foreground">
+              {DEFAULT_TEMPLATE.name}
+            </span>
+          </div>
         )}
 
         <div className="flex shrink-0 items-center gap-2">
@@ -143,7 +155,7 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
         {!isPending && !dashboardId && (
           <div className="flex h-full items-center justify-center">
             <p className="text-muted-foreground">
-              No dashboard selected. Please select or create a dashboard.
+              No view selected. Please select or create a view.
             </p>
           </div>
         )}
@@ -151,8 +163,8 @@ const InsightsTab: React.FunctionComponent<InsightsTabProps> = ({
         {!isPending && dashboardId && !dashboard && (
           <div className="flex h-full items-center justify-center">
             <p className="text-muted-foreground">
-              Dashboard could not be loaded. Please select another dashboard
-              from the dropdown.
+              View could not be loaded. Please select another view from the
+              dropdown.
             </p>
           </div>
         )}

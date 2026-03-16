@@ -328,6 +328,7 @@ const ExperimentsLeaderboardWidgetEditor = forwardRef<WidgetEditorHandle>(
             order={columnsOrder}
             onOrderChange={handleColumnsOrderChange}
             sections={columnSections}
+            listMaxHeight="240px"
           />
 
           <WidgetRankingSettingsSection

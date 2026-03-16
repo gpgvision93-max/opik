@@ -13,6 +13,7 @@ import { ColumnData } from "@/types/shared";
 import FiltersAccordionSection from "@/components/shared/FiltersAccordionSection/FiltersAccordionSection";
 import TracesOrSpansPathsAutocomplete from "@/components/pages-shared/traces/TracesOrSpansPathsAutocomplete/TracesOrSpansPathsAutocomplete";
 import TracesOrSpansFeedbackScoresSelect from "@/components/pages-shared/traces/TracesOrSpansFeedbackScoresSelect/TracesOrSpansFeedbackScoresSelect";
+import ErrorTypeAutocomplete from "@/components/pages-shared/traces/ErrorTypeAutocomplete/ErrorTypeAutocomplete";
 import { TRACE_DATA_TYPE } from "@/hooks/useTracesOrSpansList";
 import {
   COLUMN_CUSTOM_ID,
@@ -124,6 +125,18 @@ const ProjectWidgetFiltersSection = <T extends FieldValues>({
             projectId,
             type: dataType,
             placeholder: "Select score",
+          },
+        },
+        error_type: {
+          keyComponent:
+            ErrorTypeAutocomplete as React.FunctionComponent<unknown> & {
+              placeholder: string;
+              value: string;
+              onValueChange: (value: string) => void;
+            },
+          keyComponentProps: {
+            projectId,
+            type: dataType,
           },
         },
         ...(isSpanMetric ? getSpanTypeFilterConfig(isGuardrailsEnabled) : {}),

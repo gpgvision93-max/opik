@@ -116,7 +116,7 @@ const WidgetConfigDialog: React.FunctionComponent<WidgetConfigDialogProps> = ({
 
         <div className="grid h-[65vh] max-h-[800px] grid-cols-[1fr_460px] gap-4">
           <div className="overflow-y-auto">
-            <div className="space-y-4">
+            <div className="space-y-4 pb-2">
               {!isEditMode && (
                 <WidgetTypeSelector
                   selectedType={previewWidget?.type}

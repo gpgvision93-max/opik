@@ -30,6 +30,7 @@ export type ColumnsContentProps<TColumnData> = {
   sections?: ColumnsContentExtraSection<TColumnData>[];
   excludeFromSelectAll?: string[];
   variant?: ColumnsContentVariant;
+  listMaxHeight?: string;
 } & ColumnsContentShared<TColumnData>;
 
 const ColumnsContent = <TColumnData,>({
@@ -41,6 +42,7 @@ const ColumnsContent = <TColumnData,>({
   sections,
   excludeFromSelectAll = [],
   variant = "list",
+  listMaxHeight,
 }: ColumnsContentProps<TColumnData>) => {
   const [search, setSearch] = useState("");
 
@@ -234,7 +236,10 @@ const ColumnsContent = <TColumnData,>({
         />
         <Separator className="mt-1" />
       </div>
-      <div className="max-h-[calc(50vh-3.5rem)] overflow-y-auto p-1">
+      <div
+        className="overflow-y-auto p-1"
+        style={{ maxHeight: listMaxHeight ?? "calc(50vh - 3.5rem)" }}
+      >
         {renderContent()}
       </div>
       {!noData && (

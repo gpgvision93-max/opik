@@ -151,7 +151,7 @@ export const DEFAULT_SELECTED_COLUMNS: string[] = [
 export const getDefaultConfig = () => ({
   filters: [],
   selectedColumns: DEFAULT_SELECTED_COLUMNS,
-  enableRanking: true,
+  enableRanking: false,
   columnsOrder: DEFAULT_SELECTED_COLUMNS,
   scoresColumnsOrder: [],
   metadataColumnsOrder: [],

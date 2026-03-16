@@ -86,11 +86,11 @@ const setupMocks = (dashboard?: Dashboard) => {
   vi.mocked(useDashboardUpdateMutation).mockImplementation(() => {
     callCount++;
     if (callCount % 2 === 1) {
-      return { mutate: syncToServerMutate } as ReturnType<
+      return { mutate: syncToServerMutate } as unknown as ReturnType<
         typeof useDashboardUpdateMutation
       >;
     }
-    return { mutate: autoSaveMutate } as ReturnType<
+    return { mutate: autoSaveMutate } as unknown as ReturnType<
       typeof useDashboardUpdateMutation
     >;
   });
