@@ -104,6 +104,10 @@ const OptimizationPage: React.FC = () => {
     [candidates, navigate, optimizationId, workspaceName],
   );
 
+  const isInProgress =
+    !!optimization?.status &&
+    IN_PROGRESS_OPTIMIZATION_STATUSES.includes(optimization.status);
+
   const { columnsDef, columns } = useOptimizationColumns({
     candidates,
     columnsOrder,
@@ -111,6 +115,8 @@ const OptimizationPage: React.FC = () => {
     sortableBy,
     bestCandidateId: bestCandidate?.candidateId,
     isEvaluationSuite,
+    isInProgress,
+    inProgressInfo,
     objectiveName: optimization?.objective_name,
   });
 

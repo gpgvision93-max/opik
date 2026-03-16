@@ -25,6 +25,12 @@ type UseOptimizationColumnsParams = {
   sortableBy: string[];
   bestCandidateId?: string;
   isEvaluationSuite?: boolean;
+  isInProgress?: boolean;
+  inProgressInfo?: {
+    candidateId: string;
+    stepIndex: number;
+    parentCandidateIds: string[];
+  };
   objectiveName?: string;
 };
 
@@ -35,6 +41,8 @@ export const useOptimizationColumns = ({
   sortableBy,
   bestCandidateId,
   isEvaluationSuite,
+  isInProgress,
+  inProgressInfo,
   objectiveName,
 }: UseOptimizationColumnsParams) => {
   const columnsDef: ColumnData<AggregatedCandidate>[] = useMemo(() => {
@@ -115,6 +123,8 @@ export const useOptimizationColumns = ({
           candidates,
           bestCandidateId,
           isEvaluationSuite,
+          isInProgress,
+          inProgressInfo,
         },
       },
       {
@@ -127,7 +137,14 @@ export const useOptimizationColumns = ({
         },
       },
     ];
-  }, [candidates, bestCandidateId, isEvaluationSuite, objectiveName]);
+  }, [
+    candidates,
+    bestCandidateId,
+    isEvaluationSuite,
+    isInProgress,
+    inProgressInfo,
+    objectiveName,
+  ]);
 
   const columns = useMemo(() => {
     return [

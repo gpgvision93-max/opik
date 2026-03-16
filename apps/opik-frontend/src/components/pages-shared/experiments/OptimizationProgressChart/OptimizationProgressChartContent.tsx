@@ -153,15 +153,23 @@ const OptimizationProgressChartContent: React.FC<
     cy: number;
   } | null>(null);
 
+  const pulsingCandidateId = useMemo(() => {
+    if (!isInProgress || inProgressInfo) return undefined;
+    // Find the last "passed" candidate at the highest step
+    const passed = chartData
+      .filter((d) => d.status === "passed")
+      .sort((a, b) => b.stepIndex - a.stepIndex || b.value! - a.value! || 0);
+    return passed[0]?.candidateId;
+  }, [isInProgress, inProgressInfo, chartData]);
+
   const renderScatterDot = useScatterDot({
     dotPositionsRef,
     overlapOffsets,
     bestCandidateId,
+    pulsingCandidateId,
     selectedTrialId,
     onTrialSelect,
     onTrialClick,
-    isInProgress,
-    inProgressInfo,
     isEvaluationSuite,
     setHoveredTrial,
   });

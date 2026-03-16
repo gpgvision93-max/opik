@@ -7,22 +7,37 @@ import { AggregatedCandidate } from "@/types/optimizations";
 import {
   computeCandidateStatuses,
   STATUS_VARIANT_MAP,
+  type InProgressInfo,
 } from "@/components/pages-shared/experiments/OptimizationProgressChart/optimizationChartUtils";
 
 const TrialStatusCell = (context: CellContext<unknown, unknown>) => {
   const row = context.row.original as AggregatedCandidate;
   const { custom } = context.column.columnDef.meta ?? {};
-  const { candidates, bestCandidateId, isEvaluationSuite } = (custom ?? {}) as {
+  const {
+    candidates,
+    bestCandidateId,
+    isEvaluationSuite,
+    isInProgress,
+    inProgressInfo,
+  } = (custom ?? {}) as {
     candidates: AggregatedCandidate[];
     bestCandidateId?: string;
     isEvaluationSuite?: boolean;
+    isInProgress?: boolean;
+    inProgressInfo?: InProgressInfo;
   };
 
   const isBest = bestCandidateId === row.candidateId;
 
   const statusMap = useMemo(
-    () => computeCandidateStatuses(candidates ?? [], isEvaluationSuite),
-    [candidates, isEvaluationSuite],
+    () =>
+      computeCandidateStatuses(
+        candidates ?? [],
+        isEvaluationSuite,
+        isInProgress,
+        inProgressInfo,
+      ),
+    [candidates, isEvaluationSuite, isInProgress, inProgressInfo],
   );
   const status = statusMap.get(row.candidateId) ?? "pruned";
 

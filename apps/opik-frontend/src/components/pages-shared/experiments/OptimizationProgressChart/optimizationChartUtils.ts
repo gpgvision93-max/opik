@@ -10,11 +10,17 @@ export type FeedbackScore = {
   value: number;
 };
 
-export type TrialStatus = "baseline" | "passed" | "pruned" | "running";
+export type TrialStatus =
+  | "baseline"
+  | "passed"
+  | "evaluating"
+  | "pruned"
+  | "running";
 
 export const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
   baseline: "gray",
   passed: "blue",
+  evaluating: "orange",
   pruned: "pink",
   running: "yellow",
 };
@@ -22,6 +28,7 @@ export const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
 export const TRIAL_STATUS_COLORS: Record<TrialStatus, string> = {
   baseline: "var(--color-gray)",
   passed: "var(--color-blue)",
+  evaluating: "var(--color-orange)",
   pruned: "var(--color-pink)",
   running: "var(--color-yellow)",
 };
@@ -29,6 +36,7 @@ export const TRIAL_STATUS_COLORS: Record<TrialStatus, string> = {
 export const TRIAL_STATUS_LABELS: Record<TrialStatus, string> = {
   baseline: "Baseline",
   passed: "Passed",
+  evaluating: "Evaluating",
   pruned: "Pruned",
   running: "Running",
 };
@@ -36,6 +44,7 @@ export const TRIAL_STATUS_LABELS: Record<TrialStatus, string> = {
 export const TRIAL_STATUS_ORDER: readonly TrialStatus[] = [
   "baseline",
   "passed",
+  "evaluating",
   "pruned",
   "running",
 ] as const;
@@ -61,50 +70,131 @@ export type InProgressInfo = {
 };
 
 /**
- * Compute status for each candidate:
- * - Step 0 = "baseline"
- * - score == null (still being evaluated) = "running"
- * - When isEvaluationSuite (default): scored higher than best parent = "passed", otherwise "pruned"
- * - When !isEvaluationSuite: all scored non-baseline candidates = "passed" (no pruning)
+ * Compute status for each candidate.
+ *
+ * During optimization (isInProgress=true):
+ *   baseline (step 0), running (no score), passed (has children),
+ *   pruned (score < best AND sibling from same step has children),
+ *   evaluating (scored but no children yet — awaiting optimizer decision)
+ *
+ * After completion (isInProgress=false):
+ *   baseline (step 0), passed (has descendants OR is best),
+ *   pruned (everything else)
+ *
+ * When !isEvaluationSuite: all scored non-baseline = "passed" (no pruning)
  */
 export const computeCandidateStatuses = (
   candidates: AggregatedCandidate[],
   isEvaluationSuite = true,
+  isInProgress = false,
+  inProgressInfo?: InProgressInfo,
 ): Map<string, TrialStatus> => {
   const statusMap = new Map<string, TrialStatus>();
   if (!candidates.length) return statusMap;
 
-  const candidateById = new Map<string, AggregatedCandidate>();
+  // Build lookup structures
+  const hasChildren = new Set<string>();
+  const stepSiblings = new Map<number, string[]>();
+  let bestScore: number | undefined;
+
   for (const c of candidates) {
-    candidateById.set(c.candidateId, c);
+    for (const pid of c.parentCandidateIds) {
+      hasChildren.add(pid);
+    }
+    const siblings = stepSiblings.get(c.stepIndex) ?? [];
+    siblings.push(c.candidateId);
+    stepSiblings.set(c.stepIndex, siblings);
+
+    if (c.score != null) {
+      if (bestScore == null || c.score > bestScore) {
+        bestScore = c.score;
+      }
+    }
+  }
+
+  // Ghost candidate's parents also count as having children
+  if (inProgressInfo) {
+    for (const pid of inProgressInfo.parentCandidateIds) {
+      hasChildren.add(pid);
+    }
+  }
+
+  // Find the best candidate (highest score, earliest creation for ties)
+  const bestCandidate = candidates.reduce<AggregatedCandidate | undefined>(
+    (best, c) => {
+      if (c.score == null) return best;
+      if (!best || best.score == null) return c;
+      if (c.score > best.score) return c;
+      if (c.score === best.score && c.created_at < best.created_at) return c;
+      return best;
+    },
+    undefined,
+  );
+
+  // For "after completion": build set of candidates with descendants (transitive)
+  let hasDescendants: Set<string> | undefined;
+  if (!isInProgress) {
+    hasDescendants = new Set<string>();
+    // Walk backwards: if a candidate has children, all its ancestors have descendants
+    const parentOf = new Map<string, string[]>();
+    for (const c of candidates) {
+      for (const pid of c.parentCandidateIds) {
+        const existing = parentOf.get(c.candidateId) ?? [];
+        existing.push(pid);
+        parentOf.set(c.candidateId, existing);
+      }
+    }
+    // BFS from candidates that have direct children
+    const queue = [...hasChildren];
+    for (const id of queue) {
+      if (hasDescendants.has(id)) continue;
+      hasDescendants.add(id);
+      const parents = parentOf.get(id);
+      if (parents) queue.push(...parents);
+    }
   }
 
   for (const c of candidates) {
     if (c.stepIndex === 0) {
       statusMap.set(c.candidateId, "baseline");
-    } else if (!isEvaluationSuite) {
-      if (c.score == null) {
-        statusMap.set(c.candidateId, "running");
-      } else {
-        statusMap.set(c.candidateId, "passed");
-      }
-    } else if (c.score == null) {
-      statusMap.set(c.candidateId, "running");
-    } else {
-      const bestParentScore = c.parentCandidateIds.reduce<number | undefined>(
-        (best, pid) => {
-          const parent = candidateById.get(pid);
-          if (parent?.score == null) return best;
-          return best == null ? parent.score : Math.max(best, parent.score);
-        },
-        undefined,
-      );
+      continue;
+    }
 
-      if (bestParentScore == null || c.score > bestParentScore) {
+    if (!isEvaluationSuite) {
+      statusMap.set(c.candidateId, c.score == null ? "running" : "passed");
+      continue;
+    }
+
+    if (c.score == null) {
+      statusMap.set(c.candidateId, "running");
+      continue;
+    }
+
+    const isBest = bestCandidate?.candidateId === c.candidateId;
+
+    if (isInProgress) {
+      if (isBest || hasChildren.has(c.candidateId)) {
         statusMap.set(c.candidateId, "passed");
-      } else {
+      } else if (bestScore != null && c.score < bestScore) {
         statusMap.set(c.candidateId, "pruned");
+      } else {
+        const siblings = stepSiblings.get(c.stepIndex) ?? [];
+        const siblingHasChildren = siblings.some(
+          (sid) => sid !== c.candidateId && hasChildren.has(sid),
+        );
+        statusMap.set(
+          c.candidateId,
+          siblingHasChildren ? "pruned" : "evaluating",
+        );
       }
+    } else {
+      // After completion
+      const isDescendant = hasDescendants?.has(c.candidateId) ?? false;
+      const isBest = bestCandidate?.candidateId === c.candidateId;
+      statusMap.set(
+        c.candidateId,
+        isDescendant || isBest ? "passed" : "pruned",
+      );
     }
   }
 
@@ -118,8 +208,15 @@ export const computeCandidateStatuses = (
 export const buildCandidateChartData = (
   candidates: AggregatedCandidate[],
   isEvaluationSuite = true,
+  isInProgress = false,
+  inProgressInfo?: InProgressInfo,
 ): CandidateDataPoint[] => {
-  const statusMap = computeCandidateStatuses(candidates, isEvaluationSuite);
+  const statusMap = computeCandidateStatuses(
+    candidates,
+    isEvaluationSuite,
+    isInProgress,
+    inProgressInfo,
+  );
 
   return candidates
     .slice()

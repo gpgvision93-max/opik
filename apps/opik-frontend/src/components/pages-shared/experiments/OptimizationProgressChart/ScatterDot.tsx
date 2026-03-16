@@ -23,7 +23,6 @@ import {
   BEST_PULSE_DUR,
   createTrialClickHandler,
 } from "./chartConstants";
-import type { InProgressInfo } from "./optimizationChartUtils";
 
 type DotPosition = { cx: number; cy: number };
 
@@ -31,11 +30,10 @@ type UseScatterDotParams = {
   dotPositionsRef: React.MutableRefObject<Map<string, DotPosition>>;
   overlapOffsets: Map<string, number>;
   bestCandidateId?: string;
+  pulsingCandidateId?: string;
   selectedTrialId?: string;
   onTrialSelect?: (trialId: string) => void;
   onTrialClick?: (candidateId: string) => void;
-  isInProgress: boolean;
-  inProgressInfo?: InProgressInfo;
   isEvaluationSuite?: boolean;
   setHoveredTrial: React.Dispatch<
     React.SetStateAction<{
@@ -57,11 +55,10 @@ const useScatterDot = ({
   dotPositionsRef,
   overlapOffsets,
   bestCandidateId,
+  pulsingCandidateId,
   selectedTrialId,
   onTrialSelect,
   onTrialClick,
-  isInProgress,
-  inProgressInfo,
   isEvaluationSuite,
   setHoveredTrial,
 }: UseScatterDotParams) => {
@@ -106,7 +103,7 @@ const useScatterDot = ({
               strokeOpacity={SELECTION_RING_STROKE_OPACITY}
             />
           )}
-          {isBest && isInProgress && !inProgressInfo ? (
+          {pulsingCandidateId === payload.candidateId ? (
             <circle
               cx={cx}
               cy={cy}
@@ -160,12 +157,11 @@ const useScatterDot = ({
     },
     [
       bestCandidateId,
+      pulsingCandidateId,
       selectedTrialId,
       onTrialSelect,
       onTrialClick,
       overlapOffsets,
-      isInProgress,
-      inProgressInfo,
       isEvaluationSuite,
       dotPositionsRef,
       setHoveredTrial,
