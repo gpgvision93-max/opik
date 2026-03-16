@@ -193,6 +193,11 @@ const useUserPermission = (config?: { enabled?: boolean }) => {
     [checkNullablePermission],
   );
 
+  const canCreateDashboards = useMemo(
+    () => checkNullablePermission(ManagementPermissionsNames.DASHBOARD_CREATE),
+    [checkNullablePermission],
+  );
+
   return {
     canInviteMembers,
     isWorkspaceOwner,
@@ -214,6 +219,7 @@ const useUserPermission = (config?: { enabled?: boolean }) => {
     canUpdateOnlineEvaluationRules,
     canUpdateAlerts,
     canAnnotateTraceSpanThread,
+    canCreateDashboards,
     isPending: isEnabled && isPending,
   };
 };
