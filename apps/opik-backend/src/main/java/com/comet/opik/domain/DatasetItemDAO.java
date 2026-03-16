@@ -471,7 +471,6 @@ class DatasetItemDAOImpl implements DatasetItemDAO {
                 WHERE entity_type = :entityType
                   AND workspace_id = :workspace_id
                   AND entity_id IN (SELECT trace_id FROM experiment_items_scope)
-                  AND category_name != 'suite_assertion'
                 UNION ALL
                 SELECT
                     workspace_id,
@@ -491,7 +490,6 @@ class DatasetItemDAOImpl implements DatasetItemDAO {
                 WHERE entity_type = :entityType
                   AND workspace_id = :workspace_id
                   AND entity_id IN (SELECT trace_id FROM experiment_items_scope)
-                  AND category_name != 'suite_assertion'
             ),
             feedback_scores_with_ranking AS (
                 SELECT workspace_id,
