@@ -98,7 +98,10 @@ const RefinedLineDiff: React.FC<{
   return (
     <div className="whitespace-pre-wrap break-words">
       {wordChanges.map((change, i) => (
-        <WordChange key={i} change={change} />
+        <WordChange
+          key={`${change.added ? "add" : change.removed ? "rem" : "eq"}-${i}`}
+          change={change}
+        />
       ))}
     </div>
   );
@@ -238,7 +241,7 @@ const TextDiff: React.FunctionComponent<CodeDiffProps> = ({
         {result.segments.map((seg, i) => {
           if (seg.type === "unchanged") {
             return (
-              <span key={i} className="text-muted-foreground">
+              <span key={`${seg.type}-${i}`} className="text-muted-foreground">
                 {seg.value}
               </span>
             );
@@ -246,13 +249,13 @@ const TextDiff: React.FunctionComponent<CodeDiffProps> = ({
           if (seg.type === "refined") {
             return (
               <RefinedLineDiff
-                key={i}
+                key={`${seg.type}-${i}`}
                 removedLine={seg.removedLine}
                 addedLine={seg.addedLine}
               />
             );
           }
-          return <LineChange key={i} change={seg.change} />;
+          return <LineChange key={`line-change-${i}`} change={seg.change} />;
         })}
       </div>
     );
@@ -261,7 +264,12 @@ const TextDiff: React.FunctionComponent<CodeDiffProps> = ({
   return (
     <div className="flex w-fit flex-col gap-[3px]">
       {result.lineChanges.map((change, index) => (
-        <LineChange key={index} change={change} />
+        <LineChange
+          key={`${
+            change.added ? "add" : change.removed ? "rem" : "eq"
+          }-${index}`}
+          change={change}
+        />
       ))}
     </div>
   );

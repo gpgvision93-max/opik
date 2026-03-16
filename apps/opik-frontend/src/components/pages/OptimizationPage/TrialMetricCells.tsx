@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { CellContext } from "@tanstack/react-table";
 import isNumber from "lodash/isNumber";
 
@@ -14,9 +14,7 @@ import PercentageTrend, {
   PercentageTrendType,
 } from "@/components/shared/PercentageTrend/PercentageTrend";
 import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
-
-const getBaselineCandidate = (candidates?: AggregatedCandidate[]) =>
-  candidates?.find((c) => c.stepIndex === 0);
+import { getBaselineCandidate } from "@/lib/optimizations";
 
 const calcPercentageVsBaseline = (
   value: number | undefined,
@@ -91,14 +89,16 @@ export const TrialAccuracyCell = (context: CellContext<unknown, unknown>) => {
     isEvaluationSuite?: boolean;
   };
 
-  const baseline = getBaselineCandidate(candidates);
-  const percentage = calcPercentageVsBaseline(
-    row.score,
-    baseline?.score,
-    row.candidateId,
-    baseline?.candidateId,
-    formatAsPercentage,
-  );
+  const percentage = useMemo(() => {
+    const b = getBaselineCandidate(candidates);
+    return calcPercentageVsBaseline(
+      row.score,
+      b?.score,
+      row.candidateId,
+      b?.candidateId,
+      formatAsPercentage,
+    );
+  }, [candidates, row.score, row.candidateId]);
 
   const passRateFraction =
     isEvaluationSuite && isNumber(row.score) && row.totalCount > 0
@@ -130,14 +130,16 @@ export const TrialCandidateCostCell = (
     candidates: AggregatedCandidate[];
   };
 
-  const baseline = getBaselineCandidate(candidates);
-  const percentage = calcPercentageVsBaseline(
-    row.runtimeCost,
-    baseline?.runtimeCost,
-    row.candidateId,
-    baseline?.candidateId,
-    formatAsCurrency,
-  );
+  const percentage = useMemo(() => {
+    const b = getBaselineCandidate(candidates);
+    return calcPercentageVsBaseline(
+      row.runtimeCost,
+      b?.runtimeCost,
+      row.candidateId,
+      b?.candidateId,
+      formatAsCurrency,
+    );
+  }, [candidates, row.runtimeCost, row.candidateId]);
 
   return (
     <CellWrapper
@@ -164,14 +166,16 @@ export const TrialCandidateLatencyCell = (
     candidates: AggregatedCandidate[];
   };
 
-  const baseline = getBaselineCandidate(candidates);
-  const percentage = calcPercentageVsBaseline(
-    row.latencyP50,
-    baseline?.latencyP50,
-    row.candidateId,
-    baseline?.candidateId,
-    formatAsDuration,
-  );
+  const percentage = useMemo(() => {
+    const b = getBaselineCandidate(candidates);
+    return calcPercentageVsBaseline(
+      row.latencyP50,
+      b?.latencyP50,
+      row.candidateId,
+      b?.candidateId,
+      formatAsDuration,
+    );
+  }, [candidates, row.latencyP50, row.candidateId]);
 
   return (
     <CellWrapper

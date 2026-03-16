@@ -137,7 +137,6 @@ export interface Experiment {
   prompt_version?: ExperimentPromptVersion;
   prompt_versions?: ExperimentPromptVersion[];
   trace_count: number;
-  dataset_item_count?: number;
   pass_rate?: number;
   passed_count?: number;
   total_count?: number;
@@ -149,6 +148,20 @@ export interface Experiment {
   comments?: CommentItems;
 }
 
+export interface AssertionResult {
+  value: string;
+  passed: boolean;
+  reason?: string;
+}
+
+export type RunStatus = "passed" | "failed";
+
+export interface ExperimentRunSummary {
+  passed_runs: number;
+  total_runs: number;
+  status: RunStatus;
+}
+
 export interface ExperimentItem {
   id: string;
   experiment_id: string;
@@ -158,6 +171,8 @@ export interface ExperimentItem {
   input: object;
   output: object;
   feedback_scores?: TraceFeedbackScore[];
+  assertion_results?: AssertionResult[];
+  status?: RunStatus;
   duration?: number;
   usage?: UsageData;
   total_estimated_cost?: number;
@@ -168,6 +183,7 @@ export interface ExperimentItem {
 
 export interface ExperimentsCompare extends DatasetItem {
   experiment_items: ExperimentItem[];
+  run_summaries_by_experiment?: Record<string, ExperimentRunSummary>;
 }
 
 export interface ExperimentsAggregations {

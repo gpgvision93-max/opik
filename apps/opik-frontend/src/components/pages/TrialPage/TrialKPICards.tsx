@@ -10,6 +10,8 @@ import {
   AggregatedMetrics,
 } from "@/lib/experiment-metrics";
 
+type MetricValue = number | undefined;
+
 type TrialKPICardsProps = {
   experiments: Experiment[];
   allOptimizationExperiments: Experiment[];
@@ -20,9 +22,9 @@ type TrialKPICardsProps = {
 const getMetricValue = (
   metrics: AggregatedMetrics | undefined,
   key: string,
-): number | undefined => {
+): MetricValue => {
   if (!metrics) return undefined;
-  return metrics[key as keyof AggregatedMetrics] as number | undefined;
+  return metrics[key as keyof AggregatedMetrics] as MetricValue;
 };
 
 const TrialKPICards: React.FunctionComponent<TrialKPICardsProps> = ({

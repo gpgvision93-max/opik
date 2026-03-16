@@ -11,27 +11,28 @@ import {
   makeSkipKey,
 } from "@/lib/configuration-renderer";
 import DiffSection from "./DiffSection";
+import { formatValue } from "./configDiffUtils";
 
-type ConfigurationDiffContentProps = {
-  baselineExperiment?: Experiment | null;
-  currentExperiment?: Experiment | null;
+export type ConfigurationType = Record<string, unknown>;
+
+type DiffEntry = {
+  key: string;
+  baseline: unknown;
+  current: unknown;
 };
 
-const formatValue = (value: unknown): string => {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
-  return JSON.stringify(value, null, 2);
+type ConfigurationDiffContentProps = {
+  baselineExperiment: Experiment | null;
+  currentExperiment: Experiment | null;
 };
 
 const getConfiguration = (
   metadata: object | undefined,
-): Record<string, unknown> | null => {
+): ConfigurationType | null => {
   if (!metadata || !isObject(metadata)) return null;
   const config = get(metadata, "configuration");
   if (!config || !isObject(config)) return null;
-  return config as Record<string, unknown>;
+  return config as ConfigurationType;
 };
 
 const ConfigurationDiffContent: React.FunctionComponent<
@@ -49,24 +50,24 @@ const ConfigurationDiffContent: React.FunctionComponent<
     const baseFlat = flattenConfig(baseConfig, skipKey);
     const currFlat = flattenConfig(currConfig, skipKey);
 
-    const flatBase: Record<string, unknown> = {};
+    const flatBase: ConfigurationType = {};
     for (const entry of baseFlat) {
       if (entry.type !== "prompt" && entry.type !== "tools") {
         flatBase[entry.key] = entry.value;
       }
     }
-    const flatCurr: Record<string, unknown> = {};
+    const flatCurr: ConfigurationType = {};
     for (const entry of currFlat) {
       if (entry.type !== "prompt" && entry.type !== "tools") {
         flatCurr[entry.key] = entry.value;
       }
     }
 
-    const prompts: { key: string; baseline: unknown; current: unknown }[] = [];
+    const prompts: DiffEntry[] = [];
 
     const collectPrompts = (
-      base: Record<string, unknown>,
-      curr: Record<string, unknown>,
+      base: ConfigurationType,
+      curr: ConfigurationType,
       prefix: string,
     ) => {
       const allKeys = uniq([...Object.keys(base), ...Object.keys(curr)]);
@@ -93,8 +94,8 @@ const ConfigurationDiffContent: React.FunctionComponent<
           !isArray(cVal)
         ) {
           collectPrompts(
-            (bVal as Record<string, unknown>) ?? {},
-            (cVal as Record<string, unknown>) ?? {},
+            (bVal as ConfigurationType) ?? {},
+            (cVal as ConfigurationType) ?? {},
             path,
           );
         }
@@ -119,7 +120,7 @@ const ConfigurationDiffContent: React.FunctionComponent<
       ...Object.keys(flatCurr),
     ]).sort();
 
-    const diffs = allFlatKeys
+    const diffs: DiffEntry[] = allFlatKeys
       .map((key) => ({
         key,
         baseline: flatBase[key] ?? null,

@@ -3,6 +3,7 @@
  */
 
 import { AggregatedCandidate } from "@/types/optimizations";
+import { TagProps } from "@/components/ui/tag";
 
 export type FeedbackScore = {
   name: string;
@@ -10,6 +11,13 @@ export type FeedbackScore = {
 };
 
 export type TrialStatus = "baseline" | "passed" | "pruned" | "running";
+
+export const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
+  baseline: "gray",
+  passed: "blue",
+  pruned: "pink",
+  running: "yellow",
+};
 
 export const TRIAL_STATUS_COLORS: Record<TrialStatus, string> = {
   baseline: "var(--color-gray)",

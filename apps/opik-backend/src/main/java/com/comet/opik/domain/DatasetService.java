@@ -599,7 +599,7 @@ class DatasetServiceImpl implements DatasetService {
     public List<UUID> findIdsByPartialName(@NonNull String workspaceId, @NonNull String name) {
         return template.inTransaction(READ_ONLY, handle -> {
             var dao = handle.attach(DatasetDAO.class);
-            return dao.findIdsByPartialName(workspaceId, name);
+            return dao.findIdsByPartialName(workspaceId, DatasetDAO.escapeLikeMetacharacters(name));
         });
     }
 

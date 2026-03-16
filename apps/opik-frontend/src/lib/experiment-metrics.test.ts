@@ -38,14 +38,12 @@ describe("aggregateExperimentMetrics", () => {
         makeExperiment({
           id: "e1",
           trace_count: 20,
-          dataset_item_count: 10,
           total_count: 10,
           feedback_scores: [{ name: "accuracy", value: 0.8 }],
         }),
         makeExperiment({
           id: "e2",
           trace_count: 10,
-          dataset_item_count: 5,
           total_count: 5,
           feedback_scores: [{ name: "accuracy", value: 0.6 }],
         }),
@@ -80,12 +78,12 @@ describe("aggregateExperimentMetrics", () => {
       expect(result.score).toBeCloseTo(11 / 15);
     });
 
-    it("should use dataset_item_count for totalDatasetItemCount, not trace_count", () => {
+    it("should use total_count for totalDatasetItemCount when available", () => {
       const experiments = [
         makeExperiment({
           id: "e1",
           trace_count: 20,
-          dataset_item_count: 10,
+          total_count: 10,
           feedback_scores: [{ name: "accuracy", value: 0.8 }],
         }),
       ];
@@ -96,7 +94,7 @@ describe("aggregateExperimentMetrics", () => {
       expect(result.totalTraceCount).toBe(20);
     });
 
-    it("should fall back to trace_count when dataset_item_count is undefined", () => {
+    it("should fall back to trace_count when total_count is undefined", () => {
       const experiments = [
         makeExperiment({
           id: "e1",

@@ -6,14 +6,7 @@ import PromptDiff from "@/components/shared/CodeDiff/PromptDiff";
 import TextDiff from "@/components/shared/CodeDiff/TextDiff";
 import { Tag } from "@/components/ui/tag";
 import ToolsDiff from "@/components/shared/CodeDiff/ToolsDiff";
-
-const formatValue = (value: unknown): string => {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
-  return JSON.stringify(value, null, 2);
-};
+import { formatValue } from "./configDiffUtils";
 
 type DiffSectionProps = {
   label: string;

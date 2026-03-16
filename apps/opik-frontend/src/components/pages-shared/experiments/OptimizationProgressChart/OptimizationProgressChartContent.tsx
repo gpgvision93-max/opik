@@ -1,8 +1,6 @@
-import React, { useMemo, useCallback, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import React, { useMemo, useRef, useState } from "react";
 import isNumber from "lodash/isNumber";
 import {
-  Dot,
   XAxis,
   CartesianGrid,
   YAxis,
@@ -31,6 +29,18 @@ import {
   buildParentChildEdges,
 } from "./optimizationChartUtils";
 import type { InProgressInfo } from "./optimizationChartUtils";
+import {
+  OVERLAP_SPACING,
+  GHOST_OVERLAP_OFFSET_PER_DOT,
+  CHART_MARGIN,
+  X_AXIS_PADDING,
+  X_DOMAIN_EXTRA,
+  TOOLTIP_Y_OFFSET,
+} from "./chartConstants";
+import useScatterDot from "./ScatterDot";
+import type { DotPosition } from "./ScatterDot";
+import useChartEdges from "./ChartEdges";
+import useGhostCandidate from "./GhostCandidate";
 
 type OptimizationProgressChartContentProps = {
   chartData: CandidateDataPoint[];
@@ -48,8 +58,6 @@ type OptimizationProgressChartContentProps = {
 const CHART_CONFIG = {
   score: { label: "Score", color: "var(--color-blue)" },
 };
-
-type DotPosition = { cx: number; cy: number };
 
 const OptimizationProgressChartContent: React.FC<
   OptimizationProgressChartContentProps
@@ -77,13 +85,11 @@ const OptimizationProgressChartContent: React.FC<
     }));
   }, [chartData]);
 
-  // Ghost step: derived from inProgressInfo when the optimizer is running.
   const ghostStep = useMemo(() => {
     if (!isInProgress || steps.length === 0 || !inProgressInfo) return null;
     return inProgressInfo.stepIndex;
   }, [isInProgress, steps, inProgressInfo]);
 
-  // Track pixel offsets for dots that share the same (step, score)
   const overlapOffsets = useMemo(() => {
     const groups = new Map<string, string[]>();
     for (const d of chartData) {
@@ -95,24 +101,21 @@ const OptimizationProgressChartContent: React.FC<
     const offsets = new Map<string, number>();
     for (const ids of groups.values()) {
       if (ids.length <= 1) continue;
-      const spacing = 16;
-      const totalWidth = (ids.length - 1) * spacing;
+      const totalWidth = (ids.length - 1) * OVERLAP_SPACING;
       ids.forEach((id, i) => {
-        offsets.set(id, -totalWidth / 2 + i * spacing);
+        offsets.set(id, -totalWidth / 2 + i * OVERLAP_SPACING);
       });
     }
     return offsets;
   }, [chartData]);
 
-  // Count real (scored) dots at the ghost step to offset the ghost dot
   const ghostXOffset = useMemo(() => {
     if (ghostStep == null) return 0;
     const dotsAtStep = chartData.filter(
       (d) => d.stepIndex === ghostStep && d.value != null,
     ).length;
     if (dotsAtStep === 0) return 0;
-    // Push the ghost to the right of existing dots
-    return dotsAtStep * 8;
+    return dotsAtStep * GHOST_OVERLAP_OFFSET_PER_DOT;
   }, [ghostStep, chartData]);
 
   const values = useMemo(
@@ -141,9 +144,6 @@ const OptimizationProgressChartContent: React.FC<
 
   const edges = useMemo(() => buildParentChildEdges(chartData), [chartData]);
 
-  // Ref to collect dot pixel positions during Scatter rendering.
-  // Scatter renders before Customized (JSX order), so positions are
-  // available when renderEdges executes in the same render pass.
   const containerRef = useRef<HTMLDivElement>(null);
   const dotPositionsRef = useRef<Map<string, DotPosition>>(new Map());
 
@@ -153,275 +153,43 @@ const OptimizationProgressChartContent: React.FC<
     cy: number;
   } | null>(null);
 
-  const renderScatterDot = useCallback(
-    (props: {
-      cx: number;
-      cy: number;
-      payload: (typeof positionedData)[0];
-      [key: string]: unknown;
-    }) => {
-      const { cx: rawCx, cy, payload } = props;
-      const pxOffset = overlapOffsets.get(payload.candidateId) ?? 0;
-      const cx = rawCx + pxOffset;
-      const color = !isEvaluationSuite
-        ? TRIAL_STATUS_COLORS.passed
-        : TRIAL_STATUS_COLORS[payload.status];
-      const isBest = payload.candidateId === bestCandidateId;
-      const isSelected = payload.candidateId === selectedTrialId;
-      const radius = isBest ? 8 : 6;
+  const renderScatterDot = useScatterDot({
+    dotPositionsRef,
+    overlapOffsets,
+    bestCandidateId,
+    selectedTrialId,
+    onTrialSelect,
+    onTrialClick,
+    isInProgress,
+    inProgressInfo,
+    isEvaluationSuite,
+    setHoveredTrial,
+  });
 
-      const handleClick = () => {
-        if (onTrialClick) {
-          onTrialClick(payload.candidateId);
-        } else {
-          onTrialSelect?.(payload.candidateId);
-        }
-      };
+  const renderEdges = useChartEdges({ dotPositionsRef, edges });
 
-      dotPositionsRef.current.set(payload.candidateId, { cx, cy });
-
-      return (
-        <g
-          key={payload.candidateId}
-          onClick={handleClick}
-          onMouseEnter={() =>
-            setHoveredTrial({ candidateId: payload.candidateId, cx, cy })
-          }
-          onMouseLeave={() => setHoveredTrial(null)}
-          style={{ cursor: "pointer" }}
-        >
-          {isSelected && (
-            <Dot
-              cx={cx}
-              cy={cy}
-              fill="none"
-              stroke={color}
-              strokeWidth={2}
-              r={radius + 4}
-              strokeOpacity={0.4}
-            />
-          )}
-          {isBest && isInProgress && !inProgressInfo ? (
-            <circle
-              cx={cx}
-              cy={cy}
-              r={radius}
-              fill={color}
-              strokeWidth={1.5}
-              stroke="white"
-            >
-              <animate
-                attributeName="opacity"
-                values="1;0.4;1"
-                dur="3s"
-                repeatCount="indefinite"
-              />
-            </circle>
-          ) : (
-            <Dot
-              cx={cx}
-              cy={cy}
-              fill={color}
-              strokeWidth={1.5}
-              stroke="white"
-              r={radius}
-            />
-          )}
-          {isBest && (
-            <>
-              <rect
-                x={cx - 46}
-                y={cy - radius - 22}
-                width={92}
-                height={18}
-                rx={4}
-                fill="hsl(var(--foreground))"
-                opacity={0.85}
-              />
-              <text
-                x={cx}
-                y={cy - radius - 10}
-                textAnchor="middle"
-                fontSize={11}
-                fill="hsl(var(--background))"
-                fontWeight={600}
-              >
-                Best candidate
-              </text>
-            </>
-          )}
-        </g>
-      );
-    },
-    [
-      bestCandidateId,
-      selectedTrialId,
-      onTrialSelect,
-      onTrialClick,
-      overlapOffsets,
-      isInProgress,
-      inProgressInfo,
-      isEvaluationSuite,
-    ],
-  );
-
-  const renderEdges = useCallback(() => {
-    const positions = dotPositionsRef.current;
-    if (positions.size === 0) return null;
-
-    return (
-      <g>
-        {edges.map((edge) => {
-          const parentPos = positions.get(edge.parentCandidateId);
-          const childPos = positions.get(edge.childCandidateId);
-          if (!parentPos || !childPos) return null;
-
-          const midX = (parentPos.cx + childPos.cx) / 2;
-          const d = `M ${parentPos.cx},${parentPos.cy} C ${midX},${parentPos.cy} ${midX},${childPos.cy} ${childPos.cx},${childPos.cy}`;
-
-          return (
-            <path
-              key={`${edge.parentCandidateId}-${edge.childCandidateId}`}
-              d={d}
-              fill="none"
-              stroke="hsl(var(--muted-foreground))"
-              strokeWidth={1}
-              strokeOpacity={0.4}
-            />
-          );
-        })}
-      </g>
-    );
-  }, [edges]);
+  const renderGhostCandidate = useGhostCandidate({
+    dotPositionsRef,
+    ghostStep,
+    ghostXOffset,
+    inProgressInfo,
+    chartData,
+    onTrialSelect,
+    onTrialClick,
+  });
 
   const xDomain = useMemo(() => {
     if (steps.length === 0) return [0, 1];
     const maxDataStep = steps[steps.length - 1];
     const max =
       ghostStep != null ? Math.max(maxDataStep, ghostStep) : maxDataStep;
-    return [0, max + 0.3];
+    return [0, max + X_DOMAIN_EXTRA];
   }, [steps, ghostStep]);
-
-  const renderGhostCandidate = useCallback(() => {
-    if (ghostStep == null || !inProgressInfo) return null;
-
-    const positions = dotPositionsRef.current;
-
-    // Collect all parent positions (crossover can merge 2+ parents)
-    const parentPositions: DotPosition[] = [];
-    for (const pid of inProgressInfo.parentCandidateIds) {
-      const pos = positions.get(pid);
-      if (pos) parentPositions.push(pos);
-    }
-    if (!parentPositions.length) return null;
-
-    // Calculate ghost X from existing dot positions
-    const sortedCandidatesByStep = chartData
-      .slice()
-      .sort((a, b) => a.stepIndex - b.stepIndex);
-    if (sortedCandidatesByStep.length < 2) return null;
-
-    let refA: { step: number; cx: number } | null = null;
-    let refB: { step: number; cx: number } | null = null;
-    for (const d of sortedCandidatesByStep) {
-      const pos = positions.get(d.candidateId);
-      if (!pos) continue;
-      if (!refA) {
-        refA = { step: d.stepIndex, cx: pos.cx };
-      } else if (d.stepIndex !== refA.step) {
-        refB = { step: d.stepIndex, cx: pos.cx };
-        break;
-      }
-    }
-    if (!refA || !refB) return null;
-
-    const pxPerStep = (refB.cx - refA.cx) / (refB.step - refA.step);
-    const ghostCx =
-      refA.cx + pxPerStep * (ghostStep - refA.step) + ghostXOffset;
-    const ghostCy =
-      parentPositions.reduce((sum, p) => sum + p.cy, 0) /
-      parentPositions.length;
-
-    return (
-      <g>
-        {parentPositions.map((parentPos, i) => {
-          const midX = (parentPos.cx + ghostCx) / 2;
-          const pathD = `M ${parentPos.cx},${parentPos.cy} C ${midX},${parentPos.cy} ${midX},${ghostCy} ${ghostCx},${ghostCy}`;
-          return (
-            <path
-              key={i}
-              d={pathD}
-              fill="none"
-              stroke="hsl(var(--muted-foreground))"
-              strokeWidth={1.5}
-              strokeDasharray="4 3"
-              strokeOpacity={0.5}
-            >
-              <animate
-                attributeName="stroke-dashoffset"
-                from="14"
-                to="0"
-                dur="1s"
-                repeatCount="indefinite"
-              />
-            </path>
-          );
-        })}
-        <circle
-          cx={ghostCx}
-          cy={ghostCy}
-          r={6}
-          fill={TRIAL_STATUS_COLORS.running}
-          fillOpacity={0.2}
-          stroke={TRIAL_STATUS_COLORS.running}
-          strokeWidth={1.5}
-          strokeOpacity={0.4}
-          style={{ cursor: "pointer" }}
-          onClick={() => {
-            if (onTrialClick) {
-              onTrialClick(inProgressInfo.candidateId);
-            } else {
-              onTrialSelect?.(inProgressInfo.candidateId);
-            }
-          }}
-        >
-          <animate
-            attributeName="r"
-            values="4;8;4"
-            dur="2s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="fill-opacity"
-            values="0.3;0.1;0.3"
-            dur="2s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="stroke-opacity"
-            values="0.6;0.2;0.6"
-            dur="2s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      </g>
-    );
-  }, [
-    ghostStep,
-    inProgressInfo,
-    chartData,
-    ghostXOffset,
-    onTrialClick,
-    onTrialSelect,
-  ]);
 
   return (
     <div ref={containerRef} className="relative">
       <ChartContainer config={CHART_CONFIG} className="h-48 w-full">
-        <ComposedChart
-          data={positionedData}
-          margin={{ top: 30, bottom: 10, left: 10, right: 10 }}
-        >
+        <ComposedChart data={positionedData} margin={CHART_MARGIN}>
           <CartesianGrid vertical={false} {...DEFAULT_CHART_GRID_PROPS} />
           <XAxis
             dataKey="x"
@@ -436,7 +204,7 @@ const OptimizationProgressChartContent: React.FC<
             }
             tickFormatter={(value) => `Step ${value}`}
             domain={xDomain}
-            padding={{ left: 20 }}
+            padding={X_AXIS_PADDING}
           />
           <YAxis
             width={tickWidth}
@@ -504,17 +272,13 @@ const OptimizationProgressChartContent: React.FC<
             });
           }
 
-          const rect = containerRef.current!.getBoundingClientRect();
-          const fixedLeft = rect.left + hoveredTrial.cx;
-          const fixedTop = rect.top + hoveredTrial.cy - 16;
-
-          return createPortal(
+          return (
             <div
               className="pointer-events-none min-w-32 max-w-72 rounded-md border border-border px-1 py-1.5 shadow-md"
               style={{
-                position: "fixed",
-                left: fixedLeft,
-                top: fixedTop,
+                position: "absolute",
+                left: hoveredTrial.cx,
+                top: hoveredTrial.cy - TOOLTIP_Y_OFFSET,
                 transform: "translate(-50%, -100%)",
                 zIndex: 9999,
                 backgroundColor: "hsl(var(--background))",
@@ -544,8 +308,7 @@ const OptimizationProgressChartContent: React.FC<
                   ))}
                 </div>
               </div>
-            </div>,
-            document.body,
+            </div>
           );
         })()}
 

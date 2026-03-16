@@ -15,9 +15,16 @@ import {
   flattenConfig,
   makeSkipKey,
 } from "@/lib/configuration-renderer";
-import { getOptimizerLabel } from "@/lib/optimizations";
-import { OPTIMIZATION_METRIC_OPTIONS } from "@/constants/optimizations";
-import ConfigurationDiffContent from "@/components/pages-shared/experiments/ConfigurationDiffContent/ConfigurationDiffContent";
+import ConfigurationDiffContent, {
+  ConfigurationType,
+} from "@/components/pages-shared/experiments/ConfigurationDiffContent/ConfigurationDiffContent";
+import {
+  isRecord,
+  formatPrimitive,
+  extractMessages,
+  buildConfigFromStudioConfig,
+  MessageEntry,
+} from "@/lib/optimization-config";
 
 const PROMPT_MAX_LENGTH = 200;
 
@@ -35,34 +42,6 @@ type TrialConfigurationSectionProps = {
   referenceExperiment?: Experiment | null;
   parentExperiment?: Experiment | null;
   studioConfig?: OptimizationStudioConfig;
-};
-
-const formatPrimitive = (value: unknown): string => {
-  if (value == null) return "-";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  return String(value);
-};
-
-type MessageEntry = { role: string; content: string };
-
-const extractMessages = (value: unknown): MessageEntry[] | null => {
-  const toEntries = (arr: unknown[]): MessageEntry[] =>
-    arr.map((m) => {
-      if (isObject(m) && "content" in (m as Record<string, unknown>)) {
-        return {
-          role: String(get(m, "role", "")),
-          content: String(get(m, "content", "")),
-        };
-      }
-      return { role: "", content: JSON.stringify(m) };
-    });
-
-  if (isArray(value)) return toEntries(value);
-  if (isObject(value) && "messages" in (value as Record<string, unknown>)) {
-    const messages = get(value, "messages", []);
-    if (isArray(messages)) return toEntries(messages);
-  }
-  return null;
 };
 
 const MessageBlock: React.FC<{ message: MessageEntry }> = ({ message }) => {
@@ -97,18 +76,20 @@ const MessageBlock: React.FC<{ message: MessageEntry }> = ({ message }) => {
 
 const PromptBlock: React.FC<{ value: unknown }> = ({ value }) => {
   const messages = useMemo(() => extractMessages(value), [value]);
+  const text = useMemo(
+    () => (isString(value) ? value : JSON.stringify(value, null, 2)),
+    [value],
+  );
 
   if (messages) {
     return (
       <div className="flex flex-col gap-2">
         {messages.map((msg, i) => (
-          <MessageBlock key={i} message={msg} />
+          <MessageBlock key={`msg-${msg.role}-${i}`} message={msg} />
         ))}
       </div>
     );
   }
-
-  const text = isString(value) ? value : JSON.stringify(value, null, 2);
 
   return (
     <p className="comet-body-s whitespace-pre-wrap break-words rounded-md bg-muted/40 p-3">
@@ -121,8 +102,8 @@ const ToolsBlock: React.FC<{ value: unknown }> = ({ value }) => {
   if (!isArray(value)) return null;
 
   const names = value.map((t) => {
-    if (isObject(t) && "name" in (t as Record<string, unknown>)) {
-      return String((t as Record<string, unknown>).name);
+    if (isRecord(t) && "name" in t) {
+      return String(t.name);
     }
     if (isString(t)) return t;
     return JSON.stringify(t);
@@ -177,37 +158,6 @@ const ConfigEntry: React.FC<{ label: string; value: unknown }> = ({
   return null;
 };
 
-const getMetricLabel = (type: string): string =>
-  OPTIMIZATION_METRIC_OPTIONS.find((opt) => opt.value === type)?.label || type;
-
-const buildConfigFromStudioConfig = (
-  studioConfig: OptimizationStudioConfig,
-): Record<string, unknown> => {
-  const config: Record<string, unknown> = {};
-
-  if (studioConfig.dataset_name) {
-    config.Dataset = studioConfig.dataset_name;
-  }
-
-  if (studioConfig.llm_model?.model) {
-    config.Model = String(studioConfig.llm_model.model);
-  }
-
-  if (studioConfig.optimizer?.type) {
-    config.Algorithm = getOptimizerLabel(studioConfig.optimizer.type);
-  }
-
-  if (studioConfig.evaluation?.metrics?.[0]?.type) {
-    config.Metric = getMetricLabel(studioConfig.evaluation.metrics[0].type);
-  }
-
-  if (studioConfig.prompt?.messages) {
-    config["Initial prompt"] = studioConfig.prompt.messages;
-  }
-
-  return config;
-};
-
 const TrialConfigurationSection: React.FC<TrialConfigurationSectionProps> = ({
   experiments,
   title = "Configuration",
@@ -224,7 +174,7 @@ const TrialConfigurationSection: React.FC<TrialConfigurationSectionProps> = ({
     if (experiment?.metadata && isObject(experiment.metadata)) {
       const config = get(experiment.metadata, "configuration");
       if (config && isObject(config)) {
-        const configObj = config as Record<string, unknown>;
+        const configObj = config as ConfigurationType;
         const hasRichContent =
           "prompt_messages" in configObj || "model" in configObj;
         if (hasRichContent || !studioConfig) {

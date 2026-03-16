@@ -20,12 +20,15 @@ import { getObjectiveScoreValue } from "@/lib/feedback-scores";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { usePermissions } from "@/contexts/PermissionsContext";
+import { MAX_EXPERIMENTS_LOADED } from "@/lib/optimizations";
 
 const TrialPage: React.FunctionComponent = () => {
   const workspaceName = useAppStore((state) => state.activeWorkspaceName);
   const {
     permissions: { canViewDatasets },
   } = usePermissions();
+
+  const [tab, setTab] = useState<string>("results");
 
   const [experimentsIds = []] = useQueryParam("trials", JsonParam, {
     updateType: "replaceIn",
@@ -57,7 +60,7 @@ const TrialPage: React.FunctionComponent = () => {
       optimizationId,
       types: [EXPERIMENT_TYPE.TRIAL],
       page: 1,
-      size: 100,
+      size: MAX_EXPERIMENTS_LOADED,
     },
     {
       enabled: !!optimizationId,
@@ -138,8 +141,6 @@ const TrialPage: React.FunctionComponent = () => {
 
     return undefined;
   }, [memorizedExperiments, optimizationExperimentsData?.content]);
-
-  const [tab, setTab] = useState<string>("results");
 
   return (
     <PageBodyScrollContainer>

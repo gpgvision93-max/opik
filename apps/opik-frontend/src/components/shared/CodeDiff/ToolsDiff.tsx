@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import isObject from "lodash/isObject";
 import uniq from "lodash/uniq";
 
@@ -9,20 +9,19 @@ type ToolsDiffProps = {
   current: unknown[];
 };
 
+const extractNames = (items: unknown[]) =>
+  items.map((t) =>
+    isObject(t) && "name" in (t as Record<string, unknown>)
+      ? String((t as Record<string, unknown>).name)
+      : JSON.stringify(t),
+  );
+
 const ToolsDiff: React.FunctionComponent<ToolsDiffProps> = ({
   baseline,
   current,
 }) => {
-  const baseNames = baseline.map((t) =>
-    isObject(t) && "name" in (t as Record<string, unknown>)
-      ? String((t as Record<string, unknown>).name)
-      : JSON.stringify(t),
-  );
-  const currNames = current.map((t) =>
-    isObject(t) && "name" in (t as Record<string, unknown>)
-      ? String((t as Record<string, unknown>).name)
-      : JSON.stringify(t),
-  );
+  const baseNames = useMemo(() => extractNames(baseline), [baseline]);
+  const currNames = useMemo(() => extractNames(current), [current]);
 
   const allNames = uniq([...baseNames, ...currNames]);
 

@@ -137,7 +137,6 @@ const OptimizationPage: React.FC = () => {
           optimizationId={optimization?.id}
           isStudioOptimization={Boolean(optimization?.studio_config)}
           canRerun={canRerun}
-          bestExperiment={bestExperiment}
         />
       </div>
 

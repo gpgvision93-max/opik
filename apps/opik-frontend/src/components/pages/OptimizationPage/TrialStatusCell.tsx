@@ -1,20 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { CellContext } from "@tanstack/react-table";
 
 import CellWrapper from "@/components/shared/DataTableCells/CellWrapper";
-import { Tag, TagProps } from "@/components/ui/tag";
+import { Tag } from "@/components/ui/tag";
 import { AggregatedCandidate } from "@/types/optimizations";
 import {
   computeCandidateStatuses,
-  type TrialStatus,
+  STATUS_VARIANT_MAP,
 } from "@/components/pages-shared/experiments/OptimizationProgressChart/optimizationChartUtils";
-
-const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
-  baseline: "gray",
-  passed: "blue",
-  pruned: "pink",
-  running: "yellow",
-};
 
 const TrialStatusCell = (context: CellContext<unknown, unknown>) => {
   const row = context.row.original as AggregatedCandidate;
@@ -27,9 +20,9 @@ const TrialStatusCell = (context: CellContext<unknown, unknown>) => {
 
   const isBest = bestCandidateId === row.candidateId;
 
-  const statusMap = computeCandidateStatuses(
-    candidates ?? [],
-    isEvaluationSuite,
+  const statusMap = useMemo(
+    () => computeCandidateStatuses(candidates ?? [], isEvaluationSuite),
+    [candidates, isEvaluationSuite],
   );
   const status = statusMap.get(row.candidateId) ?? "pruned";
 

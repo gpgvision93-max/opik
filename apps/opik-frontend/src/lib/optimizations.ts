@@ -5,6 +5,7 @@ import {
   Optimization,
   OptimizerParameters,
   MetricParameters,
+  AggregatedCandidate,
 } from "@/types/optimizations";
 import { AggregatedFeedbackScore } from "@/types/shared";
 import { getFeedbackScore } from "@/lib/feedback-scores";
@@ -36,6 +37,11 @@ import { parseComposedProviderType } from "@/lib/provider";
 import { COLUMN_TYPE } from "@/types/shared";
 import { Filters } from "@/types/filters";
 
+export const getBaselineCandidate = (
+  candidates?: AggregatedCandidate[],
+): AggregatedCandidate | undefined =>
+  candidates?.find((c) => c.stepIndex === 0);
+
 export const getOptimizerLabel = (type: string): string => {
   return OPTIMIZER_OPTIONS.find((opt) => opt.value === type)?.label || type;
 };
@@ -52,6 +58,8 @@ export const getBestOptimizationScore = (
 export const extractMetricNameFromCode = (code: string): string => {
   return extractMetricNameFromPythonCode(code) || "code";
 };
+
+export const MAX_EXPERIMENTS_LOADED = 1000;
 
 export const IN_PROGRESS_OPTIMIZATION_STATUSES: OPTIMIZATION_STATUS[] = [
   OPTIMIZATION_STATUS.RUNNING,

@@ -21,7 +21,6 @@ import {
   OptimizationCostCell,
   OptimizationTotalCostCell,
 } from "@/components/pages/OptimizationsPage/OptimizationMetricCells";
-import OptimizationDeployCell from "@/components/pages/OptimizationsPage/OptimizationDeployCell";
 import Loader from "@/components/shared/Loader/Loader";
 import useAppStore from "@/store/AppStore";
 import TimeCell from "@/components/shared/DataTableCells/TimeCell";
@@ -52,9 +51,9 @@ import { FeatureToggleKeys } from "@/types/feature-toggles";
 import { useOptimizationsView } from "@/hooks/useOptimizationsView";
 import { usePermissions } from "@/contexts/PermissionsContext";
 
-const SELECTED_COLUMNS_KEY = "optimizations-selected-columns-v4";
-const COLUMNS_WIDTH_KEY = "optimizations-columns-width-v5";
-const COLUMNS_ORDER_KEY = "optimizations-columns-order-v4";
+const SELECTED_COLUMNS_KEY = "optimizations-selected-columns-v1";
+const COLUMNS_WIDTH_KEY = "optimizations-columns-width-v1";
+const COLUMNS_ORDER_KEY = "optimizations-columns-order-v1";
 
 export const DEFAULT_COLUMNS: ColumnData<Optimization>[] = [
   {
@@ -118,14 +117,6 @@ export const DEFAULT_COLUMNS: ColumnData<Optimization>[] = [
     size: 120,
     accessorFn: (row) => row.total_optimization_cost,
     cell: OptimizationTotalCostCell as never,
-  },
-  {
-    id: "deploy",
-    label: "Deploy",
-    type: COLUMN_TYPE.string,
-    size: 120,
-    accessorFn: () => undefined,
-    cell: OptimizationDeployCell as never,
   },
 ];
 

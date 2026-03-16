@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { CellContext } from "@tanstack/react-table";
 import { MessageSquareMore } from "lucide-react";
 import isNumber from "lodash/isNumber";
@@ -14,16 +14,19 @@ const TrialScoreCell = (context: CellContext<unknown, unknown>) => {
   const value = feedbackScore?.value;
   const reason = feedbackScore?.reason;
 
-  const reasons =
-    reason && isValidReason(reason)
-      ? [
-          {
-            reason,
-            author: feedbackScore?.last_updated_by,
-            lastUpdatedAt: feedbackScore?.last_updated_at,
-          },
-        ]
-      : [];
+  const reasons = useMemo(
+    () =>
+      reason && isValidReason(reason)
+        ? [
+            {
+              reason,
+              author: feedbackScore?.last_updated_by,
+              lastUpdatedAt: feedbackScore?.last_updated_at,
+            },
+          ]
+        : [],
+    [reason, feedbackScore?.last_updated_by, feedbackScore?.last_updated_at],
+  );
 
   return (
     <CellWrapper

@@ -1,13 +1,19 @@
 import React from "react";
 import { CellContext } from "@tanstack/react-table";
+import { RunStatus } from "@/types/datasets";
 
 type FlattenedTrialItem = {
   experimentItem: {
-    feedback_scores?: { name: string; value: number }[];
+    status?: RunStatus;
   };
   allRuns: {
-    feedback_scores?: { name: string; value: number }[];
+    status?: RunStatus;
   }[];
+  runSummary?: {
+    passed_runs: number;
+    total_runs: number;
+    status: RunStatus;
+  };
   executionPolicy?: {
     runs_per_item?: number;
     pass_threshold?: number;
@@ -18,28 +24,35 @@ const TrialPassedCell: React.FC<CellContext<FlattenedTrialItem, unknown>> = (
   context,
 ) => {
   const row = context.row.original;
-  const { allRuns, executionPolicy } = row;
+  const { allRuns, runSummary, executionPolicy } = row;
 
-  const hasScores = allRuns.some(
-    (r) => r.feedback_scores && r.feedback_scores.length > 0,
-  );
+  if (runSummary) {
+    const { passed_runs, total_runs, status } = runSummary;
+    const itemPassed = status === "passed";
 
-  if (!hasScores) {
+    if (total_runs === 1) {
+      return (
+        <span className={itemPassed ? "text-success" : "text-destructive"}>
+          {itemPassed ? "Yes" : "No"}
+        </span>
+      );
+    }
+
+    const passThreshold = executionPolicy?.pass_threshold ?? 1;
+    return (
+      <span className={itemPassed ? "text-success" : "text-destructive"}>
+        {passed_runs}/{total_runs} (threshold: {passThreshold})
+      </span>
+    );
+  }
+
+  const firstRun = row.experimentItem;
+  if (!firstRun.status) {
     return <span>-</span>;
   }
 
-  const passThreshold = executionPolicy?.pass_threshold ?? 1;
-  const totalRuns = allRuns.length;
-
-  const runsPassed = allRuns.filter((run) => {
-    const scores = run.feedback_scores;
-    if (!scores?.length) return true;
-    return scores.every((s) => s.value >= 1.0);
-  }).length;
-
-  const itemPassed = runsPassed >= passThreshold;
-
-  if (totalRuns === 1) {
+  if (allRuns.length === 1) {
+    const itemPassed = firstRun.status === "passed";
     return (
       <span className={itemPassed ? "text-success" : "text-destructive"}>
         {itemPassed ? "Yes" : "No"}
@@ -47,9 +60,13 @@ const TrialPassedCell: React.FC<CellContext<FlattenedTrialItem, unknown>> = (
     );
   }
 
+  const runsPassed = allRuns.filter((r) => r.status === "passed").length;
+  const passThreshold = executionPolicy?.pass_threshold ?? 1;
+  const itemPassed = runsPassed >= passThreshold;
+
   return (
     <span className={itemPassed ? "text-success" : "text-destructive"}>
-      {runsPassed}/{totalRuns} (threshold: {passThreshold})
+      {runsPassed}/{allRuns.length} (threshold: {passThreshold})
     </span>
   );
 };

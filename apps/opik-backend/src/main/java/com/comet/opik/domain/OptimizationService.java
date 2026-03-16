@@ -116,6 +116,10 @@ class OptimizationServiceImpl implements OptimizationService {
 
             var resolvedCriteria = resolveDatasetNameFilter(searchCriteria, workspaceId);
 
+            if (resolvedCriteria == null) {
+                return Mono.just(Optimization.OptimizationPage.empty(page, List.of()));
+            }
+
             return optimizationDAO.find(page, size, resolvedCriteria)
                     .flatMap(optimizationPage -> {
                         var enrichedOptimizations = enrichOptimizations(optimizationPage.content(), workspaceId);
@@ -125,6 +129,9 @@ class OptimizationServiceImpl implements OptimizationService {
         });
     }
 
+    /**
+     * @return resolved criteria, or {@code null} if dataset name filter matched no datasets (caller should return empty results)
+     */
     private OptimizationSearchCriteria resolveDatasetNameFilter(
             OptimizationSearchCriteria searchCriteria, String workspaceId) {
         if (StringUtils.isBlank(searchCriteria.datasetName())) {
@@ -134,9 +141,7 @@ class OptimizationServiceImpl implements OptimizationService {
         var datasetIds = datasetService.findIdsByPartialName(workspaceId, searchCriteria.datasetName());
 
         if (datasetIds.isEmpty()) {
-            return searchCriteria.toBuilder()
-                    .datasetIds(List.of(UUID.fromString("00000000-0000-0000-0000-000000000000")))
-                    .build();
+            return null;
         }
 
         return searchCriteria.toBuilder()
@@ -390,7 +395,6 @@ class OptimizationServiceImpl implements OptimizationService {
                 .opikApiKey(opikApiKey)
                 .build();
 
-        // Route to the appropriate queue based on optimizer type
         var queue = resolveQueue(optimization);
         queueProducer.enqueue(queue, jobMessage)
                 .doOnSuccess(

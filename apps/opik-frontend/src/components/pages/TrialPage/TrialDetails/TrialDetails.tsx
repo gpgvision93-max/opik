@@ -7,16 +7,12 @@ import DateTag from "@/components/shared/DateTag/DateTag";
 import { RESOURCE_TYPE } from "@/components/shared/ResourceLink/ResourceLink";
 import NavigationTag from "@/components/shared/NavigationTag";
 import { usePermissions } from "@/contexts/PermissionsContext";
-import { Tag, TagProps } from "@/components/ui/tag";
+import { Tag } from "@/components/ui/tag";
 import { getFeedbackScoreValue } from "@/lib/feedback-scores";
-
-type TrialStatus = "baseline" | "passed" | "pruned";
-
-const STATUS_VARIANT_MAP: Record<TrialStatus, TagProps["variant"]> = {
-  baseline: "gray",
-  passed: "blue",
-  pruned: "pink",
-};
+import {
+  STATUS_VARIANT_MAP,
+  type TrialStatus,
+} from "@/components/pages-shared/experiments/OptimizationProgressChart/optimizationChartUtils";
 
 type TrialDetailsProps = {
   optimization?: Optimization;

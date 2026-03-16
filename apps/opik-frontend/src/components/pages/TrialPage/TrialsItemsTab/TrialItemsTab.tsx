@@ -58,6 +58,9 @@ import PageBodyStickyTableWrapper from "@/components/layout/PageBodyStickyTableW
 import { EXPLAINER_ID, EXPLAINERS_MAP } from "@/constants/explainers";
 import { generateDistinctColorMap } from "@/components/pages-shared/experiments/OptimizationProgressChart/optimizationChartUtils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+type PassFilterValue = "all" | "passed" | "failed";
+
 type FlattenedTrialItem = {
   id: string;
   dataset_item_id: string;
@@ -66,6 +69,7 @@ type FlattenedTrialItem = {
   experimentItem: ExperimentItem;
   allRuns: ExperimentItem[];
   executionPolicy?: ExecutionPolicy;
+  runSummary?: { passed_runs: number; total_runs: number; status: string };
 };
 
 const getRowId = (d: FlattenedTrialItem) => d.id;
@@ -268,6 +272,7 @@ const TrialItemsTab: React.FC<TrialItemsTabProps> = ({
           experimentItem: runs[0],
           allRuns: runs,
           executionPolicy: row.execution_policy,
+          runSummary: row.run_summaries_by_experiment?.[experimentId],
         });
       }
     }
@@ -275,36 +280,31 @@ const TrialItemsTab: React.FC<TrialItemsTabProps> = ({
     return flat;
   }, [data?.content]);
 
-  const [passFilter, setPassFilter] = useState<"all" | "passed" | "failed">(
-    "all",
-  );
+  const [passFilter, setPassFilter] = useState<PassFilterValue>("all");
 
   const { rows, passedCount, failedCount } = useMemo(() => {
     if (!isEvaluationSuite) {
       return { rows: allFlatRows, passedCount: 0, failedCount: 0 };
     }
 
-    const isRunPassed = (item: ExperimentItem) => {
-      const scores = item.feedback_scores;
-      if (!scores?.length) return true;
-      return scores.every((s) => s.value >= 1.0);
-    };
-
-    const isItemPassed = (row: FlattenedTrialItem) => {
-      const passThreshold = row.executionPolicy?.pass_threshold ?? 1;
-      const runsPassed = row.allRuns.filter(isRunPassed).length;
-      return runsPassed >= passThreshold;
+    const getItemStatus = (row: FlattenedTrialItem): boolean | undefined => {
+      if (row.runSummary) {
+        return row.runSummary.status === "passed";
+      }
+      const firstRun = row.experimentItem;
+      if (firstRun.status) {
+        return firstRun.status === "passed";
+      }
+      return undefined;
     };
 
     let passed = 0;
     let failed = 0;
 
     allFlatRows.forEach((row) => {
-      const hasScores = row.allRuns.some(
-        (r) => r.feedback_scores && r.feedback_scores.length > 0,
-      );
-      if (!hasScores) return;
-      if (isItemPassed(row)) {
+      const itemPassed = getItemStatus(row);
+      if (itemPassed === undefined) return;
+      if (itemPassed) {
         passed++;
       } else {
         failed++;
@@ -316,11 +316,8 @@ const TrialItemsTab: React.FC<TrialItemsTabProps> = ({
     }
 
     const filtered = allFlatRows.filter((row) => {
-      const hasScores = row.allRuns.some(
-        (r) => r.feedback_scores && r.feedback_scores.length > 0,
-      );
-      if (!hasScores) return false;
-      const itemPassed = isItemPassed(row);
+      const itemPassed = getItemStatus(row);
+      if (itemPassed === undefined) return false;
       return passFilter === "passed" ? itemPassed : !itemPassed;
     });
 
@@ -627,7 +624,7 @@ const TrialItemsTab: React.FC<TrialItemsTabProps> = ({
               type="single"
               value={passFilter}
               onValueChange={(v) => {
-                if (v) setPassFilter(v as "all" | "passed" | "failed");
+                if (v) setPassFilter(v as PassFilterValue);
               }}
               variant="default"
               size="sm"
@@ -683,7 +680,9 @@ const TrialItemsTab: React.FC<TrialItemsTabProps> = ({
           pageChange={setPage}
           size={size as number}
           sizeChange={setSize}
-          total={Math.max(apiTotal, rows.length)}
+          total={
+            passFilter !== "all" ? rows.length : Math.max(apiTotal, rows.length)
+          }
           supportsTruncation
           truncationEnabled={truncationEnabled}
         />

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useMemo } from "react";
 import isNull from "lodash/isNull";
 
 import { AggregatedCandidate } from "@/types/optimizations";
@@ -60,7 +60,7 @@ const OptimizationProgressChartContainer: React.FC<
     [chartData],
   );
 
-  const renderContent = useCallback(() => {
+  const renderContent = () => {
     if (!chartData.length || noData) {
       if (isInProgress) {
         return (
@@ -95,20 +95,7 @@ const OptimizationProgressChartContainer: React.FC<
         inProgressInfo={inProgressInfo}
       />
     );
-  }, [
-    chartData,
-    candidates,
-    noData,
-    bestCandidateId,
-    objectiveName,
-    isInProgress,
-    baselineMessage,
-    selectedTrialId,
-    onTrialSelect,
-    onTrialClick,
-    isEvaluationSuite,
-    inProgressInfo,
-  ]);
+  };
 
   return (
     <Card className="h-[280px] min-w-[400px] flex-auto">

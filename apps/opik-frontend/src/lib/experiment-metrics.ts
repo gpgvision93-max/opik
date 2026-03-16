@@ -33,7 +33,7 @@ export const aggregateExperimentMetrics = (
     const tc = exp.trace_count || 0;
     const scoreWeight = exp.total_count ?? tc;
     totalTraceCount += tc;
-    totalDatasetItemCount += exp.dataset_item_count ?? tc;
+    totalDatasetItemCount += exp.total_count ?? tc;
 
     if (exp.passed_count != null) {
       totalPassedCount += exp.passed_count;
