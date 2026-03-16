@@ -55,3 +55,18 @@ export const BEST_PULSE_DUR = "3s";
 
 // Ghost-candidate breathing animation
 export const GHOST_BREATHE_DUR = "2s";
+
+// Shared trial click handler: routes to onTrialClick (navigation) or onTrialSelect (selection)
+export const createTrialClickHandler = (
+  candidateId: string,
+  onTrialClick?: (id: string) => void,
+  onTrialSelect?: (id: string) => void,
+) => {
+  return () => {
+    if (onTrialClick) {
+      onTrialClick(candidateId);
+    } else {
+      onTrialSelect?.(candidateId);
+    }
+  };
+};

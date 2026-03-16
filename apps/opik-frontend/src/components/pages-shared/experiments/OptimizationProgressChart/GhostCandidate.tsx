@@ -18,6 +18,7 @@ import {
   GHOST_DOT_STROKE_OPACITY,
   GHOST_BREATHE_DUR,
   EDGE_STROKE_COLOR,
+  createTrialClickHandler,
 } from "./chartConstants";
 
 type UseGhostCandidateParams = {
@@ -112,13 +113,11 @@ const useGhostCandidate = ({
           strokeWidth={DOT_STROKE_WIDTH}
           strokeOpacity={GHOST_DOT_STROKE_OPACITY}
           style={{ cursor: "pointer" }}
-          onClick={() => {
-            if (onTrialClick) {
-              onTrialClick(inProgressInfo.candidateId);
-            } else {
-              onTrialSelect?.(inProgressInfo.candidateId);
-            }
-          }}
+          onClick={createTrialClickHandler(
+            inProgressInfo.candidateId,
+            onTrialClick,
+            onTrialSelect,
+          )}
         >
           <animate
             attributeName="r"

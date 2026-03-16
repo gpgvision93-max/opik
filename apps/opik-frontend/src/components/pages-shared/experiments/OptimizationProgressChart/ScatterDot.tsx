@@ -21,6 +21,7 @@ import {
   BEST_LABEL_FONT_SIZE,
   BEST_LABEL_OPACITY,
   BEST_PULSE_DUR,
+  createTrialClickHandler,
 } from "./chartConstants";
 import type { InProgressInfo } from "./optimizationChartUtils";
 
@@ -76,13 +77,11 @@ const useScatterDot = ({
       const isSelected = payload.candidateId === selectedTrialId;
       const radius = isBest ? DOT_RADIUS_BEST : DOT_RADIUS_DEFAULT;
 
-      const handleTrialSelectClick = () => {
-        if (onTrialClick) {
-          onTrialClick(payload.candidateId);
-        } else {
-          onTrialSelect?.(payload.candidateId);
-        }
-      };
+      const handleTrialSelectClick = createTrialClickHandler(
+        payload.candidateId,
+        onTrialClick,
+        onTrialSelect,
+      );
 
       dotPositionsRef.current.set(payload.candidateId, { cx, cy });
 
