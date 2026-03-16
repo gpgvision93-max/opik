@@ -132,33 +132,33 @@ class DockerExecutor(CodeExecutorBase):
     @staticmethod
     def _parse_cpu_limit():
         """Parse PYTHON_CODE_EXECUTOR_CPU_LIMIT env var into nano_cpus (Docker SDK format)."""
-        cpu_limit_str = os.getenv("PYTHON_CODE_EXECUTOR_CPU_LIMIT")
-        if not cpu_limit_str:
-            return DEFAULT_CPU_LIMIT
         try:
+            cpu_limit_str = os.getenv("PYTHON_CODE_EXECUTOR_CPU_LIMIT")
+            if not cpu_limit_str:
+                return DEFAULT_CPU_LIMIT
             cpu_limit = float(cpu_limit_str)
-        except ValueError:
-            logger.warning(f"Invalid PYTHON_CODE_EXECUTOR_CPU_LIMIT value '{cpu_limit_str}', ignoring")
+            if cpu_limit <= 0:
+                logger.warning(f"PYTHON_CODE_EXECUTOR_CPU_LIMIT must be positive, got '{cpu_limit_str}', ignoring")
+                return DEFAULT_CPU_LIMIT
+            return int(cpu_limit * 1e9)
+        except Exception as e:
+            logger.warning(f"Failed to parse PYTHON_CODE_EXECUTOR_CPU_LIMIT: {e}, using default")
             return DEFAULT_CPU_LIMIT
-        if cpu_limit <= 0:
-            logger.warning(f"PYTHON_CODE_EXECUTOR_CPU_LIMIT must be positive, got '{cpu_limit_str}', ignoring")
-            return DEFAULT_CPU_LIMIT
-        return int(cpu_limit * 1e9)
 
     @staticmethod
     def _parse_metrics_interval():
         """Parse PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS env var, defaulting to 60."""
         default = 60
-        val = os.getenv("PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS", str(default))
         try:
+            val = os.getenv("PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS", str(default))
             interval = int(val)
-        except ValueError:
-            logger.warning(f"Invalid PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS value '{val}', using default {default}s")
+            if interval <= 0:
+                logger.warning(f"PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS must be positive, got '{val}', using default {default}s")
+                return default
+            return interval
+        except Exception as e:
+            logger.warning(f"Failed to parse PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS: {e}, using default {default}s")
             return default
-        if interval <= 0:
-            logger.warning(f"PYTHON_CODE_EXECUTOR_METRICS_INTERVAL_IN_SECONDS must be positive, got '{val}', using default {default}s")
-            return default
-        return interval
 
     def _start_pool_monitor(self):
         """Start a background thread that periodically checks and fills the container pool."""
@@ -235,19 +235,24 @@ class DockerExecutor(CodeExecutorBase):
         return pool_size
 
     def _collect_executor_resource_metrics(self):
-        """Collect CPU and memory metrics from executor containers via Docker stats API.
+        """Submit metrics collection to a background thread to avoid blocking the scheduler.
 
-        Note: container.stats(stream=False) takes ~1-2s per container (synchronous Docker API call).
-        This runs on the same scheduler thread as _check_pool, so a long collection could delay
-        one pool health check. At the default 60s interval this is negligible. If the interval
-        is lowered significantly, consider collecting stats in parallel or on a separate thread.
+        container.stats(stream=False) takes ~1-2s per container, so collecting stats for all
+        containers sequentially can block the scheduler thread for 17-34s, starving _check_pool.
         """
         if self.stop_event.is_set():
             return schedule.CancelJob
 
+        self.releaser_executor.submit(self._do_collect_executor_resource_metrics)
+        return None  # Continue the job
+
+    def _do_collect_executor_resource_metrics(self):
+        """Collect CPU and memory metrics from executor containers via Docker stats API."""
         try:
             containers = self.get_managed_containers()
             for container in containers:
+                if self.stop_event.is_set():
+                    return
                 try:
                     stats = container.stats(stream=False)
                     short_id = container.short_id
@@ -280,8 +285,6 @@ class DockerExecutor(CodeExecutorBase):
                     logger.warning(f"Failed to collect stats for container {container.short_id}: {e}")
         except Exception as e:
             logger.warning(f"Error collecting executor resource metrics: {e}")
-
-        return None  # Continue the job
 
     def _calculate_latency_ms(self, start_time):
         return (time.time() - start_time) * 1000  # Convert to milliseconds
