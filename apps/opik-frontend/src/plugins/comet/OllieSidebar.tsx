@@ -9,7 +9,6 @@ const ChatSidebar = lazy(() =>
   import("@comet-ml/ollie-sidebar").then((m) => ({ default: m.ChatSidebar })),
 );
 
-// Load ollie CSS lazily when the component mounts, bypassing PostCSS processing
 const loadOllieCss = () => {
   const id = "ollie-sidebar-styles";
   if (document.getElementById(id)) return;

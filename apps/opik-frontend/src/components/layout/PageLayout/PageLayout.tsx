@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Outlet } from "@tanstack/react-router";
 import SideBar from "@/components/layout/SideBar/SideBar";
 import TopBar from "@/components/layout/TopBar/TopBar";
-import OllieSidebar from "@/components/layout/OllieSidebar/OllieSidebar";
 import { cn } from "@/lib/utils";
 import useLocalStorageState from "use-local-storage-state";
 import usePluginsStore from "@/store/PluginsStore";
@@ -30,6 +29,7 @@ const PageLayout = () => {
   });
 
   const RetentionBanner = usePluginsStore((state) => state.RetentionBanner);
+  const OllieSidebar = usePluginsStore((state) => state.OllieSidebar);
 
   // Force sidebar collapsed on mobile, use stored preference on desktop
   const isMobile =
@@ -84,7 +84,9 @@ const PageLayout = () => {
         </section>
       </main>
 
-      <OllieSidebar onWidthChange={setOllieSidebarWidth} />
+      {OllieSidebar ? (
+        <OllieSidebar onWidthChange={setOllieSidebarWidth} />
+      ) : null}
 
       {/* Welcome Wizard Dialog */}
       <WelcomeWizardDialog
