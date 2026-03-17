@@ -18,6 +18,7 @@ export interface Permissions {
   canUpdateAlerts: boolean;
   canAnnotateTraceSpanThread: boolean;
   canCreateDashboards: boolean;
+  canTagTrace: boolean;
 }
 
 export interface PermissionsContextValue {
@@ -46,6 +47,7 @@ export const DEFAULT_PERMISSIONS: PermissionsContextValue = {
     canUpdateAlerts: true,
     canAnnotateTraceSpanThread: true,
     canCreateDashboards: true,
+    canTagTrace: true,
   },
   isPending: false,
 };
