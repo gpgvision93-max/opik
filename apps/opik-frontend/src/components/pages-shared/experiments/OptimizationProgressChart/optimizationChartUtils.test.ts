@@ -204,6 +204,43 @@ describe("computeCandidateStatuses", () => {
       expect(result.get("b")).toBe("passed");
       expect(result.get("c")).toBe("pruned");
     });
+
+    it("should not prune candidates at same step but different parents", () => {
+      const candidates = [
+        makeCandidate({ candidateId: "a", stepIndex: 0, score: 0.5 }),
+        makeCandidate({
+          candidateId: "b",
+          stepIndex: 1,
+          score: 0.8,
+          parentCandidateIds: ["a"],
+        }),
+        makeCandidate({
+          candidateId: "c",
+          stepIndex: 1,
+          score: 0.8,
+          parentCandidateIds: ["a"],
+        }),
+        // d and e are at step 2 but from different parents
+        makeCandidate({
+          candidateId: "d",
+          stepIndex: 2,
+          score: 0.8,
+          parentCandidateIds: ["b"],
+        }),
+        makeCandidate({
+          candidateId: "e",
+          stepIndex: 2,
+          score: 0.8,
+          parentCandidateIds: ["c"],
+        }),
+      ];
+      const result = computeCandidateStatuses(candidates, true, true);
+      // d has no children from its branch, e has no children from its branch
+      // They are NOT siblings (different parents), so neither should prune the other
+      // Both should be evaluating (tied with best, no sibling with children)
+      expect(result.get("d")).toBe("evaluating");
+      expect(result.get("e")).toBe("evaluating");
+    });
   });
 
   describe("completed evaluation suite", () => {

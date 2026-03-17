@@ -71,7 +71,7 @@ export type InProgressInfo = {
 
 type CandidateLookups = {
   hasChildren: Set<string>;
-  stepSiblings: Map<number, string[]>;
+  parentSiblings: Map<string, string[]>;
   bestScore: number | undefined;
   bestCandidate: AggregatedCandidate | undefined;
 };
@@ -81,16 +81,18 @@ const buildCandidateLookups = (
   inProgressInfo?: InProgressInfo,
 ): CandidateLookups => {
   const hasChildren = new Set<string>();
-  const stepSiblings = new Map<number, string[]>();
+  const parentSiblings = new Map<string, string[]>();
   let bestScore: number | undefined;
 
   for (const c of candidates) {
     for (const pid of c.parentCandidateIds) {
       hasChildren.add(pid);
     }
-    const siblings = stepSiblings.get(c.stepIndex) ?? [];
+    // Group siblings by shared parent IDs (not just step index)
+    const parentKey = [...c.parentCandidateIds].sort().join(",");
+    const siblings = parentSiblings.get(parentKey) ?? [];
     siblings.push(c.candidateId);
-    stepSiblings.set(c.stepIndex, siblings);
+    parentSiblings.set(parentKey, siblings);
 
     if (c.score != null && (bestScore == null || c.score > bestScore)) {
       bestScore = c.score;
@@ -114,21 +116,22 @@ const buildCandidateLookups = (
     undefined,
   );
 
-  return { hasChildren, stepSiblings, bestScore, bestCandidate };
+  return { hasChildren, parentSiblings, bestScore, bestCandidate };
 };
 
 const computeInProgressStatus = (
   c: AggregatedCandidate,
   lookups: CandidateLookups,
 ): TrialStatus => {
-  const { hasChildren, stepSiblings, bestScore, bestCandidate } = lookups;
+  const { hasChildren, parentSiblings, bestScore, bestCandidate } = lookups;
   if (c.score == null) return "running";
   const isBest = bestCandidate?.candidateId === c.candidateId;
 
   if (isBest || hasChildren.has(c.candidateId)) return "passed";
   if (bestScore != null && c.score < bestScore) return "pruned";
 
-  const siblings = stepSiblings.get(c.stepIndex) ?? [];
+  const parentKey = [...c.parentCandidateIds].sort().join(",");
+  const siblings = parentSiblings.get(parentKey) ?? [];
   const siblingHasChildren = siblings.some(
     (sid) => sid !== c.candidateId && hasChildren.has(sid),
   );
