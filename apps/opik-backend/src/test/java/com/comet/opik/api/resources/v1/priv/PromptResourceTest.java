@@ -36,6 +36,7 @@ import com.comet.opik.extensions.DropwizardAppExtensionProvider;
 import com.comet.opik.extensions.RegisterApp;
 import com.comet.opik.infrastructure.DatabaseAnalyticsFactory;
 import com.comet.opik.infrastructure.auth.RequestContext;
+import com.comet.opik.infrastructure.auth.WorkspaceUserPermission;
 import com.comet.opik.podam.PodamFactoryUtils;
 import com.comet.opik.utils.JsonUtils;
 import com.comet.opik.utils.TemplateParseUtils;
@@ -113,6 +114,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.matching;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -124,7 +126,7 @@ class PromptResourceTest {
 
     private static final String RESOURCE_PATH = "%s/v1/private/prompts";
     public static final String[] PROMPT_IGNORED_FIELDS = {"latestVersion", "requestedVersion", "template", "metadata",
-            "changeDescription", "type"};
+            "changeDescription", "type", "projectName"};
 
     private static final String API_KEY = UUID.randomUUID().toString();
     private static final String USER = UUID.randomUUID().toString();
@@ -190,6 +192,51 @@ class PromptResourceTest {
     @AfterAll
     void tearDownAll() {
         wireMock.server().stop();
+    }
+
+    @Nested
+    @DisplayName("Required permissions")
+    class RequiredPermissionsTest {
+
+        @Test
+        @DisplayName("Delete prompt by id passes required permissions to auth endpoint")
+        void deletePromptByIdPassesRequiredPermissionsToAuthEndpoint() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var prompt = buildPrompt().build();
+            var id = createPrompt(prompt, apiKey, workspaceName);
+
+            wireMock.server().resetRequests();
+            promptResourceClient.deletePrompt(id, apiKey, workspaceName);
+
+            wireMock.server().verify(
+                    postRequestedFor(urlPathEqualTo("/opik/auth"))
+                            .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
+                                    equalTo(WorkspaceUserPermission.PROMPT_DELETE.getValue()))));
+        }
+
+        @Test
+        @DisplayName("Delete prompts batch passes required permissions to auth endpoint")
+        void deletePromptsBatchPassesRequiredPermissionsToAuthEndpoint() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var prompt = buildPrompt().build();
+            var id = createPrompt(prompt, apiKey, workspaceName);
+
+            wireMock.server().resetRequests();
+            promptResourceClient.deletePromptBatch(Set.of(id), apiKey, workspaceName);
+
+            wireMock.server().verify(
+                    postRequestedFor(urlPathEqualTo("/opik/auth"))
+                            .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
+                                    equalTo(WorkspaceUserPermission.PROMPT_DELETE.getValue()))));
+        }
     }
 
     @Nested
@@ -1249,9 +1296,8 @@ class PromptResourceTest {
             var workspaceId = UUID.randomUUID().toString();
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var ids = PodamFactoryUtils.manufacturePojoList(factory, Prompt.class).stream()
+            var ids = PromptResourceClient.buildPromptList(factory).stream()
                     .map(prompt -> createPrompt(prompt.toBuilder()
-                            .projectId(null)
                             .lastUpdatedBy(USER)
                             .createdBy(USER)
                             .build(), apiKey, workspaceName))
@@ -1429,10 +1475,9 @@ class PromptResourceTest {
 
             mockTargetWorkspace(apiKey, workspaceName, workspaceId);
 
-            var prompts = PodamFactoryUtils.manufacturePojoList(factory, Prompt.class).stream()
+            var prompts = PromptResourceClient.buildPromptList(factory).stream()
                     .map(prompt -> prompt.toBuilder()
                             .lastUpdatedBy(USER)
-                            .projectId(null)
                             .createdBy(USER)
                             .versionCount(0L)
                             .template(null)
@@ -1488,12 +1533,11 @@ class PromptResourceTest {
 
             var random = new Random();
 
-            var prompts = PodamFactoryUtils.manufacturePojoList(factory, Prompt.class).stream()
+            var prompts = PromptResourceClient.buildPromptList(factory).stream()
                     .map(prompt -> prompt.toBuilder()
                             // Only alphanumeric to avoid flakiness with special characters when sorting by name
                             .name(RandomStringUtils.secure().nextAlphanumeric(10))
                             .lastUpdatedBy(USER)
-                            .projectId(null)
                             .createdBy(USER)
                             .versionCount(random.nextLong(5))
                             .template(null)
@@ -1630,10 +1674,9 @@ class PromptResourceTest {
 
             var random = new Random();
 
-            var prompts = PodamFactoryUtils.manufacturePojoList(factory, Prompt.class).stream()
+            var prompts = PromptResourceClient.buildPromptList(factory).stream()
                     .map(prompt -> prompt.toBuilder()
                             .lastUpdatedBy(USER)
-                            .projectId(null)
                             .createdBy(USER)
                             .versionCount(random.nextLong(5))
                             .template(null)
@@ -4477,7 +4520,7 @@ class PromptResourceTest {
         }
 
         @Test
-        @DisplayName("Create prompt with non-existing project_id returns conflict")
+        @DisplayName("Create prompt with non-existing project_id returns not found")
         void createPromptWithNonExistingProjectId() {
             String apiKey = UUID.randomUUID().toString();
             String workspaceName = UUID.randomUUID().toString();
@@ -4494,8 +4537,62 @@ class PromptResourceTest {
                     .header(RequestContext.WORKSPACE_HEADER, workspaceName)
                     .post(Entity.json(prompt))) {
 
-                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_CONFLICT);
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_NOT_FOUND);
             }
+        }
+
+        @Test
+        @DisplayName("Create prompt with project_name of existing project resolves project_id")
+        void createPromptWithExistingProjectName() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = UUID.randomUUID().toString();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            String projectName = "project-" + UUID.randomUUID();
+            var projectId = projectResourceClient.createProject(projectName, apiKey, workspaceName);
+
+            var prompt = buildPrompt()
+                    .projectName(projectName)
+                    .lastUpdatedBy(USER)
+                    .createdBy(USER)
+                    .template(null)
+                    .versionCount(0L)
+                    .templateStructure(TemplateStructure.TEXT)
+                    .build();
+
+            var id = createPrompt(prompt, apiKey, workspaceName);
+            var fetchedPrompt = promptResourceClient.getPrompt(id, apiKey, workspaceName);
+
+            assertPrompt(fetchedPrompt, prompt.toBuilder().id(id).projectId(projectId).build());
+        }
+
+        @Test
+        @DisplayName("Create prompt with project_name of non-existing project creates project and resolves project_id")
+        void createPromptWithNonExistingProjectName() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = UUID.randomUUID().toString();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            String projectName = "new-project-" + UUID.randomUUID();
+
+            var prompt = buildPrompt()
+                    .projectName(projectName)
+                    .lastUpdatedBy(USER)
+                    .createdBy(USER)
+                    .template(null)
+                    .versionCount(0L)
+                    .templateStructure(TemplateStructure.TEXT)
+                    .build();
+
+            var id = createPrompt(prompt, apiKey, workspaceName);
+            var fetchedPrompt = promptResourceClient.getPrompt(id, apiKey, workspaceName);
+
+            // Verify the project was created and the projectId was resolved
+            assertThat(fetchedPrompt.projectId()).isNotNull();
+
+            assertPrompt(fetchedPrompt, prompt.toBuilder().id(id).projectId(fetchedPrompt.projectId()).build());
         }
 
         @Test
