@@ -5,6 +5,7 @@ import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
 import {
   useDashboardStore,
   selectHasUnsavedChanges,
+  selectReadOnly,
 } from "@/store/DashboardStore";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { VIEW_TYPE } from "@/types/dashboard";
@@ -19,8 +20,11 @@ const ViewSelector: React.FC<ViewSelectorProps> = ({ value, onChange }) => {
     permissions: { canViewDashboards },
   } = usePermissions();
 
+  const readOnly = useDashboardStore(selectReadOnly);
+
   const hasUnsavedChanges = useDashboardStore(selectHasUnsavedChanges);
-  const disabled = value === VIEW_TYPE.DASHBOARDS && hasUnsavedChanges;
+  const disabled =
+    value === VIEW_TYPE.DASHBOARDS && hasUnsavedChanges && !readOnly;
 
   useEffect(() => {
     if (value === VIEW_TYPE.DASHBOARDS && !canViewDashboards) {
