@@ -45,8 +45,8 @@ class AnthropicChatModel(base_model.OpikBaseModel):
         config = opik_config.OpikConfig()
         enable_tracking = track and config.enable_litellm_models_monitoring
 
-        client = anthropic.Anthropic()
-        async_client = anthropic.AsyncAnthropic()
+        client = anthropic.Anthropic(timeout=60.0)
+        async_client = anthropic.AsyncAnthropic(timeout=60.0)
 
         if enable_tracking:
             from opik.integrations.anthropic import track_anthropic
