@@ -1,6 +1,5 @@
 import React, { useCallback, useState, useRef } from "react";
 import { Copy } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   ButtonWithDropdown,
@@ -19,6 +18,7 @@ import {
   selectMixedConfig,
 } from "@/store/DashboardStore";
 import { Dashboard } from "@/types/dashboard";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 interface DashboardSaveActionsProps {
   onSave: () => Promise<void>;
@@ -52,6 +52,10 @@ const DashboardSaveActions: React.FunctionComponent<
   const saveAsDialogDashboard = useRef(dashboard);
   const proceedNavigationRef = useRef<(() => void) | null>(null);
   const cancelNavigationRef = useRef<(() => void) | null>(null);
+
+  const {
+    permissions: { canCreateDashboards },
+  } = usePermissions();
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -121,6 +125,43 @@ const DashboardSaveActions: React.FunctionComponent<
     [isTemplate, openSaveAsDialog, onSave],
   );
 
+  const renderSaveButton = () => {
+    if (isTemplate) {
+      return (
+        <Button size="sm" onClick={openSaveAsDialog} disabled={isSaving}>
+          Save as new dashboard
+        </Button>
+      );
+    }
+
+    if (!canCreateDashboards) {
+      return (
+        <Button size="sm" onClick={handleSave} disabled={isSaving}>
+          Save changes
+        </Button>
+      );
+    }
+
+    return (
+      <ButtonWithDropdown>
+        <ButtonWithDropdownTrigger
+          variant="default"
+          size="sm"
+          onPrimaryClick={handleSave}
+          disabled={isSaving}
+        >
+          Save changes
+        </ButtonWithDropdownTrigger>
+        <ButtonWithDropdownContent align="end">
+          <ButtonWithDropdownItem onClick={openSaveAsDialog}>
+            <Copy className="mr-2 size-4" />
+            Save as new
+          </ButtonWithDropdownItem>
+        </ButtonWithDropdownContent>
+      </ButtonWithDropdown>
+    );
+  };
+
   const { DialogComponent: NavigationBlockerDialog } = useNavigationBlocker({
     condition: hasUnsavedChanges,
     description: isTemplate
@@ -147,28 +188,7 @@ const DashboardSaveActions: React.FunctionComponent<
         Discard changes
       </Button>
 
-      {isTemplate ? (
-        <Button size="sm" onClick={openSaveAsDialog} disabled={isSaving}>
-          Save as new dashboard
-        </Button>
-      ) : (
-        <ButtonWithDropdown>
-          <ButtonWithDropdownTrigger
-            variant="default"
-            size="sm"
-            onPrimaryClick={handleSave}
-            disabled={isSaving}
-          >
-            Save changes
-          </ButtonWithDropdownTrigger>
-          <ButtonWithDropdownContent align="end">
-            <ButtonWithDropdownItem onClick={openSaveAsDialog}>
-              <Copy className="mr-2 size-4" />
-              Save as new
-            </ButtonWithDropdownItem>
-          </ButtonWithDropdownContent>
-        </ButtonWithDropdown>
-      )}
+      {renderSaveButton()}
 
       <Separator orientation="vertical" className="mx-2 h-4" />
 

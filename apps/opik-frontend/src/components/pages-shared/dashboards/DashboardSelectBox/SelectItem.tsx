@@ -49,7 +49,7 @@ export const SelectItem: React.FC<SelectItemProps> = ({
   onDelete,
 }) => {
   const Icon = icon || ChartLine;
-  const hasActions = dashboard && onEdit && onDuplicate && onDelete;
+  const hasActions = dashboard && (onEdit || onDuplicate || onDelete);
 
   // Use DropdownMenuItem for templates (better keyboard navigation)
   if (!hasActions) {
@@ -135,36 +135,42 @@ export const SelectItem: React.FC<SelectItemProps> = ({
             side="right"
             onClick={(e) => e.stopPropagation()}
           >
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit?.(dashboard);
-              }}
-              className="hover:text-primary"
-            >
-              <Pencil className="mr-2 size-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate?.(dashboard);
-              }}
-            >
-              <Copy className="mr-2 size-4" />
-              Duplicate
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.(dashboard);
-              }}
-              variant="destructive"
-            >
-              <Trash className="mr-2 size-4" />
-              Delete
-            </DropdownMenuItem>
+            {onEdit && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.(dashboard);
+                }}
+                className="hover:text-primary"
+              >
+                <Pencil className="mr-2 size-4" />
+                Edit
+              </DropdownMenuItem>
+            )}
+            {onDuplicate && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate?.(dashboard);
+                }}
+              >
+                <Copy className="mr-2 size-4" />
+                Duplicate
+              </DropdownMenuItem>
+            )}
+            {(onEdit || onDuplicate) && onDelete && <DropdownMenuSeparator />}
+            {onDelete && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.(dashboard);
+                }}
+                variant="destructive"
+              >
+                <Trash className="mr-2 size-4" />
+                Delete
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}

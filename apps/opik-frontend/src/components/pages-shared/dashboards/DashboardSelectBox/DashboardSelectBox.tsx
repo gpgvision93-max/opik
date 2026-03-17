@@ -25,6 +25,7 @@ import ConfirmDialog from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import useDashboardBatchDeleteMutation from "@/api/dashboards/useDashboardBatchDeleteMutation";
 import { SelectItem } from "./SelectItem";
 import { TriggerContent } from "./TriggerContent";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 const DEFAULT_LOADED_DASHBOARDS = 1000;
 const MAX_LOADED_DASHBOARDS = 10000;
@@ -76,6 +77,10 @@ const DashboardSelectBox: React.FC<DashboardSelectBoxProps> = ({
   const [deleteState, setDeleteState] = useState<DeleteState>({
     isOpen: false,
   });
+
+  const {
+    permissions: { canCreateDashboards },
+  } = usePermissions();
 
   const workspaceName = useAppStore((state) => state.activeWorkspaceName);
   const { mutate: deleteMutate } = useDashboardBatchDeleteMutation();
@@ -277,7 +282,11 @@ const DashboardSelectBox: React.FC<DashboardSelectBoxProps> = ({
                         onSelect={handleChangeDashboardId}
                         dashboard={dashboard}
                         onEdit={handleEditDashboard}
-                        onDuplicate={handleDuplicateDashboard}
+                        onDuplicate={
+                          canCreateDashboards
+                            ? handleDuplicateDashboard
+                            : undefined
+                        }
                         onDelete={handleDeleteDashboard}
                       />
                     ))}
@@ -304,12 +313,15 @@ const DashboardSelectBox: React.FC<DashboardSelectBoxProps> = ({
               </div>
             </>
           )}
-
-          <Separator className="my-1" />
-          <ListAction onClick={handleCreateNew}>
-            <Plus className="size-3.5 shrink-0" />
-            Add new
-          </ListAction>
+          {canCreateDashboards && (
+            <>
+              <Separator className="my-1" />
+              <ListAction onClick={handleCreateNew}>
+                <Plus className="size-3.5 shrink-0" />
+                Add new
+              </ListAction>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
