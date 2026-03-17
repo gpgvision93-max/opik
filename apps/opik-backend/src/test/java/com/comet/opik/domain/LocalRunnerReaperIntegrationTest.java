@@ -10,6 +10,7 @@ import com.comet.opik.api.runner.LocalRunnerJobResultRequest;
 import com.comet.opik.api.runner.LocalRunnerJobStatus;
 import com.comet.opik.api.runner.LocalRunnerPairResponse;
 import com.comet.opik.infrastructure.LocalRunnerConfig;
+import com.comet.opik.infrastructure.redis.StringRedisClient;
 import com.redis.testcontainers.RedisContainer;
 import io.dropwizard.util.Duration;
 import org.junit.jupiter.api.AfterAll;
@@ -26,7 +27,6 @@ import org.redisson.api.RMap;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RSet;
 import org.redisson.api.RedissonClient;
-import org.redisson.client.codec.StringCodec;
 import org.redisson.config.Config;
 
 import java.time.Instant;
@@ -50,6 +50,7 @@ class LocalRunnerReaperIntegrationTest {
 
     private final RedisContainer redis = RedisContainerUtils.newRedisContainer();
     private RedissonClient redisClient;
+    private StringRedisClient stringRedis;
     private LocalRunnerConfig runnerConfig;
     private IdGenerator idGenerator;
     private ProjectService projectService;
@@ -67,6 +68,7 @@ class LocalRunnerReaperIntegrationTest {
                 .setDatabase(0);
 
         redisClient = Redisson.create(config);
+        stringRedis = new StringRedisClient(redisClient);
 
         runnerConfig = new LocalRunnerConfig();
         runnerConfig.setEnabled(true);
@@ -85,7 +87,7 @@ class LocalRunnerReaperIntegrationTest {
         when(projectService.get(eq(PROJECT_ID), any())).thenReturn(
                 Project.builder().id(PROJECT_ID).name(PROJECT_NAME).build());
 
-        runnerService = new LocalRunnerServiceImpl(redisClient, runnerConfig, idGenerator, projectService);
+        runnerService = new LocalRunnerServiceImpl(stringRedis, runnerConfig, idGenerator, projectService);
     }
 
     @BeforeEach
@@ -149,8 +151,8 @@ class LocalRunnerReaperIntegrationTest {
             waitForHeartbeatExpiry();
             runnerService.reapDeadRunners();
 
-            RMap<String, String> jobMap = redisClient.getMap(
-                    "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+            RMap<String, String> jobMap = stringRedis.getMap(
+                    "opik:runners:job:" + jobId);
             assertThat(jobMap.get("status")).isEqualTo("failed");
             assertThat(jobMap.get("error")).isEqualTo("Runner disconnected");
         }
@@ -163,8 +165,8 @@ class LocalRunnerReaperIntegrationTest {
             waitForHeartbeatExpiry();
             runnerService.reapDeadRunners();
 
-            RMap<String, String> jobMap = redisClient.getMap(
-                    "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+            RMap<String, String> jobMap = stringRedis.getMap(
+                    "opik:runners:job:" + jobId);
             assertThat(jobMap.get("status")).isEqualTo("failed");
             assertThat(jobMap.get("error")).isEqualTo("Runner disconnected");
         }
@@ -176,16 +178,16 @@ class LocalRunnerReaperIntegrationTest {
             waitForHeartbeatExpiry();
             runnerService.reapDeadRunners();
 
-            RMap<String, String> runnerMap = redisClient.getMap(
-                    "opik:runners:runner:" + runnerId, StringCodec.INSTANCE);
+            RMap<String, String> runnerMap = stringRedis.getMap(
+                    "opik:runners:runner:" + runnerId);
             assertThat(runnerMap.isExists()).isFalse();
 
-            RBucket<String> hb = redisClient.getBucket(
-                    "opik:runners:runner:" + runnerId + ":heartbeat", StringCodec.INSTANCE);
+            RBucket<String> hb = stringRedis.getBucket(
+                    "opik:runners:runner:" + runnerId + ":heartbeat");
             assertThat(hb.isExists()).isFalse();
 
-            RScoredSortedSet<String> wsRunners = redisClient.getScoredSortedSet(
-                    "opik:runners:workspace:" + WORKSPACE_ID + ":runners", StringCodec.INSTANCE);
+            RScoredSortedSet<String> wsRunners = stringRedis.getScoredSortedSet(
+                    "opik:runners:workspace:" + WORKSPACE_ID + ":runners");
             assertThat(wsRunners.contains(runnerId.toString())).isFalse();
         }
 
@@ -195,8 +197,8 @@ class LocalRunnerReaperIntegrationTest {
 
             runnerService.reapDeadRunners();
 
-            RMap<String, String> runnerMap = redisClient.getMap(
-                    "opik:runners:runner:" + runnerId, StringCodec.INSTANCE);
+            RMap<String, String> runnerMap = stringRedis.getMap(
+                    "opik:runners:runner:" + runnerId);
             assertThat(runnerMap.isExists()).isTrue();
         }
 
@@ -207,8 +209,8 @@ class LocalRunnerReaperIntegrationTest {
             waitForHeartbeatExpiry();
             runnerService.reapDeadRunners();
 
-            RSet<String> workspaces = redisClient.getSet(
-                    "opik:runners:workspaces:with_runners", StringCodec.INSTANCE);
+            RSet<String> workspaces = stringRedis.getSet(
+                    "opik:runners:workspaces:with_runners");
             assertThat(workspaces.contains(WORKSPACE_ID)).isFalse();
         }
 
@@ -220,10 +222,10 @@ class LocalRunnerReaperIntegrationTest {
             waitForHeartbeatExpiry();
             runnerService.reapDeadRunners();
 
-            RMap<String, String> map1 = redisClient.getMap(
-                    "opik:runners:runner:" + runner1, StringCodec.INSTANCE);
-            RMap<String, String> map2 = redisClient.getMap(
-                    "opik:runners:runner:" + runner2, StringCodec.INSTANCE);
+            RMap<String, String> map1 = stringRedis.getMap(
+                    "opik:runners:runner:" + runner1);
+            RMap<String, String> map2 = stringRedis.getMap(
+                    "opik:runners:runner:" + runner2);
             assertThat(map1.isExists()).isFalse();
             assertThat(map2.isExists()).isFalse();
         }
@@ -236,8 +238,8 @@ class LocalRunnerReaperIntegrationTest {
             waitForHeartbeatExpiry();
             runnerService.reapDeadRunners();
 
-            RScoredSortedSet<String> runnerJobs = redisClient.getScoredSortedSet(
-                    "opik:runners:runner:" + runnerId + ":jobs", StringCodec.INSTANCE);
+            RScoredSortedSet<String> runnerJobs = stringRedis.getScoredSortedSet(
+                    "opik:runners:runner:" + runnerId + ":jobs");
             assertThat(runnerJobs.isExists()).isFalse();
         }
 
@@ -251,8 +253,8 @@ class LocalRunnerReaperIntegrationTest {
                 waitForHeartbeatExpiry();
                 runnerService.reapDeadRunners();
 
-                RMap<String, String> runnerMap = redisClient.getMap(
-                        "opik:runners:runner:" + runnerId, StringCodec.INSTANCE);
+                RMap<String, String> runnerMap = stringRedis.getMap(
+                        "opik:runners:runner:" + runnerId);
                 assertThat(runnerMap.get("disconnected_at")).isNotBlank();
             } finally {
                 runnerConfig.setDeadRunnerPurgeTime(originalPurgeTime);
@@ -273,8 +275,8 @@ class LocalRunnerReaperIntegrationTest {
             UUID jobId = createTestJob(WORKSPACE_ID, USER_NAME, AGENT_NAME);
             runnerService.nextJob(runnerId, WORKSPACE_ID, USER_NAME).toCompletableFuture().join();
 
-            RMap<String, String> jobMap = redisClient.getMap(
-                    "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+            RMap<String, String> jobMap = stringRedis.getMap(
+                    "opik:runners:job:" + jobId);
             jobMap.put("started_at", Instant.now().minus(java.time.Duration.ofSeconds(120)).toString());
 
             runnerService.reapDeadRunners();
@@ -292,8 +294,8 @@ class LocalRunnerReaperIntegrationTest {
 
             runnerService.reapDeadRunners();
 
-            RMap<String, String> jobMap = redisClient.getMap(
-                    "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+            RMap<String, String> jobMap = stringRedis.getMap(
+                    "opik:runners:job:" + jobId);
             assertThat(jobMap.get("status")).isEqualTo("running");
         }
 
@@ -306,8 +308,8 @@ class LocalRunnerReaperIntegrationTest {
                 UUID jobId = createTestJob(WORKSPACE_ID, USER_NAME, AGENT_NAME);
                 runnerService.nextJob(runnerId, WORKSPACE_ID, USER_NAME).toCompletableFuture().join();
 
-                RMap<String, String> jobMap = redisClient.getMap(
-                        "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+                RMap<String, String> jobMap = stringRedis.getMap(
+                        "opik:runners:job:" + jobId);
                 jobMap.remove("timeout");
 
                 jobMap.put("started_at", Instant.now().minus(java.time.Duration.ofSeconds(30)).toString());
@@ -331,14 +333,14 @@ class LocalRunnerReaperIntegrationTest {
             UUID jobId = createTestJob(WORKSPACE_ID, USER_NAME, AGENT_NAME);
             runnerService.nextJob(runnerId, WORKSPACE_ID, USER_NAME).toCompletableFuture().join();
 
-            RMap<String, String> jobMap = redisClient.getMap(
-                    "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+            RMap<String, String> jobMap = stringRedis.getMap(
+                    "opik:runners:job:" + jobId);
             jobMap.put("started_at", Instant.now().minus(java.time.Duration.ofSeconds(30)).toString());
 
             runnerService.reapDeadRunners();
 
-            RList<String> activeJobs = redisClient.getList(
-                    "opik:runners:jobs:" + runnerId + ":active", StringCodec.INSTANCE);
+            RList<String> activeJobs = stringRedis.getList(
+                    "opik:runners:jobs:" + runnerId + ":active");
             assertThat(activeJobs.readAll()).doesNotContain(jobId.toString());
         }
 
@@ -352,8 +354,8 @@ class LocalRunnerReaperIntegrationTest {
             UUID jobId = createTestJob(WORKSPACE_ID, USER_NAME, AGENT_NAME);
             runnerService.nextJob(runnerId, WORKSPACE_ID, USER_NAME).toCompletableFuture().join();
 
-            RMap<String, String> jobMap = redisClient.getMap(
-                    "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+            RMap<String, String> jobMap = stringRedis.getMap(
+                    "opik:runners:job:" + jobId);
             jobMap.put("started_at", Instant.now().minus(java.time.Duration.ofSeconds(30)).toString());
 
             runnerService.reapDeadRunners();
@@ -375,8 +377,8 @@ class LocalRunnerReaperIntegrationTest {
             runnerService.reportResult(jobId, WORKSPACE_ID, USER_NAME,
                     LocalRunnerJobResultRequest.builder().status(LocalRunnerJobStatus.COMPLETED).build());
 
-            RMap<String, String> jobMap = redisClient.getMap(
-                    "opik:runners:job:" + jobId, StringCodec.INSTANCE);
+            RMap<String, String> jobMap = stringRedis.getMap(
+                    "opik:runners:job:" + jobId);
             jobMap.put("started_at", Instant.now().minus(java.time.Duration.ofSeconds(30)).toString());
 
             runnerService.reapDeadRunners();
