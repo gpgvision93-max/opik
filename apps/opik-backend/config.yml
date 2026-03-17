@@ -783,6 +783,7 @@ localRunner:
   nextJobPollTimeout: ${OPIK_RUNNER_NEXT_JOB_POLL_TIMEOUT:-10s}
   deadRunnerPurgeTime: ${OPIK_RUNNER_DEAD_PURGE_HOURS:-24h}
   completedJobTtl: ${OPIK_RUNNER_COMPLETED_JOB_TTL:-7d}
+  reaperJobInterval: ${OPIK_RUNNER_REAPER_JOB_INTERVAL:-60s}
   reaperLockDuration: ${OPIK_RUNNER_REAPER_LOCK_DURATION:-55s}
   reaperLockWait: ${OPIK_RUNNER_REAPER_LOCK_WAIT:-5s}
   nextJobAsyncTimeoutBuffer: ${OPIK_RUNNER_ASYNC_TIMEOUT_BUFFER:-5s}

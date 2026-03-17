@@ -40,6 +40,10 @@ public class LocalRunnerConfig {
 
     @Valid @NotNull @JsonProperty
     @MinDuration(value = 1, unit = TimeUnit.SECONDS)
+    private Duration reaperJobInterval = Duration.seconds(60);
+
+    @Valid @NotNull @JsonProperty
+    @MinDuration(value = 1, unit = TimeUnit.SECONDS)
     private Duration reaperLockDuration = Duration.seconds(55);
 
     @Valid @NotNull @JsonProperty
