@@ -1439,6 +1439,11 @@ paths:
         schema:
           type: string
           description: "Filter dashboards by name (partial match, case insensitive)"
+      - name: project_id
+        in: query
+        schema:
+          type: string
+          format: uuid
       - name: sorting
         in: query
         schema:
@@ -1672,6 +1677,11 @@ paths:
         schema:
           type: boolean
       - name: prompt_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: project_id
         in: query
         schema:
           type: string
@@ -4394,6 +4404,14 @@ paths:
         in: query
         schema:
           type: string
+      - name: exclude_category_names
+        in: query
+        schema:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+            default: suite_assertion
       responses:
         "200":
           description: Feedback Scores resource
@@ -4562,6 +4580,11 @@ paths:
         schema:
           type: string
           description: "Filter prompts by name (partial match, case insensitive)"
+      - name: project_id
+        in: query
+        schema:
+          type: string
+          format: uuid
       - name: sorting
         in: query
         schema:
@@ -5998,6 +6021,14 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: exclude_category_names
+        in: query
+        schema:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+            default: suite_assertion
       responses:
         "200":
           description: Find Trace Threads Feedback Score names
@@ -9996,6 +10027,11 @@ components:
         workspace_id:
           type: string
           readOnly: true
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
         name:
           maxLength: 120
           minLength: 1
@@ -10039,6 +10075,18 @@ components:
       - name
       type: object
       properties:
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
+        project_name:
+          pattern: (?s)^\s*(\S.*\S|\S)\s*$
+          type: string
+          description: "For project scope, specify either project_id or project_name.\
+            \ If project_name is provided and the project does not exist, it will\
+            \ be created. Ignored when project_id is provided. If neither is provided,\
+            \ the dashboard is created at workspace level."
         name:
           maxLength: 120
           minLength: 1
@@ -10215,8 +10263,7 @@ components:
           minimum: 1
           type: integer
           format: int32
-      description: Execution policy captured from dataset item version at creation
-        time.
+      description: Default execution policy for items in this version
       readOnly: true
     DatasetItemChanges_Public:
       type: object
@@ -10374,9 +10421,6 @@ components:
           minimum: 1
           type: integer
           format: int32
-      description: Execution policy captured from dataset item version at creation
-        time.
-      readOnly: true
     Dataset:
       required:
       - name
@@ -10388,6 +10432,18 @@ components:
         name:
           minLength: 1
           type: string
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
+        project_name:
+          pattern: (?s)^\s*(\S.*\S|\S)\s*$
+          type: string
+          description: "For project scope, specify either project_id or project_name.\
+            \ If project_name is provided and the project does not exist, it will\
+            \ be created. Ignored when project_id is provided. If neither is provided,\
+            \ the dataset is created at workspace level."
         type:
           type: string
           enum:
@@ -10496,6 +10552,18 @@ components:
         name:
           minLength: 1
           type: string
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
+        project_name:
+          pattern: (?s)^\s*(\S.*\S|\S)\s*$
+          type: string
+          description: "For project scope, specify either project_id or project_name.\
+            \ If project_name is provided and the project does not exist, it will\
+            \ be created. Ignored when project_id is provided. If neither is provided,\
+            \ the dataset is created at workspace level."
         type:
           type: string
           enum:
@@ -10516,6 +10584,16 @@ components:
           minLength: 0
           pattern: (?s)^\s*(\S.*\S|\S)\s*$
           type: string
+    AssertionResult:
+      type: object
+      properties:
+        value:
+          type: string
+        passed:
+          type: boolean
+        reason:
+          type: string
+      readOnly: true
     Comment:
       required:
       - text
@@ -10589,6 +10667,11 @@ components:
           readOnly: true
           items:
             $ref: "#/components/schemas/ExperimentItem"
+        run_summaries_by_experiment:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ExperimentRunSummary"
+          readOnly: true
         dataset_id:
           type: string
           format: uuid
@@ -10709,8 +10792,32 @@ components:
         description:
           type: string
           readOnly: true
-        execution_policy:
-          $ref: "#/components/schemas/ExecutionPolicy"
+        assertion_results:
+          type: array
+          readOnly: true
+          items:
+            $ref: "#/components/schemas/AssertionResult"
+        status:
+          type: string
+          readOnly: true
+          enum:
+          - passed
+          - failed
+    ExperimentRunSummary:
+      type: object
+      properties:
+        passed_runs:
+          type: integer
+          format: int32
+        total_runs:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - passed
+          - failed
+      readOnly: true
     FeedbackScore:
       required:
       - name
@@ -11080,6 +11187,16 @@ components:
           type: string
           description: Custom prompt to use for generation instead of auto-generated
             one
+    AssertionResult_Compare:
+      type: object
+      properties:
+        value:
+          type: string
+        passed:
+          type: boolean
+        reason:
+          type: string
+      readOnly: true
     Column_Compare:
       type: object
       properties:
@@ -11202,6 +11319,11 @@ components:
           readOnly: true
           items:
             $ref: "#/components/schemas/ExperimentItem_Compare"
+        run_summaries_by_experiment:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ExperimentRunSummary_Compare"
+          readOnly: true
         dataset_id:
           type: string
           format: uuid
@@ -11250,9 +11372,6 @@ components:
           minimum: 1
           type: integer
           format: int32
-      description: Execution policy captured from dataset item version at creation
-        time.
-      readOnly: true
     ExperimentItem_Compare:
       required:
       - dataset_item_id
@@ -11327,8 +11446,32 @@ components:
         description:
           type: string
           readOnly: true
-        execution_policy:
-          $ref: "#/components/schemas/ExecutionPolicy_Compare"
+        assertion_results:
+          type: array
+          readOnly: true
+          items:
+            $ref: "#/components/schemas/AssertionResult_Compare"
+        status:
+          type: string
+          readOnly: true
+          enum:
+          - passed
+          - failed
+      readOnly: true
+    ExperimentRunSummary_Compare:
+      type: object
+      properties:
+        passed_runs:
+          type: integer
+          format: int32
+        total_runs:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - passed
+          - failed
       readOnly: true
     FeedbackScore_Compare:
       required:
@@ -11466,6 +11609,11 @@ components:
         name:
           minLength: 1
           type: string
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
         type:
           type: string
           enum:
@@ -11702,6 +11850,11 @@ components:
           readOnly: true
           items:
             $ref: "#/components/schemas/ExperimentItem_Public"
+        run_summaries_by_experiment:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ExperimentRunSummary_Public"
+          readOnly: true
         dataset_id:
           type: string
           format: uuid
@@ -11763,8 +11916,21 @@ components:
           enum:
           - default
           - hidden
-        execution_policy:
-          $ref: "#/components/schemas/ExecutionPolicy_Public"
+    ExperimentRunSummary_Public:
+      type: object
+      properties:
+        passed_runs:
+          type: integer
+          format: int32
+        total_runs:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - passed
+          - failed
+      readOnly: true
     Column_Public:
       type: object
       properties:
@@ -12089,6 +12255,7 @@ components:
         dataset_name:
           minLength: 1
           type: string
+          nullable: true
         dataset_id:
           type: string
           format: uuid
@@ -12260,6 +12427,7 @@ components:
         dataset_name:
           minLength: 1
           type: string
+          nullable: true
         name:
           type: string
         metadata:
@@ -13012,6 +13180,7 @@ components:
         dataset_name:
           minLength: 1
           type: string
+          nullable: true
         dataset_id:
           type: string
           format: uuid
@@ -15501,6 +15670,18 @@ components:
         name:
           minLength: 1
           type: string
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
+        project_name:
+          pattern: (?s)^\s*(\S.*\S|\S)\s*$
+          type: string
+          description: "For project scope, specify either project_id or project_name.\
+            \ If project_name is provided and the project does not exist, it will\
+            \ be created. Ignored when project_id is provided. If neither is provided,\
+            \ the prompt is created at workspace level."
         description:
           maxLength: 255
           minLength: 0
@@ -15621,6 +15802,18 @@ components:
         name:
           minLength: 1
           type: string
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
+        project_name:
+          pattern: (?s)^\s*(\S.*\S|\S)\s*$
+          type: string
+          description: "For project scope, specify either project_id or project_name.\
+            \ If project_name is provided and the project does not exist, it will\
+            \ be created. Ignored when project_id is provided. If neither is provided,\
+            \ the prompt is created at workspace level."
         description:
           maxLength: 255
           minLength: 0
@@ -15762,6 +15955,11 @@ components:
         name:
           minLength: 1
           type: string
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
         description:
           maxLength: 255
           minLength: 0
@@ -15902,6 +16100,11 @@ components:
         name:
           minLength: 1
           type: string
+        project_id:
+          type: string
+          description: Project ID. Takes precedence over project_name when both are
+            provided.
+          format: uuid
         description:
           maxLength: 255
           minLength: 0
