@@ -5,6 +5,7 @@ a mask passed through OPIK_MASK_ID at job creation time.
 """
 
 from opik import track, agent_config
+from opik.runner.activate import activate_runner
 
 
 @agent_config()
@@ -18,6 +19,8 @@ def echo_config(message: str) -> str:
     cfg = EchoConfig()
     return f"{cfg.greeting}: {message}"
 
+
+activate_runner()
 
 if __name__ == "__main__":
     result = echo_config("hello")

@@ -54,12 +54,14 @@ def submit_job(
     api: rest_api_client.OpikApi,
     agent_name: str,
     message: str,
+    project_id: str,
     mask_id: Optional[str] = None,
 ) -> None:
     """Create a job for the given agent."""
     api.runners.create_job(
         agent_name=agent_name,
         inputs={"message": message},
+        project_id=project_id,
         mask_id=mask_id,
     )
 
@@ -111,14 +113,16 @@ def find_trace_by_input(
     return _find()
 
 
-def wait_for_agent_registration(api: rest_api_client.OpikApi, agent_name: str) -> None:
-    """Poll until the agent is registered with any runner in the workspace.
+def wait_for_agent_registration(
+    api: rest_api_client.OpikApi, agent_name: str, project_id: str
+) -> None:
+    """Poll until the agent is registered with any runner in the project.
 
     Raises a pytest.fail if the agent is not registered within the timeout.
     """
 
     def _is_agent_registered():
-        runners_page = api.runners.list_runners(size=50)
+        runners_page = api.runners.list_runners(project_id=project_id, size=50)
         if runners_page.content:
             for runner in runners_page.content:
                 if runner.agents:
@@ -168,18 +172,22 @@ def subprocess_env():
 
 
 @pytest.fixture()
-def runner_process(api_client, subprocess_env, request):
-    """Start ``opik connect --pair <code> <python> <app>`` and yield the runner_id."""
-    app_path = getattr(request, "param", ECHO_APP)
-
+def project_id(api_client):
+    """Create or resolve the e2e tests project and yield its ID."""
     try:
         api_client.projects.create_project(name=OPIK_E2E_TESTS_PROJECT_NAME)
     except rest_api_core.ApiError:
         pass
-    project_id = rest_helpers.resolve_project_id_by_name(
+    pid = rest_helpers.resolve_project_id_by_name(
         api_client, OPIK_E2E_TESTS_PROJECT_NAME
     )
+    yield pid
 
+
+@pytest.fixture()
+def runner_process(api_client, subprocess_env, project_id, request):
+    """Start ``opik connect --pair <code> <python> <app>`` and yield the runner_id."""
+    app_path = getattr(request, "param", ECHO_APP)
     pair = api_client.runners.generate_pairing_code(project_id=project_id)
 
     proc = subprocess.Popen(
@@ -231,14 +239,14 @@ def runner_process(api_client, subprocess_env, request):
 # ---------------------------------------------------------------------------
 
 
-def test_runner_happy_path(api_client, runner_process):
+def test_runner_happy_path(api_client, runner_process, project_id):
     """Basic: register echo agent, run job, verify job result and trace output."""
     register_agent(ECHO_APP)
     message = f"hello-e2e-{int(time.time())}"
 
-    wait_for_agent_registration(api_client, "echo")
+    wait_for_agent_registration(api_client, "echo", project_id)
 
-    submit_job(api_client, "echo", message)
+    submit_job(api_client, "echo", message, project_id)
 
     job = wait_for_completed_job(api_client, runner_process, message)
     assert job.result is not None, "Completed job should have a result"
@@ -249,13 +257,13 @@ def test_runner_happy_path(api_client, runner_process):
 
 
 @pytest.mark.parametrize("runner_process", [ECHO_CONFIG_APP], indirect=True)
-def test_runner_with_mask(api_client, runner_process):
+def test_runner_with_mask(api_client, runner_process, project_id):
     """Mask: register echo_config agent, create mask, verify mask value in job result and trace."""
     register_agent(ECHO_CONFIG_APP)
     message = f"mask-e2e-{int(time.time())}"
     custom_greeting = f"custom-greeting-{int(time.time())}"
 
-    wait_for_agent_registration(api_client, "echo_config")
+    wait_for_agent_registration(api_client, "echo_config", project_id)
 
     # Create a mask overriding the default greeting
     opik_client = Opik()
@@ -267,7 +275,7 @@ def test_runner_with_mask(api_client, runner_process):
     finally:
         opik_client.end()
 
-    submit_job(api_client, "echo_config", message, mask_id=mask_id)
+    submit_job(api_client, "echo_config", message, project_id, mask_id=mask_id)
 
     job = wait_for_completed_job(api_client, runner_process, message)
     assert job.result is not None, "Completed job should have a result"
