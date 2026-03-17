@@ -29,12 +29,17 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomUtils;
-import org.redisson.api.RBlockingDeque;
+import org.redisson.api.RBlockingDequeReactive;
 import org.redisson.api.RBucket;
 import org.redisson.api.RList;
+import org.redisson.api.RListReactive;
 import org.redisson.api.RMap;
+import org.redisson.api.RMapReactive;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RSet;
+import org.redisson.api.RedissonReactiveClient;
+import org.redisson.client.codec.StringCodec;
+import reactor.core.publisher.Mono;
 
 import java.io.UncheckedIOException;
 import java.time.Duration;
@@ -45,7 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 @ImplementedBy(LocalRunnerServiceImpl.class)
@@ -65,7 +69,7 @@ public interface LocalRunnerService {
 
     UUID createJob(String workspaceId, String userName, CreateLocalRunnerJobRequest request);
 
-    CompletionStage<LocalRunnerJob> nextJob(UUID runnerId, String workspaceId, String userName);
+    Mono<LocalRunnerJob> nextJob(UUID runnerId, String workspaceId, String userName);
 
     LocalRunnerJob.LocalRunnerJobPage listJobs(UUID runnerId, UUID projectId, String workspaceId, String userName,
             int page, int size);
@@ -177,6 +181,7 @@ class LocalRunnerServiceImpl implements LocalRunnerService {
     private static final String FIELD_METADATA = "metadata";
 
     private final @NonNull StringRedisClient redisClient;
+    private final @NonNull RedissonReactiveClient reactiveRedisClient;
     private final @NonNull LocalRunnerConfig runnerConfig;
     private final @NonNull IdGenerator idGenerator;
     private final @NonNull ProjectService projectService;
@@ -433,33 +438,29 @@ class LocalRunnerServiceImpl implements LocalRunnerService {
     }
 
     @Override
-    public CompletionStage<LocalRunnerJob> nextJob(@NonNull UUID runnerId, @NonNull String workspaceId,
+    public Mono<LocalRunnerJob> nextJob(@NonNull UUID runnerId, @NonNull String workspaceId,
             @NonNull String userName) {
         validateRunnerOwnership(runnerId, workspaceId, userName);
 
         String pendingKey = pendingJobsKey(runnerId);
         String activeKey = activeJobsKey(runnerId);
 
-        RBlockingDeque<String> blockingDeque = redisClient.getBlockingDeque(pendingKey);
+        RBlockingDequeReactive<String> blockingDeque = reactiveRedisClient.getBlockingDeque(pendingKey,
+                StringCodec.INSTANCE);
 
-        return blockingDeque.pollFirstAsync(runnerConfig.getNextJobPollTimeout().toSeconds(), TimeUnit.SECONDS)
-                .thenApplyAsync(jobIdStr -> {
-                    if (jobIdStr == null) {
-                        return null;
-                    }
-
-                    RList<String> activeList = redisClient.getList(activeKey);
-                    activeList.add(jobIdStr);
-
-                    UUID jobId = UUID.fromString(jobIdStr);
-                    RMap<String, String> jobMap = redisClient.getMap(
-                            jobKey(jobId));
+        return blockingDeque.pollFirst(runnerConfig.getNextJobPollTimeout().toSeconds(), TimeUnit.SECONDS)
+                .flatMap(jobIdStr -> {
+                    RListReactive<String> activeList = reactiveRedisClient.getList(activeKey, StringCodec.INSTANCE);
+                    RMapReactive<String, String> jobMap = reactiveRedisClient.getMap(
+                            jobKey(UUID.fromString(jobIdStr)), StringCodec.INSTANCE);
                     String now = Instant.now().toString();
-                    jobMap.put(FIELD_STATUS, LocalRunnerJobStatus.RUNNING.getValue());
-                    jobMap.put(FIELD_STARTED_AT, now);
-                    jobMap.put(FIELD_LAST_HEARTBEAT, now);
 
-                    return buildRunnerJob(jobMap.readAllMap());
+                    return activeList.add(jobIdStr)
+                            .then(jobMap.put(FIELD_STATUS, LocalRunnerJobStatus.RUNNING.getValue()))
+                            .then(jobMap.put(FIELD_STARTED_AT, now))
+                            .then(jobMap.put(FIELD_LAST_HEARTBEAT, now))
+                            .then(jobMap.readAllMap())
+                            .map(this::buildRunnerJob);
                 });
     }
 
