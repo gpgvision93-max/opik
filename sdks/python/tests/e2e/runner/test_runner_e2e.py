@@ -265,10 +265,11 @@ def test_runner_with_mask(api_client, runner_process, project_id):
 
     wait_for_agent_registration(api_client, "echo_config", project_id)
 
-    # Create a mask overriding the default greeting
     opik_client = Opik()
     try:
-        agent_config = opik_client.get_agent_config()
+        agent_config = opik_client.get_agent_config(
+            project_name=OPIK_E2E_TESTS_PROJECT_NAME
+        )
         mask_id = agent_config.create_mask(
             parameters={"EchoConfig.greeting": custom_greeting},
         )
