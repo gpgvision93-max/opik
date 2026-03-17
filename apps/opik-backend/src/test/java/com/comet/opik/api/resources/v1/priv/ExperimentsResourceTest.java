@@ -99,6 +99,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.HttpStatus;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
+import org.assertj.core.data.Offset;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -8112,6 +8113,151 @@ class ExperimentsResourceTest {
             assertThat(streamedItem.assertionResults()).isNull();
             assertThat(streamedItem.status()).isNull();
             assertThat(streamedItem.feedbackScores()).hasSize(1);
+        }
+    }
+
+    @Nested
+    @DisplayName("Assertion Scores Aggregation in Experiment Response:")
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    class AssertionScoresAggregation {
+
+        @BeforeEach
+        void setUp() {
+            Mockito.reset(defaultEventBus);
+        }
+
+        private FeedbackScoreBatchItem assertionScore(Trace trace, String name, BigDecimal value) {
+            return FeedbackScoreBatchItem.builder()
+                    .id(trace.id())
+                    .projectName(trace.projectName())
+                    .name(name)
+                    .categoryName("suite_assertion")
+                    .value(value)
+                    .source(ScoreSource.SDK)
+                    .build();
+        }
+
+        private FeedbackScoreBatchItem regularScore(Trace trace, String name, BigDecimal value) {
+            return FeedbackScoreBatchItem.builder()
+                    .id(trace.id())
+                    .projectName(trace.projectName())
+                    .name(name)
+                    .value(value)
+                    .source(ScoreSource.SDK)
+                    .build();
+        }
+
+        @Test
+        @DisplayName("when evaluation_suite has assertion scores, then return per-assertion averages")
+        void findEvaluationSuiteExperiment__thenReturnAssertionScores() {
+            var workspaceName = UUID.randomUUID().toString();
+            var workspaceId = UUID.randomUUID().toString();
+            var apiKey = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var experiment = experimentResourceClient.createPartialExperiment()
+                    .evaluationMethod(EvaluationMethod.EVALUATION_SUITE)
+                    .optimizationId(null)
+                    .build();
+            createAndAssert(experiment, apiKey, workspaceName);
+
+            var trace1 = podamFactory.manufacturePojo(Trace.class);
+            var trace2 = podamFactory.manufacturePojo(Trace.class);
+            var trace3 = podamFactory.manufacturePojo(Trace.class);
+            traceResourceClient.batchCreateTraces(List.of(trace1, trace2, trace3), apiKey, workspaceName);
+
+            var item1 = podamFactory.manufacturePojo(ExperimentItem.class).toBuilder()
+                    .experimentId(experiment.id()).traceId(trace1.id()).build();
+            var item2 = podamFactory.manufacturePojo(ExperimentItem.class).toBuilder()
+                    .experimentId(experiment.id()).traceId(trace2.id()).build();
+            var item3 = podamFactory.manufacturePojo(ExperimentItem.class).toBuilder()
+                    .experimentId(experiment.id()).traceId(trace3.id()).build();
+            createAndAssert(new ExperimentItemsBatch(Set.of(item1, item2, item3)), apiKey, workspaceName);
+
+            // assertion "check_links": passes on trace1 (1.0), fails on trace2 (0.0), passes on trace3 (1.0) → avg ~0.667
+            // assertion "check_format": passes on all 3 traces (1.0) → avg = 1.0
+            var scores = List.of(
+                    assertionScore(trace1, "check_links", BigDecimal.ONE),
+                    assertionScore(trace2, "check_links", BigDecimal.ZERO),
+                    assertionScore(trace3, "check_links", BigDecimal.ONE),
+                    assertionScore(trace1, "check_format", BigDecimal.ONE),
+                    assertionScore(trace2, "check_format", BigDecimal.ONE),
+                    assertionScore(trace3, "check_format", BigDecimal.ONE));
+            createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
+
+            var actual = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
+
+            assertThat(actual.assertionScores()).isNotNull();
+            assertThat(actual.assertionScores()).hasSize(2);
+
+            Map<String, BigDecimal> scoreMap = actual.assertionScores().stream()
+                    .collect(Collectors.toMap(FeedbackScoreAverage::name, FeedbackScoreAverage::value));
+
+            assertThat(scoreMap).containsKey("check_links");
+            assertThat(scoreMap).containsKey("check_format");
+            assertThat(scoreMap.get("check_links").doubleValue()).isCloseTo(0.666666667, Offset.offset(0.01));
+            assertThat(scoreMap.get("check_format").doubleValue()).isCloseTo(1.0, Offset.offset(0.01));
+        }
+
+        @Test
+        @DisplayName("when regular experiment (not evaluation_suite), then assertionScores is null")
+        void findRegularExperiment__thenAssertionScoresIsNull() {
+            var workspaceName = UUID.randomUUID().toString();
+            var workspaceId = UUID.randomUUID().toString();
+            var apiKey = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var experiment = experimentResourceClient.createPartialExperiment()
+                    .optimizationId(null)
+                    .build();
+            createAndAssert(experiment, apiKey, workspaceName);
+
+            var trace = podamFactory.manufacturePojo(Trace.class);
+            traceResourceClient.batchCreateTraces(List.of(trace), apiKey, workspaceName);
+
+            var item = podamFactory.manufacturePojo(ExperimentItem.class).toBuilder()
+                    .experimentId(experiment.id()).traceId(trace.id()).build();
+            createAndAssert(new ExperimentItemsBatch(Set.of(item)), apiKey, workspaceName);
+
+            var scores = List.of(regularScore(trace, "accuracy", BigDecimal.valueOf(0.85)));
+            createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
+
+            var actual = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
+            assertThat(actual.assertionScores()).isNull();
+        }
+
+        @Test
+        @DisplayName("when evaluation_suite has mixed scores, then assertionScores only contains suite_assertion scores")
+        void findEvaluationSuiteExperiment__mixedScores__thenOnlyAssertionScoresReturned() {
+            var workspaceName = UUID.randomUUID().toString();
+            var workspaceId = UUID.randomUUID().toString();
+            var apiKey = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            var experiment = experimentResourceClient.createPartialExperiment()
+                    .evaluationMethod(EvaluationMethod.EVALUATION_SUITE)
+                    .optimizationId(null)
+                    .build();
+            createAndAssert(experiment, apiKey, workspaceName);
+
+            var trace = podamFactory.manufacturePojo(Trace.class);
+            traceResourceClient.batchCreateTraces(List.of(trace), apiKey, workspaceName);
+
+            var item = podamFactory.manufacturePojo(ExperimentItem.class).toBuilder()
+                    .experimentId(experiment.id()).traceId(trace.id()).build();
+            createAndAssert(new ExperimentItemsBatch(Set.of(item)), apiKey, workspaceName);
+
+            var scores = List.of(
+                    regularScore(trace, "accuracy", BigDecimal.valueOf(0.85)),
+                    assertionScore(trace, "check_links", BigDecimal.ONE));
+            createScoreAndAssert(FeedbackScoreBatch.builder().scores(scores).build(), apiKey, workspaceName);
+
+            var actual = experimentResourceClient.getExperiment(experiment.id(), apiKey, workspaceName);
+
+            assertThat(actual.assertionScores()).isNotNull();
+            assertThat(actual.assertionScores()).hasSize(1);
+            assertThat(actual.assertionScores().getFirst().name()).isEqualTo("check_links");
+            assertThat(actual.assertionScores().getFirst().value().doubleValue()).isCloseTo(1.0, Offset.offset(0.01));
         }
     }
 }
