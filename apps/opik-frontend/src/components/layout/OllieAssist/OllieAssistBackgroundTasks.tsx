@@ -44,8 +44,8 @@ const BgTaskRow: React.FC<{
     onClick={onSelect}
     className={
       isActive
-        ? "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs text-foreground bg-muted"
-        : "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        ? "flex items-center gap-1.5 rounded bg-muted px-1.5 py-0.5 text-xs text-foreground"
+        : "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground"
     }
   >
     <span className="relative flex size-1.5 shrink-0">

@@ -1,7 +1,11 @@
 import React, { useCallback, useMemo } from "react";
 import MarkdownPreview from "@/components/shared/MarkdownPreview/MarkdownPreview";
 import useOllieAssistStore from "./OllieAssistStore";
-import { OllieContentBlock, OllieMessage, OllieToolCall } from "./OllieAssistStore";
+import {
+  OllieContentBlock,
+  OllieMessage,
+  OllieToolCall,
+} from "./OllieAssistStore";
 import { fetchThread } from "./useThreads";
 import OllieAssistToolCallGroup from "./OllieAssistToolCallGroup";
 import OllieAssistSubAgent from "./OllieAssistSubAgent";
@@ -9,7 +13,11 @@ import OllieAssistSubAgent from "./OllieAssistSubAgent";
 type RenderGroup =
   | { type: "text"; text: string; key: number }
   | { type: "tool_group"; toolCalls: OllieToolCall[]; key: number }
-  | { type: "subagent"; block: OllieContentBlock & { type: "subagent" }; key: number };
+  | {
+      type: "subagent";
+      block: OllieContentBlock & { type: "subagent" };
+      key: number;
+    };
 
 const groupBlocks = (blocks: OllieContentBlock[]): RenderGroup[] => {
   const groups: RenderGroup[] = [];
@@ -43,7 +51,8 @@ type OllieAssistMessageProps = {
   message: OllieMessage;
 };
 
-const THREAD_LINK_RE = /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/g;
+const THREAD_LINK_RE =
+  /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/g;
 
 const injectThreadLinks = (text: string): string =>
   text.replace(THREAD_LINK_RE, "[$1](#ollie-thread-$1)");
@@ -93,7 +102,7 @@ const OllieAssistMessage: React.FC<OllieAssistMessageProps> = ({ message }) => {
       <div>
         {message.isThinking && (
           <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+            <span className="inline-block size-2.5 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
             Thinking...
           </div>
         )}

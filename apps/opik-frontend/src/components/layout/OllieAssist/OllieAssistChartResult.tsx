@@ -127,10 +127,7 @@ const OllieAssistChartResult: React.FC<Props> = ({ spec }) => {
   }, [spec]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full overflow-hidden rounded p-2"
-    />
+    <div ref={containerRef} className="w-full overflow-hidden rounded p-2" />
   );
 };
 

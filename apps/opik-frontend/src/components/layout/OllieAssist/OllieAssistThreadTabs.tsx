@@ -25,9 +25,7 @@ const ThreadTab: React.FC<{
         <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
       </span>
     )}
-    <span className="max-w-[120px] truncate">
-      {thread.title || "New chat"}
-    </span>
+    <span className="max-w-[120px] truncate">{thread.title || "New chat"}</span>
     <span
       role="button"
       className="ml-0.5 hidden rounded p-0.5 hover:bg-muted group-hover:inline-flex"
@@ -75,7 +73,7 @@ const OllieAssistThreadTabs: React.FC = () => {
     <div className="flex shrink-0 items-center border-b border-border bg-muted/30">
       <div
         ref={scrollRef}
-        className="flex flex-1 items-center overflow-x-auto scrollbar-none"
+        className="scrollbar-none flex flex-1 items-center overflow-x-auto"
       >
         {threadEntries.map(([id, thread]) => (
           <div key={id} data-thread-id={id}>

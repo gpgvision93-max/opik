@@ -13,9 +13,7 @@ const useScheduleDeleteMutation = () => {
 
   return useMutation({
     mutationFn: async ({ scheduleId }: UseScheduleDeleteMutationParams) => {
-      const { data } = await ollieAssistApi.delete(
-        `/schedules/${scheduleId}`,
-      );
+      const { data } = await ollieAssistApi.delete(`/schedules/${scheduleId}`);
       return data;
     },
     onError: (error) => {

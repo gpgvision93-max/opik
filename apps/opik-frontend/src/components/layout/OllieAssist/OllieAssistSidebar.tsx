@@ -19,10 +19,18 @@ const OllieAssistSidebar: React.FC = () => {
   const activeThreadId = useOllieAssistStore((s) => s.activeThreadId);
   const showNewThread = useOllieAssistStore((s) => s.showNewThread);
   const threads = useOllieAssistStore((s) => s.threads);
-  const { sendMessage, attachToSession, abort, confirmTool, abortBackgroundSession } = useOllieAssistSSE();
+  const {
+    sendMessage,
+    attachToSession,
+    abort,
+    confirmTool,
+    abortBackgroundSession,
+  } = useOllieAssistSSE();
   const setConfirmTool = useOllieAssistStore((s) => s.setConfirmTool);
   const setAttachToSession = useOllieAssistStore((s) => s.setAttachToSession);
-  const setAbortBackgroundSession = useOllieAssistStore((s) => s.setAbortBackgroundSession);
+  const setAbortBackgroundSession = useOllieAssistStore(
+    (s) => s.setAbortBackgroundSession,
+  );
 
   const hasThreads = Object.keys(threads).length > 0;
   const showLanding = showNewThread || !activeThreadId;
@@ -113,11 +121,7 @@ const OllieAssistSidebar: React.FC = () => {
         <OllieAssistBackgroundTasks />
 
         {/* Content area */}
-        {showLanding ? (
-          <OllieAssistNewThread />
-        ) : (
-          <OllieAssistMessages />
-        )}
+        {showLanding ? <OllieAssistNewThread /> : <OllieAssistMessages />}
 
         <OllieAssistInput onSend={sendMessage} onStop={abort} />
       </div>

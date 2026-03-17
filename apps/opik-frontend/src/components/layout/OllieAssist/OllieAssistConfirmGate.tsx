@@ -54,9 +54,7 @@ const OllieAssistConfirmGate: React.FC<Props> = ({
       </div>
       {summary ? (
         <div className="mt-1.5 text-xs text-amber-900">
-          <MarkdownPreview className="ollie-prose">
-            {summary}
-          </MarkdownPreview>
+          <MarkdownPreview className="ollie-prose">{summary}</MarkdownPreview>
         </div>
       ) : code ? (
         <pre className="mt-1.5 max-h-48 overflow-auto rounded border border-amber-200 bg-white p-2 font-mono text-[11px] leading-relaxed text-foreground">

@@ -19,9 +19,7 @@ const ProjectNameCell = (
     >
       <CellTooltipWrapper content={value}>
         <span className="flex items-center gap-1.5 truncate">
-          {isOllie && (
-            <Terminal className="size-3.5 shrink-0 text-primary" />
-          )}
+          {isOllie && <Terminal className="size-3.5 shrink-0 text-primary" />}
           <span className={isOllie ? "font-semibold text-primary" : ""}>
             {value}
           </span>

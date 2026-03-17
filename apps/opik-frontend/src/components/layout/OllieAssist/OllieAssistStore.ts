@@ -86,7 +86,12 @@ type OllieAssistState = {
   closeThread: (threadId: string) => void;
   setShowNewThread: (show: boolean) => void;
   updateThreadTitle: (threadId: string, title: string) => void;
-  loadThread: (threadId: string, sessionId: string, title: string, messages: OllieMessage[]) => void;
+  loadThread: (
+    threadId: string,
+    sessionId: string,
+    title: string,
+    messages: OllieMessage[],
+  ) => void;
 
   // Per-thread message actions (operate on a specific thread by sessionId)
   addUserMessage: (sessionId: string, content: string) => void;
@@ -126,9 +131,21 @@ type OllieAssistState = {
     confirmSessionId?: string,
     confirmToolUseId?: string,
   ) => void;
-  confirmTool: ((toolUseId: string, decision: string, sessionIdOverride?: string) => void) | null;
+  confirmTool:
+    | ((
+        toolUseId: string,
+        decision: string,
+        sessionIdOverride?: string,
+      ) => void)
+    | null;
   setConfirmTool: (
-    fn: ((toolUseId: string, decision: string, sessionIdOverride?: string) => void) | null,
+    fn:
+      | ((
+          toolUseId: string,
+          decision: string,
+          sessionIdOverride?: string,
+        ) => void)
+      | null,
   ) => void;
   attachToSession: ((sessionId: string) => void) | null;
   setAttachToSession: (fn: ((sessionId: string) => void) | null) => void;
@@ -193,347 +210,401 @@ const updateThreadMessages = (
 const useOllieAssistStore = create<OllieAssistState>()(
   persist(
     (set, get) => ({
-  open: getStoredOpen(),
-  threads: {},
-  activeThreadId: null,
-  showNewThread: false,
-
-  getActiveThread: () => {
-    const { threads, activeThreadId } = get();
-    if (!activeThreadId) return null;
-    return threads[activeThreadId] ?? null;
-  },
-
-  getActiveMessages: () => {
-    const thread = get().getActiveThread();
-    return thread?.messages ?? [];
-  },
-
-  getActiveSessionId: () => {
-    const thread = get().getActiveThread();
-    return thread?.sessionId ?? null;
-  },
-
-  isActiveRunning: () => {
-    const thread = get().getActiveThread();
-    return thread?.isRunning ?? false;
-  },
-
-  toggle: () =>
-    set((state) => ({ open: !state.open })),
-
-  setOpen: (open) => set({ open }),
-
-  createThread: (sessionId, title = "") =>
-    set((state) => {
-      const threadId = sessionId;
-      return {
-        threads: {
-          ...state.threads,
-          [threadId]: {
-            sessionId,
-            messages: [],
-            title,
-            isRunning: false,
-          },
-        },
-        activeThreadId: threadId,
-        showNewThread: false,
-      };
-    }),
-
-  createBackgroundThread: (sessionId, title = "") =>
-    set((state) => {
-      if (state.threads[sessionId]) return {};
-      return {
-        threads: {
-          ...state.threads,
-          [sessionId]: {
-            sessionId,
-            messages: [],
-            title,
-            isRunning: false,
-            isBackground: true,
-          },
-        },
-      };
-    }),
-
-  setActiveThread: (threadId) =>
-    set({ activeThreadId: threadId, showNewThread: false }),
-
-  closeThread: (threadId) =>
-    set((state) => {
-      const { [threadId]: _, ...rest } = state.threads;
-      const threadIds = Object.keys(rest);
-      let nextActive = state.activeThreadId;
-      if (state.activeThreadId === threadId) {
-        nextActive = threadIds.length > 0 ? threadIds[0] : null;
-      }
-      return {
-        threads: rest,
-        activeThreadId: nextActive,
-        showNewThread: nextActive === null ? true : state.showNewThread,
-      };
-    }),
-
-  setShowNewThread: (show) => set({ showNewThread: show }),
-
-  updateThreadTitle: (threadId, title) =>
-    set((state) => {
-      const thread = state.threads[threadId];
-      if (!thread) return {};
-      return {
-        threads: {
-          ...state.threads,
-          [threadId]: { ...thread, title },
-        },
-      };
-    }),
-
-  loadThread: (threadId, sessionId, title, messages) =>
-    set((state) => ({
-      threads: {
-        ...state.threads,
-        [threadId]: {
-          sessionId,
-          messages,
-          title,
-          isRunning: false,
-        },
-      },
-      activeThreadId: threadId,
+      open: getStoredOpen(),
+      threads: {},
+      activeThreadId: null,
       showNewThread: false,
-    })),
 
-  addUserMessage: (sessionId, content) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) => [
-        ...msgs,
-        { id: crypto.randomUUID(), role: "user", content, blocks: [] },
-      ]),
-    ),
+      getActiveThread: () => {
+        const { threads, activeThreadId } = get();
+        if (!activeThreadId) return null;
+        return threads[activeThreadId] ?? null;
+      },
 
-  startAssistantMessage: (sessionId, id) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) => [
-        ...msgs,
-        { id, role: "assistant", content: "", blocks: [], isStreaming: true },
-      ]),
-    ),
+      getActiveMessages: () => {
+        const thread = get().getActiveThread();
+        return thread?.messages ?? [];
+      },
 
-  appendAssistantDelta: (sessionId, id, delta) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) =>
-        msgs.map((m) => {
-          if (m.id !== id) return m;
-          const blocks = [...m.blocks];
-          const last = blocks[blocks.length - 1];
-          if (last?.type === "text") {
-            blocks[blocks.length - 1] = { type: "text", text: last.text + delta };
-          } else {
-            blocks.push({ type: "text", text: delta });
+      getActiveSessionId: () => {
+        const thread = get().getActiveThread();
+        return thread?.sessionId ?? null;
+      },
+
+      isActiveRunning: () => {
+        const thread = get().getActiveThread();
+        return thread?.isRunning ?? false;
+      },
+
+      toggle: () => set((state) => ({ open: !state.open })),
+
+      setOpen: (open) => set({ open }),
+
+      createThread: (sessionId, title = "") =>
+        set((state) => {
+          const threadId = sessionId;
+          return {
+            threads: {
+              ...state.threads,
+              [threadId]: {
+                sessionId,
+                messages: [],
+                title,
+                isRunning: false,
+              },
+            },
+            activeThreadId: threadId,
+            showNewThread: false,
+          };
+        }),
+
+      createBackgroundThread: (sessionId, title = "") =>
+        set((state) => {
+          if (state.threads[sessionId]) return {};
+          return {
+            threads: {
+              ...state.threads,
+              [sessionId]: {
+                sessionId,
+                messages: [],
+                title,
+                isRunning: false,
+                isBackground: true,
+              },
+            },
+          };
+        }),
+
+      setActiveThread: (threadId) =>
+        set({ activeThreadId: threadId, showNewThread: false }),
+
+      closeThread: (threadId) =>
+        set((state) => {
+          const { [threadId]: _, ...rest } = state.threads;
+          const threadIds = Object.keys(rest);
+          let nextActive = state.activeThreadId;
+          if (state.activeThreadId === threadId) {
+            nextActive = threadIds.length > 0 ? threadIds[0] : null;
           }
-          return { ...m, content: m.content + delta, blocks };
-        }),
-      ),
-    ),
-
-  endAssistantMessage: (sessionId, id) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) =>
-        msgs.map((m) => (m.id === id ? { ...m, isStreaming: false } : m)),
-      ),
-    ),
-
-  addToolCallStart: (sessionId, msgId, id, tool, display, isSubAgent) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) =>
-        msgs.map((m) => {
-          if (m.id !== msgId) return m;
-          const now = Date.now();
-          const block: OllieContentBlock = isSubAgent
-            ? {
-                type: "subagent",
-                subAgent: {
-                  id, tool, display, completed: false,
-                  streamingContent: "", toolCalls: [], startedAt: now,
-                },
-              }
-            : {
-                type: "tool_call",
-                toolCall: { id, tool, display, completed: false, startedAt: now },
-              };
-          return { ...m, blocks: [...m.blocks, block] };
-        }),
-      ),
-    ),
-
-  appendToolCallDelta: (sessionId, msgId, toolCallId, parsed) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) =>
-        msgs.map((m) => {
-          if (m.id !== msgId) return m;
           return {
-            ...m,
-            blocks: updateBlocks(m.blocks, toolCallId, (b) => {
-              if (b.type !== "subagent") return b;
-              const sa = b.subAgent;
-              const type = parsed.type as string;
-              if (type === "text_delta") {
-                return {
-                  type: "subagent",
-                  subAgent: {
-                    ...sa,
-                    streamingContent: sa.streamingContent + (parsed.delta as string),
-                  },
-                };
-              }
-              if (type === "tool_call_start") {
-                let toolName = parsed.tool as string | null;
-                let toolDisplay = parsed.display as string | null;
-                if (!toolName && typeof parsed.delta === "string") {
-                  try {
-                    const inner = JSON.parse(parsed.delta);
-                    toolName = inner.tool || inner.name || null;
-                    toolDisplay = inner.display || null;
-                  } catch { /* ignore */ }
-                }
-                return {
-                  type: "subagent",
-                  subAgent: {
-                    ...sa,
-                    toolCalls: [
-                      ...sa.toolCalls,
-                      {
-                        name: toolName || "unknown",
-                        display: toolDisplay || toolName || "Working...",
-                        completed: false,
-                        isError: false,
-                      },
-                    ],
-                  },
-                };
-              }
-              if (type === "tool_call_end") {
-                const updated = [...sa.toolCalls];
-                const last = updated.findLast((s) => !s.completed);
-                if (last) {
-                  last.completed = true;
-                  last.isError = !!parsed.is_error;
-                }
-                return { type: "subagent", subAgent: { ...sa, toolCalls: updated } };
-              }
-              if (type === "chart_result") {
-                return {
-                  type: "subagent",
-                  subAgent: { ...sa, resultType: "chart", result: parsed.spec },
-                };
-              }
-              return b;
-            }),
+            threads: rest,
+            activeThreadId: nextActive,
+            showNewThread: nextActive === null ? true : state.showNewThread,
           };
         }),
-      ),
-    ),
 
-  updateToolCallEnd: (sessionId, msgId, toolCallId, result, resultType) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) =>
-        msgs.map((m) => {
-          if (m.id !== msgId) return m;
+      setShowNewThread: (show) => set({ showNewThread: show }),
+
+      updateThreadTitle: (threadId, title) =>
+        set((state) => {
+          const thread = state.threads[threadId];
+          if (!thread) return {};
           return {
-            ...m,
-            blocks: updateBlocks(m.blocks, toolCallId, (b) => {
+            threads: {
+              ...state.threads,
+              [threadId]: { ...thread, title },
+            },
+          };
+        }),
+
+      loadThread: (threadId, sessionId, title, messages) =>
+        set((state) => ({
+          threads: {
+            ...state.threads,
+            [threadId]: {
+              sessionId,
+              messages,
+              title,
+              isRunning: false,
+            },
+          },
+          activeThreadId: threadId,
+          showNewThread: false,
+        })),
+
+      addUserMessage: (sessionId, content) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) => [
+            ...msgs,
+            { id: crypto.randomUUID(), role: "user", content, blocks: [] },
+          ]),
+        ),
+
+      startAssistantMessage: (sessionId, id) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) => [
+            ...msgs,
+            {
+              id,
+              role: "assistant",
+              content: "",
+              blocks: [],
+              isStreaming: true,
+            },
+          ]),
+        ),
+
+      appendAssistantDelta: (sessionId, id, delta) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) =>
+            msgs.map((m) => {
+              if (m.id !== id) return m;
+              const blocks = [...m.blocks];
+              const last = blocks[blocks.length - 1];
+              if (last?.type === "text") {
+                blocks[blocks.length - 1] = {
+                  type: "text",
+                  text: last.text + delta,
+                };
+              } else {
+                blocks.push({ type: "text", text: delta });
+              }
+              return { ...m, content: m.content + delta, blocks };
+            }),
+          ),
+        ),
+
+      endAssistantMessage: (sessionId, id) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) =>
+            msgs.map((m) => (m.id === id ? { ...m, isStreaming: false } : m)),
+          ),
+        ),
+
+      addToolCallStart: (sessionId, msgId, id, tool, display, isSubAgent) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) =>
+            msgs.map((m) => {
+              if (m.id !== msgId) return m;
               const now = Date.now();
-              if (b.type === "tool_call") {
-                const keep = b.toolCall.resultType === "chart";
-                return {
-                  type: "tool_call",
-                  toolCall: {
-                    ...b.toolCall, completed: true, completedAt: now,
-                    ...(!keep && { result, resultType }),
-                  },
-                };
-              }
-              if (b.type === "subagent") {
-                const keep = b.subAgent.resultType === "chart";
-                return {
-                  type: "subagent",
-                  subAgent: {
-                    ...b.subAgent, completed: true, completedAt: now,
-                    ...(!keep && { result, resultType }),
-                  },
-                };
-              }
-              return b;
+              const block: OllieContentBlock = isSubAgent
+                ? {
+                    type: "subagent",
+                    subAgent: {
+                      id,
+                      tool,
+                      display,
+                      completed: false,
+                      streamingContent: "",
+                      toolCalls: [],
+                      startedAt: now,
+                    },
+                  }
+                : {
+                    type: "tool_call",
+                    toolCall: {
+                      id,
+                      tool,
+                      display,
+                      completed: false,
+                      startedAt: now,
+                    },
+                  };
+              return { ...m, blocks: [...m.blocks, block] };
             }),
-          };
-        }),
-      ),
-    ),
+          ),
+        ),
 
-  setThinking: (sessionId, id, isThinking) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) =>
-        msgs.map((m) => (m.id === id ? { ...m, isThinking } : m)),
-      ),
-    ),
+      appendToolCallDelta: (sessionId, msgId, toolCallId, parsed) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) =>
+            msgs.map((m) => {
+              if (m.id !== msgId) return m;
+              return {
+                ...m,
+                blocks: updateBlocks(m.blocks, toolCallId, (b) => {
+                  if (b.type !== "subagent") return b;
+                  const sa = b.subAgent;
+                  const type = parsed.type as string;
+                  if (type === "text_delta") {
+                    return {
+                      type: "subagent",
+                      subAgent: {
+                        ...sa,
+                        streamingContent:
+                          sa.streamingContent + (parsed.delta as string),
+                      },
+                    };
+                  }
+                  if (type === "tool_call_start") {
+                    let toolName = parsed.tool as string | null;
+                    let toolDisplay = parsed.display as string | null;
+                    if (!toolName && typeof parsed.delta === "string") {
+                      try {
+                        const inner = JSON.parse(parsed.delta);
+                        toolName = inner.tool || inner.name || null;
+                        toolDisplay = inner.display || null;
+                      } catch {
+                        /* ignore */
+                      }
+                    }
+                    return {
+                      type: "subagent",
+                      subAgent: {
+                        ...sa,
+                        toolCalls: [
+                          ...sa.toolCalls,
+                          {
+                            name: toolName || "unknown",
+                            display: toolDisplay || toolName || "Working...",
+                            completed: false,
+                            isError: false,
+                          },
+                        ],
+                      },
+                    };
+                  }
+                  if (type === "tool_call_end") {
+                    const updated = [...sa.toolCalls];
+                    const last = updated.findLast((s) => !s.completed);
+                    if (last) {
+                      last.completed = true;
+                      last.isError = !!parsed.is_error;
+                    }
+                    return {
+                      type: "subagent",
+                      subAgent: { ...sa, toolCalls: updated },
+                    };
+                  }
+                  if (type === "chart_result") {
+                    return {
+                      type: "subagent",
+                      subAgent: {
+                        ...sa,
+                        resultType: "chart",
+                        result: parsed.spec,
+                      },
+                    };
+                  }
+                  return b;
+                }),
+              };
+            }),
+          ),
+        ),
 
-  setIsRunning: (sessionId, running) =>
-    set((state) => {
-      const threadId = findThreadBySession(state.threads, sessionId);
-      if (!threadId) return {};
-      const thread = state.threads[threadId];
-      return {
-        threads: {
-          ...state.threads,
-          [threadId]: { ...thread, isRunning: running },
-        },
-      };
-    }),
+      updateToolCallEnd: (sessionId, msgId, toolCallId, result, resultType) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) =>
+            msgs.map((m) => {
+              if (m.id !== msgId) return m;
+              return {
+                ...m,
+                blocks: updateBlocks(m.blocks, toolCallId, (b) => {
+                  const now = Date.now();
+                  if (b.type === "tool_call") {
+                    const keep = b.toolCall.resultType === "chart";
+                    return {
+                      type: "tool_call",
+                      toolCall: {
+                        ...b.toolCall,
+                        completed: true,
+                        completedAt: now,
+                        ...(!keep && { result, resultType }),
+                      },
+                    };
+                  }
+                  if (b.type === "subagent") {
+                    const keep = b.subAgent.resultType === "chart";
+                    return {
+                      type: "subagent",
+                      subAgent: {
+                        ...b.subAgent,
+                        completed: true,
+                        completedAt: now,
+                        ...(!keep && { result, resultType }),
+                      },
+                    };
+                  }
+                  return b;
+                }),
+              };
+            }),
+          ),
+        ),
 
-  setToolCallConfirmStatus: (sessionId, msgId, toolCallId, status, input, summary, confirmSessionId, confirmToolUseId) =>
-    set((state) =>
-      updateThreadMessages(state, sessionId, (msgs) =>
-        msgs.map((m) => {
-          if (m.id !== msgId) return m;
-          const extra = {
-            confirmStatus: status,
-            ...(input && { confirmInput: input }),
-            ...(summary && { confirmSummary: summary }),
-            ...(confirmSessionId && { confirmSessionId }),
-            ...(confirmToolUseId && { confirmToolUseId }),
-          };
+      setThinking: (sessionId, id, isThinking) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) =>
+            msgs.map((m) => (m.id === id ? { ...m, isThinking } : m)),
+          ),
+        ),
+
+      setIsRunning: (sessionId, running) =>
+        set((state) => {
+          const threadId = findThreadBySession(state.threads, sessionId);
+          if (!threadId) return {};
+          const thread = state.threads[threadId];
           return {
-            ...m,
-            blocks: updateBlocks(m.blocks, toolCallId, (b) => {
-              if (b.type === "tool_call") {
-                return { type: "tool_call", toolCall: { ...b.toolCall, ...extra } };
-              }
-              if (b.type === "subagent") {
-                return { type: "subagent", subAgent: { ...b.subAgent, ...extra } };
-              }
-              return b;
-            }),
+            threads: {
+              ...state.threads,
+              [threadId]: { ...thread, isRunning: running },
+            },
           };
         }),
-      ),
-    ),
 
-  confirmTool: null,
-  setConfirmTool: (fn) => set({ confirmTool: fn }),
-  attachToSession: null,
-  setAttachToSession: (fn) => set({ attachToSession: fn }),
-  abortBackgroundSession: null,
-  setAbortBackgroundSession: (fn) => set({ abortBackgroundSession: fn }),
-}),
+      setToolCallConfirmStatus: (
+        sessionId,
+        msgId,
+        toolCallId,
+        status,
+        input,
+        summary,
+        confirmSessionId,
+        confirmToolUseId,
+      ) =>
+        set((state) =>
+          updateThreadMessages(state, sessionId, (msgs) =>
+            msgs.map((m) => {
+              if (m.id !== msgId) return m;
+              const extra = {
+                confirmStatus: status,
+                ...(input && { confirmInput: input }),
+                ...(summary && { confirmSummary: summary }),
+                ...(confirmSessionId && { confirmSessionId }),
+                ...(confirmToolUseId && { confirmToolUseId }),
+              };
+              return {
+                ...m,
+                blocks: updateBlocks(m.blocks, toolCallId, (b) => {
+                  if (b.type === "tool_call") {
+                    return {
+                      type: "tool_call",
+                      toolCall: { ...b.toolCall, ...extra },
+                    };
+                  }
+                  if (b.type === "subagent") {
+                    return {
+                      type: "subagent",
+                      subAgent: { ...b.subAgent, ...extra },
+                    };
+                  }
+                  return b;
+                }),
+              };
+            }),
+          ),
+        ),
+
+      confirmTool: null,
+      setConfirmTool: (fn) => set({ confirmTool: fn }),
+      attachToSession: null,
+      setAttachToSession: (fn) => set({ attachToSession: fn }),
+      abortBackgroundSession: null,
+      setAbortBackgroundSession: (fn) => set({ abortBackgroundSession: fn }),
+    }),
     {
       name: "ollie-assist",
       partialize: (state) => {
-        const persistedThreads: Record<string, { sessionId: string; title: string }> = {};
+        const persistedThreads: Record<
+          string,
+          { sessionId: string; title: string }
+        > = {};
         for (const [id, thread] of Object.entries(state.threads)) {
-          persistedThreads[id] = { sessionId: thread.sessionId, title: thread.title };
+          persistedThreads[id] = {
+            sessionId: thread.sessionId,
+            title: thread.title,
+          };
         }
         return {
           threads: persistedThreads,

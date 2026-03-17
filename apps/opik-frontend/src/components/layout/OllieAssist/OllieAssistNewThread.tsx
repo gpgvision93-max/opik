@@ -85,7 +85,7 @@ const OllieAssistNewThread: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
+    <div className="flex flex-1 flex-col overflow-y-auto p-4">
       <div className="relative mb-4">
         <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
         <input

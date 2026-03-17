@@ -255,13 +255,13 @@ const ResizableSidePanel: React.FunctionComponent<ResizableSidePanelProps> = ({
     <div className="relative z-10">
       {open && closeOnClickOutside && (
         <div
-          className="fixed top-0 bottom-0 left-0 bg-black/10"
+          className="fixed inset-y-0 left-0 bg-black/10"
           style={{ right: "var(--ollie-panel-width, 0px)" }}
           onClick={onClose}
         />
       )}
       <div
-        className="fixed top-0 bottom-0 bg-background transition-transform duration-150 will-change-transform"
+        className="fixed inset-y-0 bg-background transition-transform duration-150 will-change-transform"
         style={{
           left: left + "px",
           right: "var(--ollie-panel-width, 0px)",

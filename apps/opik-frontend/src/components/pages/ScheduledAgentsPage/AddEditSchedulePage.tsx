@@ -212,10 +212,7 @@ const AddEditSchedulePage: React.FunctionComponent = () => {
                 <Label>Agent</Label>
                 <FormControl>
                   {agentOptions.length > 0 ? (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select an agent" />
                       </SelectTrigger>

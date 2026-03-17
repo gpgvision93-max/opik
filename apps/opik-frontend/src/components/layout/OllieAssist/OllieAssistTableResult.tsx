@@ -40,7 +40,7 @@ const OllieAssistTableResult: React.FC<OllieAssistTableResultProps> = ({
           {displayRows.map((row, ri) => (
             <tr key={ri} className="border-b last:border-0">
               {row.map((cell, ci) => (
-                <td key={ci} className="px-2 py-1 whitespace-nowrap">
+                <td key={ci} className="whitespace-nowrap px-2 py-1">
                   {String(cell ?? "")}
                 </td>
               ))}

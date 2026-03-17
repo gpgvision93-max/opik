@@ -18,20 +18,11 @@ import ColumnsButton from "@/components/shared/ColumnsButton/ColumnsButton";
 import { Button } from "@/components/ui/button";
 import useAppStore from "@/store/AppStore";
 import { Schedule } from "@/types/scheduled-agents";
-import {
-  COLUMN_NAME_ID,
-  COLUMN_TYPE,
-  ColumnData,
-} from "@/types/shared";
+import { COLUMN_NAME_ID, COLUMN_TYPE, ColumnData } from "@/types/shared";
 import { convertColumnDataToColumn } from "@/lib/table";
-import {
-  ColumnPinningState,
-  ColumnSort,
-} from "@tanstack/react-table";
+import { ColumnPinningState, ColumnSort } from "@tanstack/react-table";
 import ScheduleRowActionsCell from "@/components/pages/ScheduledAgentsPage/ScheduleRowActionsCell";
-import {
-  generateActionsColumDef,
-} from "@/components/shared/DataTable/utils";
+import { generateActionsColumDef } from "@/components/shared/DataTable/utils";
 
 const getRowId = (s: Schedule) => s.id;
 

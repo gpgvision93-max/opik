@@ -348,12 +348,8 @@ const ProjectsPage: React.FunctionComponent = () => {
 
   const projects = useMemo(() => {
     const items = data?.content ?? [];
-    const pinned = items.filter(
-      (p) => p.name === OLLIE_ASSIST_PROJECT_NAME,
-    );
-    const rest = items.filter(
-      (p) => p.name !== OLLIE_ASSIST_PROJECT_NAME,
-    );
+    const pinned = items.filter((p) => p.name === OLLIE_ASSIST_PROJECT_NAME);
+    const rest = items.filter((p) => p.name !== OLLIE_ASSIST_PROJECT_NAME);
     return [...pinned, ...rest];
   }, [data?.content]);
   const total = data?.total ?? 0;

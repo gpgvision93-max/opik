@@ -42,10 +42,11 @@ function serializeSidebar(el: Element): string {
 function serializeBreadcrumb(el: Element): string {
   const parts: string[] = [];
   el.querySelectorAll("a, span, li").forEach((node) => {
-    const t = node.childNodes.length === 1 &&
+    const t =
+      node.childNodes.length === 1 &&
       node.childNodes[0].nodeType === Node.TEXT_NODE
-      ? node.childNodes[0].textContent?.trim() || ""
-      : "";
+        ? node.childNodes[0].textContent?.trim() || ""
+        : "";
     if (t && !parts.includes(t)) parts.push(t);
   });
   return parts.length ? `[breadcrumb] ${parts.join(" / ")}` : "";

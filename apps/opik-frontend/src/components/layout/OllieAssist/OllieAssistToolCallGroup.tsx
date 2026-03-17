@@ -48,13 +48,11 @@ const OllieAssistToolCallGroup: React.FC<Props> = ({ toolCalls, msgId }) => {
               confirmSessionId={tc.confirmSessionId}
             />
           )}
-          {tc.completed &&
-            tc.resultType === "table" &&
-            tc.result != null && (
-              <div className="ml-5">
-                <OllieAssistTableResult data={tc.result} />
-              </div>
-            )}
+          {tc.completed && tc.resultType === "table" && tc.result != null && (
+            <div className="ml-5">
+              <OllieAssistTableResult data={tc.result} />
+            </div>
+          )}
           {tc.resultType === "chart" && tc.result != null && (
             <div className="ml-5">
               <OllieAssistChartResult
@@ -74,7 +72,9 @@ const OllieAssistToolCallGroup: React.FC<Props> = ({ toolCalls, msgId }) => {
           <span>
             {expanded
               ? "Show less"
-              : `${count - INLINE_LIMIT} more tool call${count - INLINE_LIMIT === 1 ? "" : "s"}`}
+              : `${count - INLINE_LIMIT} more tool call${
+                  count - INLINE_LIMIT === 1 ? "" : "s"
+                }`}
           </span>
           {expanded ? (
             <ChevronDown className="size-3" />

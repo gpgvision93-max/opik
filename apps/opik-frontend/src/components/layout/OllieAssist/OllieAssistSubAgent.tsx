@@ -109,7 +109,9 @@ const OllieAssistSubAgent: React.FC<Props> = ({ subAgent, msgId }) => {
               <span>
                 {expanded
                   ? "show less"
-                  : `${count - INLINE_LIMIT} more tool call${count - INLINE_LIMIT === 1 ? "" : "s"}`}
+                  : `${count - INLINE_LIMIT} more tool call${
+                      count - INLINE_LIMIT === 1 ? "" : "s"
+                    }`}
               </span>
               {expanded ? (
                 <ChevronDown className="size-2.5" />
