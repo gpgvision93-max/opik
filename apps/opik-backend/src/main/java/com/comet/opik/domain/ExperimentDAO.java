@@ -1505,7 +1505,8 @@ class ExperimentDAO {
                 null AS comments_array_agg,
                 null AS pass_rate,
                 null AS passed_count,
-                null AS total_count
+                null AS total_count,
+                null AS assertion_scores
             FROM experiments
             WHERE workspace_id = :workspace_id
             AND ilike(name, CONCAT('%', :name, '%'))
