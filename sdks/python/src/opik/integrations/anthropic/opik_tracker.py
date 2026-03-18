@@ -36,6 +36,7 @@ def track_anthropic(
 
     Supported methods (for all classes above) are:
         * `client.messages.create()`
+        * `client.messages.parse()`
         * `client.messages.stream()`
 
     Can be used within other Opik-tracked functions.
@@ -81,12 +82,29 @@ def track_anthropic(
         LOGGER,
     )
 
+    parse_decorator = decorator_factory.track(
+        type="llm",
+        name="anthropic_messages_parse",
+        project_name=project_name,
+        metadata=metadata,
+    )
+
     anthropic_client.messages.create = create_decorator(
         anthropic_client.messages.create
     )
     anthropic_client.messages.stream = stream_decorator(
         anthropic_client.messages.stream
     )
+    try:
+        anthropic_client.messages.parse = parse_decorator(
+            anthropic_client.messages.parse
+        )
+    except Exception:
+        LOGGER.debug(
+            "Failed to patch `client.messages.parse` method. "
+            "It is likely because the anthropic SDK version does not support it",
+            exc_info=True,
+        )
     try:
         anthropic_client.beta.messages.batches.create = batch_create_decorator(
             anthropic_client.beta.messages.batches.create
