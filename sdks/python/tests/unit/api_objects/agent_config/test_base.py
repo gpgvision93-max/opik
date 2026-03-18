@@ -658,3 +658,106 @@ class TestEnvsAndIsFallback:
         client.create_agent_config_version(cfg)
 
         assert cfg.envs == ["PROD"]
+
+
+# ---------------------------------------------------------------------------
+# Metadata injection tests
+# ---------------------------------------------------------------------------
+
+
+def _make_live_instance(mock_rest_client, fallback, bp):
+    """Helper: resolve a live AgentConfig instance from a mocked blueprint."""
+    manager = AgentConfigManager(
+        project_name="test-project", rest_client_=mock_rest_client
+    )
+    mock_rest_client.projects.retrieve_project.return_value = mock.Mock(id="proj-1")
+    mock_rest_client.agent_configs.get_latest_blueprint.side_effect = None
+    mock_rest_client.agent_configs.get_latest_blueprint.return_value = bp
+    return type(fallback)._resolve_from_backend(
+        fallback, manager, "test-project", env=None, latest=True, version=None
+    )
+
+
+class TestMetadataInjection:
+    def test_field_access__injects_trace_and_span_metadata(self, mock_rest_client):
+        class MyConfig(AgentConfig):
+            temp: float
+
+        bp = AgentBlueprintPublic(
+            id="bp-1",
+            type="blueprint",
+            values=[
+                AgentConfigValuePublic(key="MyConfig.temp", type="float", value="0.7"),
+            ],
+        )
+        live = _make_live_instance(mock_rest_client, MyConfig(temp=0.0), bp)
+
+        with (
+            mock.patch("opik.opik_context.update_current_trace") as mock_trace,
+            mock.patch("opik.opik_context.update_current_span") as mock_span,
+        ):
+            _ = live.temp
+
+        for mock_call in (mock_trace, mock_span):
+            mock_call.assert_called_once()
+            payload = mock_call.call_args.kwargs["metadata"]
+            assert "agent_configuration" in payload
+            assert payload["agent_configuration"]["blueprint_id"] == "bp-1"
+            assert "MyConfig.temp" in payload["agent_configuration"]["values"]
+
+    def test_no_active_trace_or_span__no_exception(self, mock_rest_client):
+        from opik.exceptions import OpikException
+
+        class MyConfig(AgentConfig):
+            temp: float
+
+        bp = AgentBlueprintPublic(
+            id="bp-1",
+            type="blueprint",
+            values=[
+                AgentConfigValuePublic(key="MyConfig.temp", type="float", value="0.5"),
+            ],
+        )
+        live = _make_live_instance(mock_rest_client, MyConfig(temp=0.0), bp)
+
+        with (
+            mock.patch(
+                "opik.opik_context.update_current_trace",
+                side_effect=OpikException("no trace"),
+            ),
+            mock.patch(
+                "opik.opik_context.update_current_span",
+                side_effect=OpikException("no span"),
+            ),
+        ):
+            value = live.temp  # must not raise
+
+        assert value == pytest.approx(0.5)
+
+    def test_active_trace_but_no_span__trace_updated_span_skipped(
+        self, mock_rest_client
+    ):
+        from opik.exceptions import OpikException
+
+        class MyConfig(AgentConfig):
+            temp: float
+
+        bp = AgentBlueprintPublic(
+            id="bp-1",
+            type="blueprint",
+            values=[
+                AgentConfigValuePublic(key="MyConfig.temp", type="float", value="0.3"),
+            ],
+        )
+        live = _make_live_instance(mock_rest_client, MyConfig(temp=0.0), bp)
+
+        with (
+            mock.patch("opik.opik_context.update_current_trace") as mock_trace,
+            mock.patch(
+                "opik.opik_context.update_current_span",
+                side_effect=OpikException("no span"),
+            ),
+        ):
+            _ = live.temp
+
+        mock_trace.assert_called_once()

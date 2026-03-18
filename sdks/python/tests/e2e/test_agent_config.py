@@ -3,12 +3,15 @@ from typing import Annotated
 
 import pytest
 import opik
+from opik import opik_context
 from opik.api_objects.agent_config.cache import _registry
 from opik.api_objects.agent_config.config import AgentConfigManager
 from opik.api_objects.agent_config.context import agent_config_context
 
 from opik.api_objects.prompt.text.prompt import Prompt
 from opik.rest_api import core as rest_api_core
+from . import verifiers
+from ..testlib import ANY_DICT, ANY_BUT_NONE
 
 
 def _unique_project_name() -> str:
@@ -139,8 +142,39 @@ def test_get_agent_config__backend_values__override_fallback(
         project_name=project_name,
         latest=True,
     )
-    assert result.temperature == pytest.approx(0.3)
-    assert result.model == "gpt-3.5"
+
+    ID_STORAGE = {}
+
+    @opik.track(project_name=project_name)
+    def access_config():
+        ID_STORAGE["trace_id"] = opik_context.get_current_trace_data().id
+        ID_STORAGE["span_id"] = opik_context.get_current_span_data().id
+        assert result.temperature == pytest.approx(0.3)
+        assert result.model == "gpt-3.5"
+
+    access_config()
+    opik.flush_tracker()
+
+    expected_agent_config_metadata = {
+        "blueprint_id": ANY_BUT_NONE,
+        "values": ANY_DICT,
+    }
+    verifiers.verify_trace(
+        opik_client=opik_client,
+        trace_id=ID_STORAGE["trace_id"],
+        metadata={
+            "agent_configuration": ANY_DICT.containing(expected_agent_config_metadata)
+        },
+    )
+    verifiers.verify_span(
+        opik_client=opik_client,
+        span_id=ID_STORAGE["span_id"],
+        trace_id=ID_STORAGE["trace_id"],
+        parent_span_id=None,
+        metadata={
+            "agent_configuration": ANY_DICT.containing(expected_agent_config_metadata)
+        },
+    )
 
 
 def test_get_agent_config__env_tag__fetches_correct_version(

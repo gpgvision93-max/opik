@@ -266,9 +266,9 @@ class AgentConfig:
 
         try:
             metadata = self._build_trace_metadata(attr, value, shared_cache, mask_id)
-            opik_context.update_current_trace(
-                metadata={"agent_configuration": metadata}
-            )
+            payload = {"agent_configuration": metadata}
+            opik_context.update_current_trace(metadata=payload)
+            opik_context.update_current_span(metadata=payload)
         except exceptions.OpikException:
             pass
         except Exception:
