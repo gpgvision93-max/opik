@@ -362,7 +362,7 @@ public class DatasetResourceClient {
                 .accept(MediaType.APPLICATION_JSON_TYPE)
                 .header(HttpHeaders.AUTHORIZATION, apiKey)
                 .header(WORKSPACE_HEADER, workspaceName)
-                .post(Entity.json(new DatasetIdentifier(name)))) {
+                .post(Entity.json(DatasetIdentifier.builder().datasetName(name).build()))) {
 
             assertThat(actualResponse.getStatusInfo().getStatusCode()).isEqualTo(HttpStatus.SC_NO_CONTENT);
             assertThat(actualResponse.hasEntity()).isFalse();
