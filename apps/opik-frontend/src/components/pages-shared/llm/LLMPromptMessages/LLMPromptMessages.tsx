@@ -58,6 +58,7 @@ const LLMPromptMessages = ({
 }: LLMPromptMessagesProps) => {
   const lastFocusedMessageIdRef = useRef<string | null>(null);
   const messageRefsMap = useRef<Map<string, LLMPromptMessageHandle>>(new Map());
+  const listRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -75,6 +76,12 @@ const LLMPromptMessages = ({
       newMessages.splice(position, 0, newMessage);
 
       onChange(newMessages);
+      requestAnimationFrame(() => {
+        listRef.current?.children[position]?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
     },
     [onChange, messages],
   );
@@ -151,7 +158,7 @@ const LLMPromptMessages = ({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={messages} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2">
+        <div ref={listRef} className="flex flex-col gap-2">
           {messages.map((message, messageIdx) => (
             <LLMPromptMessage
               key={message.id}
@@ -190,7 +197,20 @@ const LLMPromptMessages = ({
           variant="ghost"
           size="sm"
           className="mt-2 self-start"
-          onClick={onAddMessage}
+          onClick={() => {
+            onAddMessage();
+            requestAnimationFrame(() => {
+              const scrollContainer = listRef.current?.closest(
+                "[data-scroll-container]",
+              );
+              if (scrollContainer) {
+                scrollContainer.scrollTo({
+                  top: scrollContainer.scrollHeight,
+                  behavior: "smooth",
+                });
+              }
+            });
+          }}
           type="button"
         >
           <Plus className="mr-2 size-4" />

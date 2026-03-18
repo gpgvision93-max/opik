@@ -71,7 +71,6 @@ const LLMPromptMessageActions: React.FC<LLMPromptLibraryActionsProps> = ({
   const selectedPromptIdRef = useRef<string | undefined>();
   const tempPromptIdRef = useRef<string | undefined>();
   const isPromptSelectBoxOpenedRef = useRef<boolean>(false);
-  const isPromptSaveWarningRef = useRef<boolean>(false);
   const [showImproveWizard, setShowImproveWizard] = useState(false);
 
   const { toast } = useToast();
@@ -187,7 +186,6 @@ const LLMPromptMessageActions: React.FC<LLMPromptLibraryActionsProps> = ({
         parsePromptVersionContent(promptData?.latest_version),
       ),
   );
-  isPromptSaveWarningRef.current = saveWarning;
   const saveTooltip = saveWarning
     ? !datasetId
       ? "This prompt version hasn't been saved"
@@ -197,9 +195,7 @@ const LLMPromptMessageActions: React.FC<LLMPromptLibraryActionsProps> = ({
   const onPromptSelectBoxOpenChange = useCallback(
     (open: boolean) => {
       isPromptSelectBoxOpenedRef.current = open;
-      setIsHoldActionsVisible(
-        isPromptSelectBoxOpenedRef.current || isPromptSaveWarningRef.current,
-      );
+      setIsHoldActionsVisible(isPromptSelectBoxOpenedRef.current);
     },
     [setIsHoldActionsVisible],
   );
@@ -215,12 +211,6 @@ const LLMPromptMessageActions: React.FC<LLMPromptLibraryActionsProps> = ({
       confirmText: "Load prompt",
     };
   }, [handleUpdateExternalPromptId]);
-
-  // This effect is used to set the visibility of hold actions
-  // based on the prompt select box state and save warning
-  useEffect(() => {
-    setIsHoldActionsVisible(isPromptSelectBoxOpenedRef.current || saveWarning);
-  }, [saveWarning, setIsHoldActionsVisible]);
 
   // This effect is used to set the template and promptVersionId after it is loaded,
   // after it was set in handleUpdateExternalPromptId function
@@ -279,7 +269,7 @@ const LLMPromptMessageActions: React.FC<LLMPromptLibraryActionsProps> = ({
         {showGenerateButton && (
           <TooltipWrapper content={promptButtonTooltip}>
             <Button
-              variant="ghost"
+              variant="minimal"
               size="icon-sm"
               onClick={handleOpenWizard}
               type="button"
@@ -292,7 +282,7 @@ const LLMPromptMessageActions: React.FC<LLMPromptLibraryActionsProps> = ({
         {showImproveButton && (
           <TooltipWrapper content={promptButtonTooltip}>
             <Button
-              variant="ghost"
+              variant="minimal"
               size="icon-sm"
               onClick={handleOpenWizard}
               type="button"
@@ -327,7 +317,7 @@ const LLMPromptMessageActions: React.FC<LLMPromptLibraryActionsProps> = ({
         {!saveDisabled && (
           <TooltipWrapper content={saveTooltip}>
             <Button
-              variant="ghost"
+              variant="minimal"
               size="icon-sm"
               onClick={() => {
                 resetKeyRef.current = resetKeyRef.current + 1;
