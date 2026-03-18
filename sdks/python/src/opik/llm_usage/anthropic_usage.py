@@ -28,8 +28,16 @@ class AnthropicUsage(base_original_provider_usage.BaseOriginalProviderUsage):
         https://platform.claude.com/docs/en/build-with-claude/compaction#understanding-usage
         """
         if self.iterations:
-            prompt = sum(it.get("input_tokens", 0) or 0 for it in self.iterations)
-            completion = sum(it.get("output_tokens", 0) or 0 for it in self.iterations)
+            prompt = sum(
+                (it.get("input_tokens", 0) or 0)
+                + (it.get("cache_read_input_tokens", 0) or 0)
+                for it in self.iterations
+            )
+            completion = sum(
+                (it.get("output_tokens", 0) or 0)
+                + (it.get("cache_creation_input_tokens", 0) or 0)
+                for it in self.iterations
+            )
             return prompt, completion
 
         return (

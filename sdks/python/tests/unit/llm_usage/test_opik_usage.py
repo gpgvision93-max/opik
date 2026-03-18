@@ -191,22 +191,70 @@ def test_opik_usage__from_unknown_usage_dict__invalid_token_values__total_is_non
 
 
 def test_opik_usage__from_anthropic_dict__with_compaction_iterations__sums_all_iterations():
-    # When compaction fires, top-level input/output_tokens exclude the compaction
-    # iteration. The true billed cost must be summed across all iterations.
+    # When compaction fires, top-level input/output_tokens reflect only the non-compaction
+    # iterations (i.e. the message iterations). The compaction iteration is excluded from
+    # the top-level but IS billed — summing all iterations gives the true billed cost.
+    # https://platform.claude.com/docs/en/build-with-claude/compaction#understanding-usage
     usage_data = {
-        "input_tokens": 45000,
-        "output_tokens": 1234,
+        # top-level = sum of non-compaction ("message") iterations only
+        "input_tokens": 23000,
+        "output_tokens": 1000,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
         "iterations": [
-            {"type": "compaction", "input_tokens": 180000, "output_tokens": 3500},
-            {"type": "message", "input_tokens": 23000, "output_tokens": 1000},
+            {
+                "type": "compaction",
+                "input_tokens": 180000,
+                "output_tokens": 3500,
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 0,
+            },
+            {
+                "type": "message",
+                "input_tokens": 23000,
+                "output_tokens": 1000,
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 0,
+            },
         ],
     }
     usage = OpikUsage.from_anthropic_dict(usage_data)
     assert usage.prompt_tokens == 203000  # 180000 + 23000
     assert usage.completion_tokens == 4500  # 3500 + 1000
     assert usage.total_tokens == 207500
+
+
+def test_opik_usage__from_anthropic_dict__compaction_with_caching__includes_cache_tokens_per_iteration():
+    # When both compaction and prompt caching are active, each iteration always carries
+    # cache_creation_input_tokens and cache_read_input_tokens (required fields per SDK types).
+    # top-level tokens reflect only the non-compaction iterations.
+    usage_data = {
+        # top-level = message iteration only: input=23000, cache_read=5000
+        "input_tokens": 23000,
+        "output_tokens": 1000,
+        "cache_creation_input_tokens": 500,
+        "cache_read_input_tokens": 5000,
+        "iterations": [
+            {
+                "type": "compaction",
+                "input_tokens": 180000,
+                "output_tokens": 3500,
+                "cache_read_input_tokens": 10000,
+                "cache_creation_input_tokens": 2000,
+            },
+            {
+                "type": "message",
+                "input_tokens": 23000,
+                "output_tokens": 1000,
+                "cache_read_input_tokens": 5000,
+                "cache_creation_input_tokens": 500,
+            },
+        ],
+    }
+    usage = OpikUsage.from_anthropic_dict(usage_data)
+    assert usage.prompt_tokens == 218000  # (180000+10000) + (23000+5000)
+    assert usage.completion_tokens == 7000  # (3500+2000) + (1000+500)
+    assert usage.total_tokens == 225000
 
 
 def test_opik_usage__from_anthropic_dict__no_compaction__uses_top_level_tokens():
