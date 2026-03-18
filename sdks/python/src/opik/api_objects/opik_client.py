@@ -2339,8 +2339,8 @@ class Opik:
 
     def get_agent_config(
         self,
-        fallback: _AgentConfigT,
         *,
+        fallback: _AgentConfigT,
         project_name: Optional[str] = None,
         env: Optional[str] = "PROD",
         latest: bool = False,
