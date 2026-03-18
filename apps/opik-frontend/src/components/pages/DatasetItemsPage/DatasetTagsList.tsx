@@ -1,6 +1,7 @@
 import TagListRenderer from "@/components/shared/TagListRenderer/TagListRenderer";
 import useDatasetUpdateMutation from "@/api/datasets/useDatasetUpdateMutation";
 import { Dataset } from "@/types/datasets";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 type DatasetTagsListProps = {
   tags: string[];
@@ -15,6 +16,10 @@ const DatasetTagsList: React.FC<DatasetTagsListProps> = ({
   datasetId,
   className,
 }) => {
+  const {
+    permissions: { canEditDatasets },
+  } = usePermissions();
+
   const { mutate } = useDatasetUpdateMutation();
 
   const mutateTags = (newTags: string[]) => {
@@ -34,6 +39,8 @@ const DatasetTagsList: React.FC<DatasetTagsListProps> = ({
   const handleDeleteTag = (tag: string) => {
     mutateTags(tags.filter((t) => t !== tag));
   };
+
+  if (!canEditDatasets) return null;
 
   return (
     <TagListRenderer

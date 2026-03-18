@@ -42,7 +42,7 @@ export const DatasetRowActionsCell: React.FunctionComponent<
   );
 
   const {
-    permissions: { canDeleteDatasets },
+    permissions: { canEditDatasets, canDeleteDatasets },
   } = usePermissions();
 
   const deleteDatasetHandler = useCallback(() => {
@@ -110,15 +110,17 @@ export const DatasetRowActionsCell: React.FunctionComponent<
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem
-            onClick={() => {
-              setOpen(2);
-              resetKeyRef.current = resetKeyRef.current + 1;
-            }}
-          >
-            <Pencil className="mr-2 size-4" />
-            Edit
-          </DropdownMenuItem>
+          {canEditDatasets && (
+            <DropdownMenuItem
+              onClick={() => {
+                setOpen(2);
+                resetKeyRef.current = resetKeyRef.current + 1;
+              }}
+            >
+              <Pencil className="mr-2 size-4" />
+              Edit
+            </DropdownMenuItem>
+          )}
           {isDatasetExportEnabled && (
             <DropdownMenuItem
               onClick={downloadDatasetHandler}
@@ -128,20 +130,20 @@ export const DatasetRowActionsCell: React.FunctionComponent<
               Download
             </DropdownMenuItem>
           )}
+          {canDeleteDatasets && (canEditDatasets || isDatasetExportEnabled) && (
+            <DropdownMenuSeparator />
+          )}
           {canDeleteDatasets && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  setOpen(1);
-                  resetKeyRef.current = resetKeyRef.current + 1;
-                }}
-                variant="destructive"
-              >
-                <Trash className="mr-2 size-4" />
-                Delete
-              </DropdownMenuItem>
-            </>
+            <DropdownMenuItem
+              onClick={() => {
+                setOpen(1);
+                resetKeyRef.current = resetKeyRef.current + 1;
+              }}
+              variant="destructive"
+            >
+              <Trash className="mr-2 size-4" />
+              Delete
+            </DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

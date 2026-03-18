@@ -32,6 +32,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import useLoadPlayground from "@/hooks/useLoadPlayground";
 import { useNavigateToExperiment } from "@/hooks/useNavigateToExperiment";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 const POLLING_INTERVAL_MS = 3000;
 
@@ -52,6 +53,10 @@ const DatasetItemsPageVersioned = () => {
   const { toast } = useToast();
   const { navigate: navigateToExperiment } = useNavigateToExperiment();
   const { loadPlayground } = useLoadPlayground();
+
+  const {
+    permissions: { canEditDatasets },
+  } = usePermissions();
 
   const { data: dataset, isPending } = useDatasetById(
     {
@@ -303,13 +308,17 @@ const DatasetItemsPageVersioned = () => {
               ))}
             </>
           )}
-          <Separator orientation="vertical" className="ml-1.5 mt-1 h-4" />
-          <DatasetTagsList
-            tags={dataset?.tags ?? []}
-            dataset={dataset}
-            datasetId={datasetId}
-            className="min-h-0 w-auto"
-          />
+          {canEditDatasets && (
+            <>
+              <Separator orientation="vertical" className="ml-1.5 mt-1 h-4" />
+              <DatasetTagsList
+                tags={dataset?.tags ?? []}
+                dataset={dataset}
+                datasetId={datasetId}
+                className="min-h-0 w-auto"
+              />
+            </>
+          )}
         </div>
       </div>
       <Tabs value={tab || "items"} onValueChange={setTab}>

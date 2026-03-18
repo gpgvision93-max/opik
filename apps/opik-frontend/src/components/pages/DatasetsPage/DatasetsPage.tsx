@@ -43,6 +43,8 @@ import { EXPLAINER_ID, EXPLAINERS_MAP } from "@/constants/explainers";
 import ExplainerDescription from "@/components/shared/ExplainerDescription/ExplainerDescription";
 import useQueryParamAndLocalStorageState from "@/hooks/useQueryParamAndLocalStorageState";
 import { usePermissions } from "@/contexts/PermissionsContext";
+import { useIsFeatureEnabled } from "@/components/feature-toggles-provider";
+import { FeatureToggleKeys } from "@/types/feature-toggles";
 
 export const getRowId = (d: Dataset) => d.id;
 
@@ -170,8 +172,12 @@ const DatasetsPage: React.FunctionComponent = () => {
   const workspaceName = useAppStore((state) => state.activeWorkspaceName);
   const navigate = useNavigate();
 
+  const isDatasetExportEnabled = useIsFeatureEnabled(
+    FeatureToggleKeys.DATASET_EXPORT_ENABLED,
+  );
+
   const {
-    permissions: { canDeleteDatasets },
+    permissions: { canEditDatasets, canDeleteDatasets },
   } = usePermissions();
 
   const resetDialogKeyRef = useRef(0);
@@ -252,6 +258,9 @@ const DatasetsPage: React.FunctionComponent = () => {
     return datasets.filter((row) => rowSelection[row.id]);
   }, [rowSelection, datasets]);
 
+  const showActionsColumn =
+    canEditDatasets || canDeleteDatasets || isDatasetExportEnabled;
+
   const columns = useMemo(() => {
     return [
       generateSelectColumDef<Dataset>(),
@@ -260,11 +269,15 @@ const DatasetsPage: React.FunctionComponent = () => {
         selectedColumns,
         sortableColumns: sortableBy,
       }),
-      generateActionsColumDef({
-        cell: DatasetRowActionsCell,
-      }),
+      ...(showActionsColumn
+        ? [
+            generateActionsColumDef({
+              cell: DatasetRowActionsCell,
+            }),
+          ]
+        : []),
     ];
-  }, [sortableBy, columnsOrder, selectedColumns]);
+  }, [sortableBy, columnsOrder, selectedColumns, showActionsColumn]);
 
   const sortConfig = useMemo(
     () => ({
