@@ -11,7 +11,18 @@ import { useUserApiKey, useActiveWorkspaceName } from "@/store/AppStore";
 import useWorkspace from "@/plugins/comet/useWorkspace";
 import useProjectById from "@/api/projects/useProjectById";
 
-const BASE_URL = import.meta.env.VITE_ASSISTANT_SIDEBAR_URL || "/ollie";
+const DEV_BASE_URL =
+  import.meta.env.VITE_OLLIE_BASE_URL ||
+  import.meta.env.VITE_ASSISTANT_SIDEBAR_URL;
+
+const OLLIE_BRIDGE_VERSION = 1;
+const PROD_BASE = "/ollie";
+const FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
+const FAILURE_KEY = "ollie_load_failure_ts";
+
+interface OllieManifest {
+  js: string;
+}
 
 interface AssistantSidebarProps {
   onWidthChange: (width: number) => void;
@@ -30,13 +41,49 @@ const loadScript = (src: string): Promise<void> =>
     document.head.appendChild(script);
   });
 
-const loadStylesheet = (href: string): void => {
-  if (document.querySelector(`link[href="${href}"]`)) return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = href;
-  document.head.appendChild(link);
+const isInCooldown = (): boolean => {
+  const ts = sessionStorage.getItem(FAILURE_KEY);
+  if (!ts) return false;
+  return Date.now() - Number(ts) < FAILURE_COOLDOWN_MS;
 };
+
+const markFailure = (): void => {
+  sessionStorage.setItem(FAILURE_KEY, String(Date.now()));
+};
+
+async function fetchManifest(
+  baseUrl: string,
+  retry = true,
+): Promise<OllieManifest> {
+  try {
+    const res = await fetch(`${baseUrl}/manifest.json`);
+    if (!res.ok) throw new Error(`manifest ${res.status}`);
+    return (await res.json()) as OllieManifest;
+  } catch (err) {
+    if (retry) return fetchManifest(baseUrl, false);
+    throw err;
+  }
+}
+
+async function loadDevAssets(): Promise<void> {
+  await loadScript(`${DEV_BASE_URL}/ollie.js`);
+}
+
+async function loadProdAssets(): Promise<void> {
+  if (isInCooldown()) {
+    throw new Error("Ollie load in cooldown");
+  }
+
+  try {
+    const versionBase = `${PROD_BASE}/v${OLLIE_BRIDGE_VERSION}`;
+    const manifest = await fetchManifest(versionBase);
+
+    await loadScript(`${versionBase}/${manifest.js}`);
+  } catch (err) {
+    markFailure();
+    throw err;
+  }
+}
 
 type ContextChangedListener = (data: HostEventMap["context:changed"]) => void;
 
@@ -68,6 +115,8 @@ const createBridge = (
 let status: "idle" | "pending" | "resolved" | "rejected" = "idle";
 let promise: Promise<void>;
 
+const IS_DEV = import.meta.env.DEV;
+
 function suspendUntilScript(): boolean {
   switch (status) {
     case "resolved":
@@ -77,11 +126,14 @@ function suspendUntilScript(): boolean {
     case "pending":
       throw promise;
     case "idle": {
+      // Dev mode without a dev URL configured — nothing to load
+      if (IS_DEV && !DEV_BASE_URL) {
+        status = "rejected";
+        return false;
+      }
+
       status = "pending";
-      promise = (async () => {
-        loadStylesheet(`${BASE_URL}/ollie.css`);
-        await loadScript(`${BASE_URL}/ollie.js`);
-      })().then(
+      promise = (DEV_BASE_URL ? loadDevAssets() : loadProdAssets()).then(
         () => {
           status = "resolved";
         },
