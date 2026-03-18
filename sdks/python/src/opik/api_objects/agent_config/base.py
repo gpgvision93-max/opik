@@ -1,6 +1,7 @@
 import dataclasses
 import logging
 import typing
+import warnings
 
 from opik.exceptions import AgentConfigNotFound
 from . import type_helpers
@@ -29,6 +30,7 @@ class _OpikState:
     blueprint_id: typing.Optional[str] = None
     envs: typing.Optional[typing.List[str]] = None
     is_fallback: bool = True
+    mask_mismatch_warned: bool = False
 
 
 def _build_field_info(
@@ -116,6 +118,19 @@ class AgentConfig:
     def _resolve_field(self, attr: str) -> typing.Any:
         state = self._state
         project = typing.cast(str, state.project)  # guarded by __getattribute__
+        if (
+            state.mask_id is None
+            and get_active_config_mask() is not None
+            and not state.mask_mismatch_warned
+        ):
+            state.mask_mismatch_warned = True
+            warnings.warn(
+                f"{type(self).__name__} was instantiated outside of an agent entrypoint "
+                f"and will not receive config overrides. "
+                f"Ensure get_agent_config() is called inside a function decorated with "
+                f"@opik.track(entrypoint=True) to enable agent optimization.",
+                stacklevel=2,
+            )
         instance_cache = cache_mod.get_cached_config(project, state.env, state.mask_id)
         state.is_fallback = instance_cache.blueprint_id is None
         prefixed_key = type(self).__field_metadata__[attr].prefixed_key

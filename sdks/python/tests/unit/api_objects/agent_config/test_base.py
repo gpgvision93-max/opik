@@ -1,4 +1,5 @@
 import dataclasses
+import warnings
 from typing import Annotated, Optional
 from unittest import mock
 
@@ -900,6 +901,44 @@ class TestGetAgentConfigWithMask:
         with agent_config_context("mask-abc"):
             with pytest.raises(AgentConfigNotFound, match="env='PROD'"):
                 client.get_agent_config(fallback=fallback)
+
+    def test_instance_resolved_without_mask__warns_when_mask_active_on_access(
+        self, mock_rest_client
+    ):
+        from opik.api_objects.agent_config.context import agent_config_context
+
+        class MyConfig(AgentConfig):
+            greeting: str
+
+        fallback = MyConfig(greeting="default")
+        client = Opik.__new__(Opik)
+        client._rest_client = mock_rest_client
+        client._project_name = "test-project"
+
+        bp = AgentBlueprintPublic(
+            id="bp-1",
+            type="blueprint",
+            values=[
+                AgentConfigValuePublic(
+                    key="MyConfig.greeting", type="string", value="prod-greeting"
+                ),
+            ],
+        )
+        mock_rest_client.projects.retrieve_project.return_value = mock.Mock(id="proj-1")
+        mock_rest_client.agent_configs.get_blueprint_by_env.side_effect = None
+        mock_rest_client.agent_configs.get_blueprint_by_env.return_value = bp
+
+        result = client.get_agent_config(fallback=fallback)
+
+        with agent_config_context("mask-xyz"):
+            with pytest.warns(
+                UserWarning, match="instantiated outside of an agent entrypoint"
+            ):
+                _ = result.greeting
+            # second access must not warn again
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                _ = result.greeting
 
 
 # ---------------------------------------------------------------------------
