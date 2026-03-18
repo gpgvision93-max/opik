@@ -38,10 +38,10 @@ class TestAgentConfigBaseClass:
             temp: float
             name: str
 
-        assert "temp" in MyConfig.__opik_fields__
-        assert "name" in MyConfig.__opik_fields__
-        assert MyConfig.__opik_fields__["temp"].prefixed_key == "MyConfig.temp"
-        assert MyConfig.__opik_fields__["name"].prefixed_key == "MyConfig.name"
+        assert "temp" in MyConfig.__field_metadata__
+        assert "name" in MyConfig.__field_metadata__
+        assert MyConfig.__field_metadata__["temp"].prefixed_key == "MyConfig.temp"
+        assert MyConfig.__field_metadata__["name"].prefixed_key == "MyConfig.name"
 
     def test_subclass__default_value__raises_type_error(self):
         with pytest.raises(TypeError, match="does not support default values"):
@@ -60,20 +60,20 @@ class TestAgentConfigBaseClass:
             temp: Annotated[float, "Sampling temperature"]
             name: str
 
-        assert MyConfig.__opik_fields__["temp"].description == "Sampling temperature"
-        assert MyConfig.__opik_fields__["name"].description is None
+        assert MyConfig.__field_metadata__["temp"].description == "Sampling temperature"
+        assert MyConfig.__field_metadata__["name"].description is None
 
     def test_subclass__annotated_with_non_str_metadata__no_description(self):
         class MyConfig(AgentConfig):
             temp: Annotated[float, 42]
 
-        assert MyConfig.__opik_fields__["temp"].description is None
+        assert MyConfig.__field_metadata__["temp"].description is None
 
     def test_subclass__optional_type__unwrapped(self):
         class MyConfig(AgentConfig):
             temp: Optional[float]
 
-        cf = MyConfig.__opik_fields__["temp"]
+        cf = MyConfig.__field_metadata__["temp"]
         assert cf.py_type is float
 
     def test_subclass__isinstance_check(self):
@@ -86,8 +86,8 @@ class TestAgentConfigBaseClass:
 
     def test_base_class__has_no_opik_fields(self):
         assert (
-            not hasattr(AgentConfig, "__opik_fields__")
-            or AgentConfig.__opik_fields__ == {}
+            not hasattr(AgentConfig, "__field_metadata__")
+            or AgentConfig.__field_metadata__ == {}
         )
 
 

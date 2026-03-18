@@ -23,7 +23,6 @@ class ConfigField(typing.NamedTuple):
 class _OpikState:
     project: typing.Optional[str] = None
     env: typing.Optional[str] = None
-    mask_id: typing.Optional[str] = None
     manager: typing.Any = None
     blueprint_id: typing.Optional[str] = None
 
@@ -56,7 +55,7 @@ class AgentConfig:
         cfg = MyConfig(temperature=0.5, model="gpt-4")
     """
 
-    __opik_fields__: typing.ClassVar[typing.Dict[str, ConfigField]]
+    __field_metadata__: typing.ClassVar[typing.Dict[str, ConfigField]]
 
     _opik_state: _OpikState
 
@@ -84,60 +83,43 @@ class AgentConfig:
                 py_type=f_type,
                 description=desc,
             )
-        cls.__opik_fields__ = fields
+        cls.__field_metadata__ = fields
 
-        original_init = cls.__init__
-
-        def _wrapped_init(
-            self: typing.Any, *args: typing.Any, **kwargs: typing.Any
-        ) -> None:  # type: ignore[no-untyped-def]
-            original_init(self, *args, **kwargs)
-            object.__setattr__(self, "_opik_state", _OpikState())
-
-        cls.__init__ = _wrapped_init  # type: ignore[assignment]
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_opik_state", _OpikState())
 
     @property
     def _state(self) -> _OpikState:
         return object.__getattribute__(self, "_opik_state")
 
     def __getattribute__(self, attr: str) -> typing.Any:
-        if attr.startswith("_") or attr not in type(self).__opik_fields__:
+        if attr not in type(self).__field_metadata__:
             return object.__getattribute__(self, attr)
         if self._state.project is None:
             return object.__getattribute__(self, attr)
         return self._resolve_field(attr)
 
     def _resolve_field(self, attr: str) -> typing.Any:
-        masked = self._get_masked_value(attr)
-        if masked is not _MISSING:
-            self._inject_trace_metadata(
-                attr, value=masked, mask_id=get_active_config_mask()
-            )
-            return masked
-        return self._resolve_from_cache(attr)
-
-    def _resolve_from_cache(self, attr: str) -> typing.Any:
         state = self._state
-        instance_cache = cache_mod.get_cached_config(
-            state.project, state.env, state.mask_id
-        )
-        prefixed_key = type(self).__opik_fields__[attr].prefixed_key
+        mask_id = get_active_config_mask()
+        instance_cache = cache_mod.get_cached_config(state.project, state.env, mask_id)
+        prefixed_key = type(self).__field_metadata__[attr].prefixed_key
         value = instance_cache.values.get(prefixed_key, _MISSING)
         self._inject_trace_metadata(
-            attr, value=value, shared_cache=instance_cache, mask_id=state.mask_id
+            attr, value=value, shared_cache=instance_cache, mask_id=mask_id
         )
         return value if value is not _MISSING else object.__getattribute__(self, attr)
 
     def _extract_fields_with_values(self) -> typing.Dict[str, tuple]:
         result: typing.Dict[str, tuple] = {}
-        for f_name, cf in type(self).__opik_fields__.items():
+        for f_name, cf in type(self).__field_metadata__.items():
             value = object.__getattribute__(self, f_name)
             result[cf.prefixed_key] = (cf.py_type, value, cf.description)
         return result
 
     def _prefixed_field_types(self) -> typing.Dict[str, typing.Any]:
         return {
-            cf.prefixed_key: cf.py_type for cf in type(self).__opik_fields__.values()
+            cf.prefixed_key: cf.py_type for cf in type(self).__field_metadata__.values()
         }
 
     def _matches_blueprint(
@@ -211,21 +193,26 @@ class AgentConfig:
         version: typing.Optional[str],
     ) -> T:
         field_types = {
-            cf.prefixed_key: cf.py_type for cf in cls.__opik_fields__.values()
+            cf.prefixed_key: cf.py_type for cf in cls.__field_metadata__.values()
         }
 
+        mask_id = get_active_config_mask()
         if version is not None:
-            bp = manager.get_blueprint(name=version, field_types=field_types)
+            bp = manager.get_blueprint(
+                name=version, mask_id=mask_id, field_types=field_types
+            )
         elif latest:
-            bp = manager.get_blueprint(field_types=field_types)
+            bp = manager.get_blueprint(mask_id=mask_id, field_types=field_types)
         else:
-            bp = manager.get_blueprint(env=env, field_types=field_types)
+            bp = manager.get_blueprint(
+                env=env, mask_id=mask_id, field_types=field_types
+            )
 
         if bp is None:
             return fallback
 
         kwargs: typing.Dict[str, typing.Any] = {}
-        for f_name, cf in cls.__opik_fields__.items():
+        for f_name, cf in cls.__field_metadata__.items():
             bp_value = bp.get(cf.prefixed_key)
             if bp_value is not None:
                 kwargs[f_name] = bp_value
@@ -242,47 +229,11 @@ class AgentConfig:
         state.blueprint_id = bp.id
 
         shared_cache = cache_mod.init_cache_entry(
-            project_name, resolved_env, None, field_types, manager
+            project_name, resolved_env, mask_id, field_types, manager
         )
         shared_cache.update(bp)
 
         return instance
-
-    def _get_masked_value(self, attr: str) -> typing.Any:
-        context_mask = get_active_config_mask()
-        if context_mask is None:
-            return _MISSING
-
-        try:
-            state = self._state
-            if state.manager is None:
-                return _MISSING
-
-            prefixed_key = type(self).__opik_fields__[attr].prefixed_key
-
-            base_cache = cache_mod.get_cached_config(
-                state.project, state.env, state.mask_id
-            )
-            mask_cache = cache_mod.get_cached_config(
-                state.project, state.env, context_mask
-            )
-            mask_cache.register_fields(base_cache.all_field_types)
-
-            if not mask_cache.values:
-                bp = state.manager.get_blueprint(
-                    mask_id=context_mask,
-                    env=state.env,
-                    field_types=base_cache.all_field_types,
-                )
-                if bp is not None:
-                    mask_cache.update(bp)
-
-            if prefixed_key in mask_cache.values:
-                return mask_cache.values[prefixed_key]
-        except Exception:
-            logger.debug("Failed to get masked config value", exc_info=True)
-
-        return _MISSING
 
     def _inject_trace_metadata(
         self,
@@ -315,10 +266,12 @@ class AgentConfig:
         resolved_cache = (
             shared_cache
             if shared_cache is not None
-            else cache_mod.get_cached_config(state.project, state.env, state.mask_id)
+            else cache_mod.get_cached_config(
+                state.project, state.env, get_active_config_mask()
+            )
         )
 
-        config_field = type(self).__opik_fields__[attr]
+        config_field = type(self).__field_metadata__[attr]
         if value is _MISSING:
             value = resolved_cache.values.get(config_field.prefixed_key, _MISSING)
 

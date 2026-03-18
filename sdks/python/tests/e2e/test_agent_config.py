@@ -4,6 +4,8 @@ from typing import Annotated
 import pytest
 import opik
 from opik.api_objects.agent_config.cache import _registry
+from opik.api_objects.agent_config.config import AgentConfigManager
+from opik.api_objects.agent_config.context import agent_config_context
 
 from opik.api_objects.prompt.text.prompt import Prompt
 from opik.rest_api import core as rest_api_core
@@ -254,3 +256,41 @@ def test_prompt_field__roundtrip(
     )
     assert isinstance(result.system_prompt, Prompt)
     assert result.system_prompt.version_id == prompt_v1.version_id
+
+
+# ---------------------------------------------------------------------------
+# Mask tests
+# ---------------------------------------------------------------------------
+
+
+def test_mask__overrides_base_config_values(
+    opik_client: opik.Opik,
+    project_name: str,
+):
+    class MyConfig(opik.AgentConfig):
+        temperature: float
+        model: str
+
+    base_cfg = MyConfig(temperature=0.5, model="gpt-4")
+    opik_client.create_agent_config_version(base_cfg, project_name=project_name)
+
+    _registry.clear()
+
+    manager = AgentConfigManager(
+        project_name=project_name,
+        rest_client_=opik_client.rest_client,
+    )
+    mask_id = manager.create_mask(
+        parameters={"MyConfig.temperature": 0.9},
+    )
+
+    _registry.clear()
+
+    with agent_config_context(mask_id):
+        result = opik_client.get_agent_config(
+            fallback=MyConfig(temperature=0.0, model="fallback"),
+            project_name=project_name,
+            latest=True,
+        )
+        assert result.temperature == pytest.approx(0.9)
+        assert result.model == "gpt-4"
