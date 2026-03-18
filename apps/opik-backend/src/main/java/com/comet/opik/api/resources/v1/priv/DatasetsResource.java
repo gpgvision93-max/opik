@@ -282,7 +282,7 @@ public class DatasetsResource {
         String workspaceId = requestContext.get().getWorkspaceId();
         Visibility visibility = requestContext.get().getVisibility();
         String name = identifier.datasetName();
-        UUID projectId = resolveProjectName(identifier.projectName(), workspaceId);
+        UUID projectId = resolveProjectIdByName(identifier.projectName(), workspaceId);
 
         log.info("Finding dataset by name '{}', projectId '{}' on workspace_id '{}'", name, projectId, workspaceId);
         Dataset dataset = service.findByName(workspaceId, name, projectId, visibility);
@@ -431,20 +431,24 @@ public class DatasetsResource {
         var workspaceId = requestContext.get().getWorkspaceId();
         var userName = requestContext.get().getUserName();
         var visibility = requestContext.get().getVisibility();
-        UUID projectId = resolveProjectName(request.projectName(), workspaceId);
-        var resolvedRequest = request.toBuilder().projectId(projectId).build();
+        UUID resolvedProjectId = resolveProjectIdByName(request.projectName(), workspaceId);
+        var resolvedRequest = resolvedProjectId != null
+                ? request.toBuilder().projectId(resolvedProjectId).build()
+                : request;
 
         // Suppress unchecked cast warning since we already pass DatasetItemFilter reference to newFilters
         @SuppressWarnings("unchecked")
         List<DatasetItemFilter> queryFilters = Optional.ofNullable((List<DatasetItemFilter>) filtersFactory.newFilters(
                 request.filters(), DatasetItemFilter.LIST_TYPE_REFERENCE)).orElse(List.of());
 
-        log.info("Streaming dataset items by '{}' on workspaceId '{}'", resolvedRequest, workspaceId);
+        log.info("Streaming dataset items for dataset '{}', projectId '{}' on workspaceId '{}'",
+                resolvedRequest.datasetName(), resolvedRequest.projectId(), workspaceId);
         var items = itemService.getItems(workspaceId, resolvedRequest, queryFilters, visibility)
                 .contextWrite(ctx -> ctx.put(RequestContext.USER_NAME, userName)
                         .put(RequestContext.WORKSPACE_ID, workspaceId));
         var outputStream = streamer.getOutputStream(items);
-        log.info("Streamed dataset items by '{}' on workspaceId '{}'", resolvedRequest, workspaceId);
+        log.info("Streamed dataset items for dataset '{}', projectId '{}' on workspaceId '{}'",
+                resolvedRequest.datasetName(), resolvedRequest.projectId(), workspaceId);
         return outputStream;
     }
 
@@ -782,7 +786,7 @@ public class DatasetsResource {
         return Response.ok(columns).build();
     }
 
-    private UUID resolveProjectName(String projectName, String workspaceId) {
+    private UUID resolveProjectIdByName(String projectName, String workspaceId) {
         if (StringUtils.isBlank(projectName)) {
             return null;
         }
