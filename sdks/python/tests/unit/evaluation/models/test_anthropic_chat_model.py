@@ -114,10 +114,16 @@ class TestMessageAdapter:
         assert "title" not in schema
 
     def test_strips_prefix(self):
-        assert message_adapter.strip_anthropic_prefix("anthropic/claude-sonnet-4-20250514") == "claude-sonnet-4-20250514"
+        assert (
+            message_adapter.strip_anthropic_prefix("anthropic/claude-sonnet-4-20250514")
+            == "claude-sonnet-4-20250514"
+        )
 
     def test_no_prefix(self):
-        assert message_adapter.strip_anthropic_prefix("claude-sonnet-4-20250514") == "claude-sonnet-4-20250514"
+        assert (
+            message_adapter.strip_anthropic_prefix("claude-sonnet-4-20250514")
+            == "claude-sonnet-4-20250514"
+        )
 
     def test_filter_unsupported_params_drops_openai_specific(self):
         warned: set = set()
@@ -191,9 +197,7 @@ class TestAnthropicChatModelProviderResponse:
 
         call_kwargs = mock_client.messages.create.call_args
         assert call_kwargs.kwargs["system"] == "Be helpful"
-        assert all(
-            m["role"] != "system" for m in call_kwargs.kwargs["messages"]
-        )
+        assert all(m["role"] != "system" for m in call_kwargs.kwargs["messages"])
 
     def test_response_format_uses_parse(self, monkeypatch):
         _, mock_client, _ = _install_anthropic_stub(monkeypatch)
@@ -308,7 +312,14 @@ class TestFactoryRouting:
         model = models_factory.get("anthropic/claude-sonnet-4-20250514", track=False)
         assert isinstance(model, anthropic_chat_model.AnthropicChatModel)
 
-    def test_factory_does_not_route_without_prefix(self, monkeypatch):
+    def test_factory_routes_bare_claude_name(self, monkeypatch):
+        _install_anthropic_stub(monkeypatch)
+        monkeypatch.setenv("OPIK_ENABLE_LITELLM_MODELS_MONITORING", "false")
+
+        model = models_factory.get("claude-sonnet-4-20250514", track=False)
+        assert isinstance(model, anthropic_chat_model.AnthropicChatModel)
+
+    def test_factory_does_not_route_non_anthropic(self, monkeypatch):
         litellm_stub = types.ModuleType("litellm")
         litellm_stub.suppress_debug_info = False
 
@@ -323,7 +334,7 @@ class TestFactoryRouting:
             "temperature",
             "response_format",
         ]
-        litellm_stub.get_llm_provider = lambda model: ("anthropic", "anthropic")
+        litellm_stub.get_llm_provider = lambda model: ("openai", "openai")
         litellm_stub.utils = SimpleNamespace(UnsupportedParamsError=Exception)
         litellm_stub.exceptions = SimpleNamespace(BadRequestError=Exception)
         litellm_stub.callbacks = []
@@ -337,7 +348,7 @@ class TestFactoryRouting:
             lambda **kw: (lambda f: f),
         )
 
-        model = models_factory.get("claude-sonnet-4-20250514", track=False)
+        model = models_factory.get("gpt-4o", track=False)
         from opik.evaluation.models.litellm.litellm_chat_model import LiteLLMChatModel
 
         assert isinstance(model, LiteLLMChatModel)

@@ -10,20 +10,22 @@ import pydantic
 LOGGER = logging.getLogger(__name__)
 
 # Parameters accepted by anthropic.messages.create()
-_SUPPORTED_PARAMS: frozenset[str] = frozenset({
-    "model",
-    "messages",
-    "max_tokens",
-    "system",
-    "temperature",
-    "top_p",
-    "top_k",
-    "stop_sequences",
-    "tools",
-    "tool_choice",
-    "metadata",
-    "stream",
-})
+_SUPPORTED_PARAMS: frozenset[str] = frozenset(
+    {
+        "model",
+        "messages",
+        "max_tokens",
+        "system",
+        "temperature",
+        "top_p",
+        "top_k",
+        "stop_sequences",
+        "tools",
+        "tool_choice",
+        "metadata",
+        "stream",
+    }
+)
 
 
 def extract_system_messages(
@@ -64,7 +66,7 @@ def pydantic_to_output_config(model: Type[pydantic.BaseModel]) -> Dict[str, Any]
 
 def strip_anthropic_prefix(model_name: str) -> str:
     if model_name.startswith("anthropic/"):
-        return model_name[len("anthropic/"):]
+        return model_name[len("anthropic/") :]
     return model_name
 
 

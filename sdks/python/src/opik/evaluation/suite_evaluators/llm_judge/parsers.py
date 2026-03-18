@@ -45,7 +45,7 @@ def _resolve_refs(schema: Dict[str, Any]) -> Dict[str, Any]:
             ref_path = node["$ref"]
             # Only handle local #/$defs/ references
             if ref_path.startswith("#/$defs/"):
-                def_name = ref_path[len("#/$defs/"):]
+                def_name = ref_path[len("#/$defs/") :]
                 resolved = copy.deepcopy(defs[def_name])
                 resolved = _resolve_node(resolved)
                 # Merge sibling keys (e.g. description) into the resolved object
@@ -101,7 +101,7 @@ class ResponseSchema:
 
         # Override model_json_schema so providers receive the flat schema
         @classmethod  # type: ignore[misc]
-        def _resolved_schema(cls, **_kwargs: Any) -> Dict[str, Any]:
+        def _resolved_schema(cls, **_kwargs: Any) -> Dict[str, Any]:  # type: ignore[no-untyped-def]
             return resolved
 
         base_model.model_json_schema = _resolved_schema  # type: ignore[assignment]
