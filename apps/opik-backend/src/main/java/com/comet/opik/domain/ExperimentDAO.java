@@ -307,7 +307,7 @@ class ExperimentDAO {
             ), experiment_durations AS (
                 SELECT
                     experiment_id,
-                    groupUniqArray(project_id) AS project_ids,
+                    groupUniqArrayIf(project_id, notEmpty(project_id)) AS project_ids,
                     mapFromArrays(
                         ['p50', 'p90', 'p99'],
                         arrayMap(
@@ -1182,7 +1182,7 @@ class ExperimentDAO {
             ), experiment_durations AS (
                 SELECT
                     experiment_id,
-                    groupUniqArray(project_id) AS project_ids,
+                    groupUniqArrayIf(project_id, notEmpty(project_id)) AS project_ids,
                     mapFromArrays(
                         ['p50', 'p90', 'p99'],
                         arrayMap(
