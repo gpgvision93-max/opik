@@ -25,6 +25,8 @@ class _OpikState:
     env: typing.Optional[str] = None
     manager: typing.Any = None
     blueprint_id: typing.Optional[str] = None
+    envs: typing.Optional[typing.List[str]] = None
+    is_fallback: bool = True
 
 
 def _build_field_info(
@@ -92,6 +94,16 @@ class AgentConfig:
     def _state(self) -> _OpikState:
         return object.__getattribute__(self, "_opik_state")
 
+    @property
+    def envs(self) -> typing.Optional[typing.List[str]]:
+        """Environment tags associated with the resolved blueprint."""
+        return self._state.envs
+
+    @property
+    def is_fallback(self) -> bool:
+        """True if local fallback values are used because no backend blueprint was found."""
+        return self._state.is_fallback
+
     def __getattribute__(self, attr: str) -> typing.Any:
         if attr not in type(self).__field_metadata__:
             return object.__getattribute__(self, attr)
@@ -103,6 +115,7 @@ class AgentConfig:
         state = self._state
         mask_id = get_active_config_mask()
         instance_cache = cache_mod.get_cached_config(state.project, state.env, mask_id)
+        state.is_fallback = instance_cache.blueprint_id is None
         prefixed_key = type(self).__field_metadata__[attr].prefixed_key
         value = instance_cache.values.get(prefixed_key, _MISSING)
         self._inject_trace_metadata(
@@ -153,6 +166,8 @@ class AgentConfig:
         if latest is not None and self._matches_blueprint(latest, fields_with_values):
             self._state.manager = manager
             self._state.blueprint_id = latest.id
+            self._state.envs = latest.envs
+            self._state.is_fallback = False
             return latest.name or ""
 
         bp = manager.create_blueprint(
@@ -162,6 +177,8 @@ class AgentConfig:
         )
         self._state.manager = manager
         self._state.blueprint_id = bp.id
+        self._state.envs = bp.envs
+        self._state.is_fallback = False
         return bp.name or ""
 
     def deploy_to(self, env: str) -> None:
@@ -227,6 +244,8 @@ class AgentConfig:
         state.env = resolved_env
         state.manager = manager
         state.blueprint_id = bp.id
+        state.envs = bp.envs
+        state.is_fallback = False
 
         shared_cache = cache_mod.init_cache_entry(
             project_name, resolved_env, mask_id, field_types, manager
