@@ -434,9 +434,9 @@ public class DatasetsResource {
         var workspaceId = requestContext.get().getWorkspaceId();
         var userName = requestContext.get().getUserName();
         var visibility = requestContext.get().getVisibility();
-        UUID resolvedProjectId = request.projectId() == null
-                ? resolveProjectIdByName(request.projectName(), workspaceId)
-                : null;
+        UUID resolvedProjectId = request.projectId() != null
+                ? request.projectId()
+                : resolveProjectIdByName(request.projectName(), workspaceId);
         var resolvedRequest = resolvedProjectId != null
                 ? request.toBuilder().projectId(resolvedProjectId).build()
                 : request;
