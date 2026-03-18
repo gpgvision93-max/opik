@@ -29,6 +29,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomUtils;
+import org.redisson.api.RBatch;
 import org.redisson.api.RBlockingDequeReactive;
 import org.redisson.api.RBucket;
 import org.redisson.api.RList;
@@ -341,13 +342,15 @@ class LocalRunnerServiceImpl implements LocalRunnerService {
         RList<String> activeJobs = redisClient.getList(
                 activeJobsKey(runnerId));
         List<String> activeJobIds = activeJobs.readAll();
-        String now = Instant.now().toString();
-        for (String jobIdStr : activeJobIds) {
-            UUID jobId = UUID.fromString(jobIdStr);
-            RMap<String, String> jobMap = redisClient.getMap(jobKey(jobId));
-            if (jobMap.isExists()) {
-                jobMap.put(FIELD_LAST_HEARTBEAT, now);
+        if (!activeJobIds.isEmpty()) {
+            String now = Instant.now().toString();
+            RBatch batch = redisClient.createBatch();
+            for (String jobIdStr : activeJobIds) {
+                UUID jobId = UUID.fromString(jobIdStr);
+                batch.<String, String>getMap(jobKey(jobId), StringCodec.INSTANCE)
+                        .putAsync(FIELD_LAST_HEARTBEAT, now);
             }
+            batch.execute();
         }
 
         RSet<String> cancellations = redisClient.getSet(
