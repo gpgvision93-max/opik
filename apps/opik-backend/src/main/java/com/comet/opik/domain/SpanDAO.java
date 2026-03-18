@@ -593,6 +593,7 @@ class SpanDAO {
                   AND workspace_id = :workspace_id
                   AND entity_id IN :ids
                   <if(has_target_projects)>AND project_id IN :target_project_ids<endif>
+                  AND category_name != 'suite_assertion'
                 UNION ALL
                 SELECT workspace_id,
                        project_id,
@@ -612,6 +613,7 @@ class SpanDAO {
                   AND workspace_id = :workspace_id
                   AND entity_id IN :ids
                   <if(has_target_projects)>AND project_id IN :target_project_ids<endif>
+                  AND category_name != 'suite_assertion'
             ), feedback_scores_with_ranking AS (
                 SELECT workspace_id,
                        project_id,
@@ -860,6 +862,7 @@ class SpanDAO {
                   <if(uuid_from_time)> AND entity_id >= :uuid_from_time <endif>
                   <if(uuid_to_time)> AND entity_id \\<= :uuid_to_time <endif>
                   <endif>
+                  AND category_name != 'suite_assertion'
                 UNION ALL
                 SELECT workspace_id,
                        project_id,
@@ -883,6 +886,7 @@ class SpanDAO {
                   <if(uuid_from_time)> AND entity_id >= :uuid_from_time <endif>
                   <if(uuid_to_time)> AND entity_id \\<= :uuid_to_time <endif>
                   <endif>
+                  AND category_name != 'suite_assertion'
             ), feedback_scores_with_ranking AS (
                 SELECT workspace_id,
                        project_id,
@@ -1075,6 +1079,7 @@ class SpanDAO {
                   AND project_id = :project_id
                   <if(uuid_from_time)> AND entity_id >= :uuid_from_time <endif>
                   <if(uuid_to_time)> AND entity_id \\<= :uuid_to_time <endif>
+                  AND category_name != 'suite_assertion'
                 UNION ALL
                 SELECT workspace_id,
                        project_id,
@@ -1089,6 +1094,7 @@ class SpanDAO {
                    AND project_id = :project_id
                    <if(uuid_from_time)> AND entity_id >= :uuid_from_time <endif>
                    <if(uuid_to_time)> AND entity_id \\<= :uuid_to_time <endif>
+                   AND category_name != 'suite_assertion'
              ), feedback_scores_with_ranking AS (
                  SELECT workspace_id,
                         project_id,
@@ -1217,6 +1223,7 @@ class SpanDAO {
                   AND project_id = :project_id
                   <if(uuid_from_time)> AND entity_id >= :uuid_from_time <endif>
                   <if(uuid_to_time)> AND entity_id \\<= :uuid_to_time <endif>
+                  AND category_name != 'suite_assertion'
                 UNION ALL
                 SELECT workspace_id,
                        project_id,
@@ -1237,6 +1244,7 @@ class SpanDAO {
                   AND project_id = :project_id
                   <if(uuid_from_time)> AND entity_id >= :uuid_from_time <endif>
                   <if(uuid_to_time)> AND entity_id \\<= :uuid_to_time <endif>
+                  AND category_name != 'suite_assertion'
             ), feedback_scores_with_ranking AS (
                 SELECT workspace_id,
                        project_id,
