@@ -115,7 +115,12 @@ Displays time-series charts for project metrics over time. Supports both line an
 - **Project**: Select the project to pull data from
 - **Metric type**: Choose from any of the metrics listed above
 - **Chart type**: Line chart (best for trends) or Bar chart (good for volume/period comparisons)
-- **Breakdown**: Optionally group data by trace name to see per-workflow patterns
+- **Breakdown**: Optionally group data by a field to see per-group patterns. Available fields depend on the data source:
+  - Trace metrics: Tags, Name, Has error, Error type, Metadata key
+  - Span metrics: Tags, Name, Has error, Error type, Metadata key, Model, Provider, Span type
+  - Thread metrics: Tags
+
+  When a breakdown is active, use the **aggregation toggle** to control how data is bucketed: **Total** shows one value per group for the entire date range, while **Time-based** shows values in time buckets (hourly, daily, or weekly). Click a label in the chart legend to navigate directly to the traces list filtered to that group.
 - **Filters**: Apply trace or thread filters to focus on specific data based on tags, metadata, or other attributes
 - **Feedback scores**: When using feedback score metrics, optionally select specific scores to display (leave empty to show all)
 
