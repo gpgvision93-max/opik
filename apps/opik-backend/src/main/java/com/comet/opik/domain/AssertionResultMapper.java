@@ -6,6 +6,7 @@ import com.comet.opik.api.ExperimentItem;
 import com.comet.opik.api.ExperimentRunSummary;
 import com.comet.opik.api.RunStatus;
 import com.comet.opik.utils.JsonUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.annotation.Nullable;
 import lombok.NonNull;
@@ -37,7 +38,7 @@ class AssertionResultMapper {
         List<AssertionResultRow> rows;
         try {
             rows = JsonUtils.getMapper().readValue(assertionsJson, ASSERTION_LIST_TYPE);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             log.warn("Failed to parse assertions_array JSON", e);
             return item;
         }
