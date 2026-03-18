@@ -38,8 +38,7 @@ const DEFAULT_STATE: FeatureToggles = {
   [FeatureToggleKeys.OLLAMA_PROVIDER_ENABLED]: false,
   [FeatureToggleKeys.COLLABORATORS_TAB_ENABLED]: false,
   [FeatureToggleKeys.AGENT_CONFIGURATION_ENABLED]: false,
-  [FeatureToggleKeys.ASSISTANT_SIDEBAR_ENABLED]:
-    import.meta.env.DEV && import.meta.env.VITE_ASSISTANT_SIDEBAR_ENABLED === 'true',
+  [FeatureToggleKeys.ASSISTANT_SIDEBAR_ENABLED]: false,
 };
 
 const initialState: FeatureTogglesState = {
