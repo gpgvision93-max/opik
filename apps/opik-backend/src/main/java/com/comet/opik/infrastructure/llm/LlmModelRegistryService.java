@@ -1,11 +1,15 @@
 package com.comet.opik.infrastructure.llm;
 
 import com.comet.opik.infrastructure.LlmModelRegistryConfig;
+import com.comet.opik.infrastructure.OpikConfiguration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import ru.vyarus.dropwizard.guice.module.yaml.bind.Config;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
+@Singleton
 public class LlmModelRegistryService {
 
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
@@ -26,7 +31,12 @@ public class LlmModelRegistryService {
     private final LlmModelRegistryConfig config;
     private volatile Map<String, List<LlmModelDefinition>> registry;
 
-    public LlmModelRegistryService(@NonNull LlmModelRegistryConfig config) {
+    @Inject
+    public LlmModelRegistryService(@NonNull @Config OpikConfiguration configuration) {
+        this(configuration.getLlmModelRegistry());
+    }
+
+    LlmModelRegistryService(@NonNull LlmModelRegistryConfig config) {
         this.config = config;
         this.registry = load();
     }
