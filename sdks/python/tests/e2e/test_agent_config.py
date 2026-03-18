@@ -109,18 +109,20 @@ def test_create_agent_config_version__different_values__new_version__happyflow(
 # ---------------------------------------------------------------------------
 
 
-def test_get_agent_config__no_backend__returns_fallback__happyflow(
+def test_get_agent_config__no_backend__raises_not_found(
     opik_client: opik.Opik,
     project_name: str,
 ):
+    from opik.exceptions import AgentConfigNotFound
+
     class MyConfig(opik.AgentConfig):
         temperature: float
 
     fallback = MyConfig(temperature=0.99)
-    result = opik_client.get_agent_config(
-        fallback=fallback, project_name=project_name, latest=True
-    )
-    assert result.temperature == pytest.approx(0.99)
+    with pytest.raises(AgentConfigNotFound):
+        opik_client.get_agent_config(
+            fallback=fallback, project_name=project_name, latest=True
+        )
 
 
 def test_get_agent_config__backend_values__override_fallback__happyflow(
