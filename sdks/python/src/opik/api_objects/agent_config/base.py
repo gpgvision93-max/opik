@@ -24,6 +24,7 @@ class ConfigField(typing.NamedTuple):
 class _OpikState:
     project: typing.Optional[str] = None
     env: typing.Optional[str] = None
+    mask_id: typing.Optional[str] = None
     manager: typing.Any = None
     blueprint_id: typing.Optional[str] = None
     envs: typing.Optional[typing.List[str]] = None
@@ -115,13 +116,12 @@ class AgentConfig:
     def _resolve_field(self, attr: str) -> typing.Any:
         state = self._state
         project = typing.cast(str, state.project)  # guarded by __getattribute__
-        mask_id = get_active_config_mask()
-        instance_cache = cache_mod.get_cached_config(project, state.env, mask_id)
+        instance_cache = cache_mod.get_cached_config(project, state.env, state.mask_id)
         state.is_fallback = instance_cache.blueprint_id is None
         prefixed_key = type(self).__field_metadata__[attr].prefixed_key
         value = instance_cache.values.get(prefixed_key, _MISSING)
         self._inject_trace_metadata(
-            attr, value=value, shared_cache=instance_cache, mask_id=mask_id
+            attr, value=value, shared_cache=instance_cache, mask_id=state.mask_id
         )
         return value if value is not _MISSING else object.__getattribute__(self, attr)
 
@@ -263,6 +263,7 @@ class AgentConfig:
         state = instance._state
         state.project = project_name
         state.env = resolved_env
+        state.mask_id = mask_id
         state.manager = manager
         state.blueprint_id = bp.id
         state.envs = bp.envs
@@ -309,9 +310,7 @@ class AgentConfig:
         resolved_cache = (
             shared_cache
             if shared_cache is not None
-            else cache_mod.get_cached_config(
-                project, state.env, get_active_config_mask()
-            )
+            else cache_mod.get_cached_config(project, state.env, state.mask_id)
         )
 
         config_field = type(self).__field_metadata__[attr]
