@@ -13,13 +13,6 @@ from opik.api_objects import trace, span
 from opik.decorator import generator_wrappers, error_info_collector
 
 from anthropic.lib.streaming import _messages
-from anthropic.lib.streaming._beta_messages import (
-    BetaAsyncMessageStream,
-    BetaAsyncMessageStreamManager,
-    BetaMessageStream,
-    BetaMessageStreamManager,
-)
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,13 +27,34 @@ original_async_message_stream_manager_aenter_method = (
     anthropic.AsyncMessageStreamManager.__aenter__
 )
 
-original_beta_message_stream_iter_method = BetaMessageStream.__iter__
-original_beta_async_message_stream_aiter_method = BetaAsyncMessageStream.__aiter__
+try:
+    from anthropic.lib.streaming._beta_messages import (
+        BetaAsyncMessageStream,
+        BetaAsyncMessageStreamManager,
+        BetaMessageStream,
+        BetaMessageStreamManager,
+    )
 
-original_beta_message_stream_manager_enter_method = BetaMessageStreamManager.__enter__
-original_beta_async_message_stream_manager_aenter_method = (
-    BetaAsyncMessageStreamManager.__aenter__
-)
+    original_beta_message_stream_iter_method = BetaMessageStream.__iter__
+    original_beta_async_message_stream_aiter_method = BetaAsyncMessageStream.__aiter__
+    original_beta_message_stream_manager_enter_method = (
+        BetaMessageStreamManager.__enter__
+    )
+    original_beta_async_message_stream_manager_aenter_method = (
+        BetaAsyncMessageStreamManager.__aenter__
+    )
+except ImportError:
+    LOGGER.debug(
+        "Anthropic beta streaming module not available; beta stream patching disabled."
+    )
+    BetaMessageStream = None  # type: ignore[assignment,misc]
+    BetaAsyncMessageStream = None  # type: ignore[assignment,misc]
+    BetaMessageStreamManager = None  # type: ignore[assignment,misc]
+    BetaAsyncMessageStreamManager = None  # type: ignore[assignment,misc]
+    original_beta_message_stream_iter_method = None
+    original_beta_async_message_stream_aiter_method = None
+    original_beta_message_stream_manager_enter_method = None
+    original_beta_async_message_stream_manager_aenter_method = None
 
 
 def patch_sync_stream(
@@ -389,7 +403,6 @@ def patch_sync_beta_message_stream_manager(
             except Exception as exception:
                 LOGGER.debug(
                     "Exception raised from anthropic.BetaMessageStream.",
-                    str(exception),
                     exc_info=True,
                 )
                 error_info = error_info_collector.collect(exception)
@@ -474,7 +487,6 @@ def patch_async_beta_message_stream_manager(
             except Exception as exception:
                 LOGGER.debug(
                     "Exception raised from anthropic.BetaAsyncMessageStream.",
-                    str(exception),
                     exc_info=True,
                 )
                 error_info = error_info_collector.collect(exception)

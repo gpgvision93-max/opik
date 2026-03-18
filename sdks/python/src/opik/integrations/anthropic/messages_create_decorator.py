@@ -140,23 +140,31 @@ class AnthropicMessagesCreateDecorator(base_track_decorator.BaseTrackDecorator):
                 finally_callback=self._after_call,
             )
 
-        if isinstance(output, stream_patchers.BetaMessageStreamManager):
-            span_to_end, trace_to_end = base_track_decorator.pop_end_candidates()
-            return stream_patchers.patch_sync_beta_message_stream_manager(
-                output,
-                span_to_end=span_to_end,
-                trace_to_end=trace_to_end,
-                finally_callback=self._after_call,
+        try:
+            from anthropic.lib.streaming._beta_messages import (
+                BetaAsyncMessageStreamManager,
+                BetaMessageStreamManager,
             )
 
-        if isinstance(output, stream_patchers.BetaAsyncMessageStreamManager):
-            span_to_end, trace_to_end = base_track_decorator.pop_end_candidates()
-            return stream_patchers.patch_async_beta_message_stream_manager(
-                output,
-                span_to_end=span_to_end,
-                trace_to_end=trace_to_end,
-                finally_callback=self._after_call,
-            )
+            if isinstance(output, BetaMessageStreamManager):
+                span_to_end, trace_to_end = base_track_decorator.pop_end_candidates()
+                return stream_patchers.patch_sync_beta_message_stream_manager(
+                    output,
+                    span_to_end=span_to_end,
+                    trace_to_end=trace_to_end,
+                    finally_callback=self._after_call,
+                )
+
+            if isinstance(output, BetaAsyncMessageStreamManager):
+                span_to_end, trace_to_end = base_track_decorator.pop_end_candidates()
+                return stream_patchers.patch_async_beta_message_stream_manager(
+                    output,
+                    span_to_end=span_to_end,
+                    trace_to_end=trace_to_end,
+                    finally_callback=self._after_call,
+                )
+        except ImportError:
+            pass
 
         NOT_A_STREAM = None
 

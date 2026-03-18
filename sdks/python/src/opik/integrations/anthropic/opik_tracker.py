@@ -109,7 +109,7 @@ def track_anthropic(
         anthropic_client.beta.messages.stream = beta_stream_decorator(
             anthropic_client.beta.messages.stream
         )
-    except Exception:
+    except AttributeError:
         LOGGER.debug(
             "Failed to patch `client.beta.messages.create/stream` methods. It is likely because they were not implemented in the provided anthropic client",
             exc_info=True,
