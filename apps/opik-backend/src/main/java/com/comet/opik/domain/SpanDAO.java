@@ -990,7 +990,7 @@ class SpanDAO {
                  HAVING <feedback_scores_empty_filters>
             )
             <endif>
-            , spans_final AS (
+            , spans_deduped AS (
                 SELECT
                       s.* <if(exclude_fields)>EXCEPT (<exclude_fields>) <endif>,
                       truncated_input,
@@ -999,9 +999,6 @@ class SpanDAO {
                       output_length,
                       duration
                 FROM spans s
-                <if(sort_has_feedback_scores)>
-                LEFT JOIN feedback_scores_agg fsagg ON fsagg.entity_id = s.id
-                <endif>
                 WHERE project_id = :project_id
                 AND workspace_id = :workspace_id
                 <if(last_received_span_id)> AND id \\< :last_received_span_id <endif>
@@ -1026,9 +1023,20 @@ class SpanDAO {
                 <if(stream)>
                 ORDER BY (workspace_id, project_id, id) DESC, last_updated_at DESC
                 <else>
-                ORDER BY <if(sort_fields)> <sort_fields>, id DESC <else>(workspace_id, project_id, trace_id, parent_span_id, id) DESC, last_updated_at DESC <endif>
+                ORDER BY (workspace_id, project_id, trace_id, parent_span_id, id) DESC, last_updated_at DESC
                 <endif>
                 LIMIT 1 BY id
+            ), spans_final AS (
+                SELECT sd.*
+                FROM spans_deduped sd
+                <if(sort_has_feedback_scores)>
+                LEFT JOIN feedback_scores_agg fsagg ON fsagg.entity_id = sd.id
+                <endif>
+                <if(stream)>
+                ORDER BY (workspace_id, project_id, id) DESC, last_updated_at DESC
+                <else>
+                ORDER BY <if(sort_fields)> <sort_fields>, <endif>(workspace_id, project_id, trace_id, parent_span_id, id) DESC, last_updated_at DESC
+                <endif>
                 LIMIT :limit <if(offset)>OFFSET :offset <endif>
             )
             SELECT
@@ -1049,7 +1057,7 @@ class SpanDAO {
             <if(stream)>
             ORDER BY (workspace_id, project_id, id) DESC, last_updated_at DESC
             <else>
-            ORDER BY <if(sort_fields)> <sort_fields>, id DESC <else>(workspace_id, project_id, trace_id, parent_span_id, id) DESC, last_updated_at DESC <endif>
+            ORDER BY <if(sort_fields)> <sort_fields>, <endif>(workspace_id, project_id, trace_id, parent_span_id, id) DESC, last_updated_at DESC
             <endif>
             SETTINGS log_comment = '<log_comment>'
             ;
