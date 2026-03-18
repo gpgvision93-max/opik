@@ -8038,7 +8038,6 @@ class DatasetsResourceTest {
             assertThat(itemB.assertionResults().getFirst().passed()).isFalse();
             assertThat(itemB.status()).isEqualTo(RunStatus.FAILED);
 
-            // Each experiment contributes 1 run per dataset item in compare view; summaries are emitted even for single runs
             assertThat(actualDatasetItem.runSummariesByExperiment()).isNotNull();
             assertThat(actualDatasetItem.runSummariesByExperiment()).containsKey(experimentIdA.toString());
             assertThat(actualDatasetItem.runSummariesByExperiment()).containsKey(experimentIdB.toString());
