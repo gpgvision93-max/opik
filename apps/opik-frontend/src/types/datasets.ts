@@ -8,6 +8,9 @@ import {
 import { CommentItems } from "./comment";
 import { ExperimentItemStatus, ExecutionPolicy } from "./evaluation-suites";
 
+export type { ExecutionPolicy };
+export type RunStatus = "passed" | "failed";
+
 export interface Dataset {
   id: string;
   name: string;
@@ -123,6 +126,7 @@ export enum EXPERIMENT_TYPE {
   REGULAR = "regular",
   TRIAL = "trial",
   MINI_BATCH = "mini-batch",
+  MUTATION = "mutation",
 }
 
 export enum EVALUATION_METHOD {
@@ -154,11 +158,11 @@ export interface Experiment {
   prompt_version?: ExperimentPromptVersion;
   prompt_versions?: ExperimentPromptVersion[];
   trace_count: number;
-  total_estimated_cost?: number;
-  total_estimated_cost_avg?: number;
   pass_rate?: number;
   passed_count?: number;
   total_count?: number;
+  total_estimated_cost?: number;
+  total_estimated_cost_avg?: number;
   assertion_aggregations?: AssertionAggregation[];
   created_at: string;
   last_updated_at: string;
