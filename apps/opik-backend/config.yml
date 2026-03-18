@@ -787,6 +787,7 @@ localRunner:
   reaperLockDuration: ${OPIK_RUNNER_REAPER_LOCK_DURATION:-55s}
   reaperLockWait: ${OPIK_RUNNER_REAPER_LOCK_WAIT:-5s}
   nextJobAsyncTimeoutBuffer: ${OPIK_RUNNER_ASYNC_TIMEOUT_BUFFER:-5s}
+  reaperMaxRunnersPerCycle: ${OPIK_RUNNER_REAPER_MAX_RUNNERS_PER_CYCLE:-100}
 
 # Trace Thread configuration
 traceThreadConfig:

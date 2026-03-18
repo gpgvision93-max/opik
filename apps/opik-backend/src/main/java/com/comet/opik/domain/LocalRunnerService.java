@@ -653,37 +653,49 @@ class LocalRunnerServiceImpl implements LocalRunnerService {
                 WORKSPACES_WITH_RUNNERS_KEY);
         Set<String> workspaceIds = workspacesWithRunners.readAll();
 
+        int remaining = runnerConfig.getReaperMaxRunnersPerCycle();
         for (String workspaceId : workspaceIds) {
+            if (remaining <= 0) {
+                log.info("Reached reaper limit of '{}' runners per cycle, deferring remaining workspaces",
+                        runnerConfig.getReaperMaxRunnersPerCycle());
+                break;
+            }
             try {
-                reapWorkspaceRunners(workspaceId);
+                remaining = reapWorkspaceRunners(workspaceId, remaining);
             } catch (Exception e) {
-                log.error("Failed to reap runners for workspace {}", workspaceId, e);
+                log.error("Failed to reap runners for workspace '{}'", workspaceId, e);
             }
         }
     }
 
-    private void reapWorkspaceRunners(String workspaceId) {
+    private int reapWorkspaceRunners(String workspaceId, int remaining) {
         RScoredSortedSet<String> runnerIds = redisClient.getScoredSortedSet(
                 workspaceRunnersKey(workspaceId));
         var ids = runnerIds.readAll();
 
         for (String runnerIdStr : ids) {
+            if (remaining <= 0) {
+                log.info("Reached reaper limit, deferring remaining runners in workspace '{}'", workspaceId);
+                break;
+            }
             UUID runnerId = UUID.fromString(runnerIdStr);
             try {
                 reapRunner(runnerId, workspaceId);
             } catch (Exception e) {
-                log.error("Failed to reap runner {} in workspace {}", runnerId, workspaceId, e);
+                log.error("Failed to reap runner '{}' in workspace '{}'", runnerId, workspaceId, e);
             }
             try {
                 reapStuckJobs(runnerId);
             } catch (Exception e) {
-                log.error("Failed to reap stuck jobs for runner {} in workspace {}", runnerId, workspaceId, e);
+                log.error("Failed to reap stuck jobs for runner '{}' in workspace '{}'", runnerId, workspaceId, e);
             }
+            remaining--;
         }
 
         if (runnerIds.isEmpty()) {
             workspacesWithRunners(workspaceId, false);
         }
+        return remaining;
     }
 
     private void reapRunner(UUID runnerId, String workspaceId) {

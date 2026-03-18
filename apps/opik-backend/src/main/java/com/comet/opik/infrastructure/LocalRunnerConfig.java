@@ -63,6 +63,9 @@ public class LocalRunnerConfig {
     private Duration pairingRunnerTtl = Duration.seconds(600);
 
     @Valid @JsonProperty
+    private int reaperMaxRunnersPerCycle = 100;
+
+    @Valid @JsonProperty
     private int maxAgentsPerRunner = 50;
 
     @Valid @JsonProperty
