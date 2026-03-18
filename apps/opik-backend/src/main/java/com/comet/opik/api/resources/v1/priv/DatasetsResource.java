@@ -279,12 +279,17 @@ public class DatasetsResource {
 
         String workspaceId = requestContext.get().getWorkspaceId();
         Visibility visibility = requestContext.get().getVisibility();
-        String name = identifier.datasetName();
         UUID projectId = resolveProjectIdByName(identifier.projectName(), workspaceId);
+        var criteria = DatasetCriteria.builder()
+                .name(identifier.datasetName())
+                .projectId(projectId)
+                .build();
 
-        log.info("Finding dataset by name '{}', projectId '{}' on workspace_id '{}'", name, projectId, workspaceId);
-        Dataset dataset = service.findByName(workspaceId, name, projectId, visibility);
-        log.info("Found dataset by name '{}', id '{}' on workspace_id '{}'", name, dataset.id(), workspaceId);
+        log.info("Finding dataset by name '{}', projectId '{}' on workspace_id '{}'", criteria.name(), projectId,
+                workspaceId);
+        Dataset dataset = service.findByName(workspaceId, criteria, visibility);
+        log.info("Found dataset by name '{}', id '{}' on workspace_id '{}'", criteria.name(), dataset.id(),
+                workspaceId);
 
         return Response.ok(dataset).build();
     }
@@ -429,7 +434,9 @@ public class DatasetsResource {
         var workspaceId = requestContext.get().getWorkspaceId();
         var userName = requestContext.get().getUserName();
         var visibility = requestContext.get().getVisibility();
-        UUID resolvedProjectId = resolveProjectIdByName(request.projectName(), workspaceId);
+        UUID resolvedProjectId = request.projectId() == null
+                ? resolveProjectIdByName(request.projectName(), workspaceId)
+                : null;
         var resolvedRequest = resolvedProjectId != null
                 ? request.toBuilder().projectId(resolvedProjectId).build()
                 : request;

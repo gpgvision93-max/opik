@@ -355,6 +355,23 @@ public class DatasetResourceClient {
                 .delete();
     }
 
+    public Dataset getDatasetByIdentifier(DatasetIdentifier identifier, String apiKey, String workspaceName) {
+        try (var actualResponse = callGetDatasetByIdentifier(identifier, apiKey, workspaceName)) {
+            assertThat(actualResponse.getStatusInfo().getStatusCode()).isEqualTo(200);
+            return actualResponse.readEntity(Dataset.class);
+        }
+    }
+
+    public Response callGetDatasetByIdentifier(DatasetIdentifier identifier, String apiKey, String workspaceName) {
+        return client.target(RESOURCE_PATH.formatted(baseURI))
+                .path("retrieve")
+                .request()
+                .accept(MediaType.APPLICATION_JSON_TYPE)
+                .header(HttpHeaders.AUTHORIZATION, apiKey)
+                .header(WORKSPACE_HEADER, workspaceName)
+                .post(Entity.json(identifier));
+    }
+
     public void deleteDatasetByName(String name, String apiKey, String workspaceName) {
         try (var actualResponse = client.target(RESOURCE_PATH.formatted(baseURI))
                 .path("delete")

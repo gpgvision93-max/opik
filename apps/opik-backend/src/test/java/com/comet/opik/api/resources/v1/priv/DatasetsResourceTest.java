@@ -1673,21 +1673,15 @@ class DatasetsResourceTest {
 
             datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
 
-            try (var actualResponse = client.target(BASE_RESOURCE_URI.formatted(baseURI))
-                    .path("retrieve")
-                    .request()
-                    .header(HttpHeaders.AUTHORIZATION, apiKey)
-                    .header(WORKSPACE_HEADER, workspaceName)
-                    .post(Entity.json(new DatasetIdentifier(dataset.name(), projectName)))) {
+            var identifier = DatasetIdentifier.builder()
+                    .datasetName(dataset.name())
+                    .projectName(projectName)
+                    .build();
 
-                assertThat(actualResponse.getStatusInfo().getStatusCode()).isEqualTo(200);
-                assertThat(actualResponse.hasEntity()).isTrue();
-
-                var actualEntity = actualResponse.readEntity(Dataset.class);
-                assertThat(actualEntity).usingRecursiveComparison()
-                        .ignoringFields(DATASET_IGNORED_FIELDS)
-                        .isEqualTo(dataset.toBuilder().projectId(projectId).build());
-            }
+            var actualEntity = datasetResourceClient.getDatasetByIdentifier(identifier, apiKey, workspaceName);
+            assertThat(actualEntity).usingRecursiveComparison()
+                    .ignoringFields(DATASET_IGNORED_FIELDS)
+                    .isEqualTo(dataset.toBuilder().projectId(projectId).build());
         }
 
         @Test
@@ -1699,22 +1693,15 @@ class DatasetsResourceTest {
 
             createAndAssert(dataset);
 
-            try (var actualResponse = client.target(BASE_RESOURCE_URI.formatted(baseURI))
-                    .path("retrieve")
-                    .request()
-                    .header(HttpHeaders.AUTHORIZATION, API_KEY)
-                    .header(WORKSPACE_HEADER, TEST_WORKSPACE)
-                    .post(Entity
-                            .json(new DatasetIdentifier(dataset.name(), "nonexistent-project-" + UUID.randomUUID())))) {
+            var identifier = DatasetIdentifier.builder()
+                    .datasetName(dataset.name())
+                    .projectName("nonexistent-project-" + UUID.randomUUID())
+                    .build();
 
-                assertThat(actualResponse.getStatusInfo().getStatusCode()).isEqualTo(200);
-                assertThat(actualResponse.hasEntity()).isTrue();
-
-                var actualEntity = actualResponse.readEntity(Dataset.class);
-                assertThat(actualEntity).usingRecursiveComparison()
-                        .ignoringFields(DATASET_IGNORED_FIELDS)
-                        .isEqualTo(dataset);
-            }
+            var actualEntity = datasetResourceClient.getDatasetByIdentifier(identifier, API_KEY, TEST_WORKSPACE);
+            assertThat(actualEntity).usingRecursiveComparison()
+                    .ignoringFields(DATASET_IGNORED_FIELDS)
+                    .isEqualTo(dataset);
         }
 
         @Test
@@ -4476,6 +4463,43 @@ class DatasetsResourceTest {
             var streamRequest = DatasetItemStreamRequest.builder()
                     .datasetName(dataset.name())
                     .projectName(projectName)
+                    .build();
+
+            List<DatasetItem> actualItems = datasetResourceClient.streamDatasetItems(streamRequest, apiKey,
+                    workspaceName);
+
+            assertThat(actualItems).hasSize(items.size());
+        }
+
+        @Test
+        @DisplayName("when streaming dataset items with project_id filter, then return items")
+        void streamDataItems__whenProjectIdFilter__thenReturnItems() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = UUID.randomUUID().toString();
+            String workspaceId = UUID.randomUUID().toString();
+            mockTargetWorkspace(apiKey, workspaceName, workspaceId);
+
+            String projectName = "project-" + UUID.randomUUID();
+            var projectId = projectResourceClient.createProject(projectName, apiKey, workspaceName);
+
+            var dataset = buildDataset().toBuilder().id(null).projectId(projectId).build();
+            var datasetId = datasetResourceClient.createDataset(dataset, apiKey, workspaceName);
+
+            var items = IntStream.range(0, 3)
+                    .mapToObj(i -> factory.manufacturePojo(DatasetItem.class).toBuilder().id(null).build())
+                    .toList();
+
+            var batch = factory.manufacturePojo(DatasetItemBatch.class).toBuilder()
+                    .items(items)
+                    .datasetId(datasetId)
+                    .datasetName(dataset.name())
+                    .build();
+
+            putAndAssert(batch, workspaceName, apiKey);
+
+            var streamRequest = DatasetItemStreamRequest.builder()
+                    .datasetName(dataset.name())
+                    .projectId(projectId)
                     .build();
 
             List<DatasetItem> actualItems = datasetResourceClient.streamDatasetItems(streamRequest, apiKey,
