@@ -122,6 +122,21 @@ class ResponseSchema:
         Raises LLMJudgeParseError (with partial results attached) when parsing
         or validation fails, so callers can retry or fall back gracefully.
         """
+        if content is None:
+            raise LLMJudgeParseError(
+                results=[
+                    score_result.ScoreResult(
+                        name=assertion,
+                        value=0.0,
+                        reason="Model returned no output",
+                        category_name="suite_assertion",
+                        scoring_failed=True,
+                    )
+                    for assertion in self._field_mapping.values()
+                ],
+                message="Model returned None output",
+            )
+
         try:
             parsed = json.loads(content)
             validated = self._response_model(**parsed)

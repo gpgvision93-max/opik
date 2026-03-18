@@ -242,6 +242,9 @@ class LLMJudge(base.BaseSuiteEvaluator):
         try:
             return self._generate_and_parse(input=input, output=output)
         except LLMJudgeParseError as e:
+            LOGGER.warning(
+                "LLMJudge scoring failed after retries: %s", e, exc_info=True
+            )
             return e.results
 
     @_RETRY_POLICY
@@ -283,6 +286,9 @@ class LLMJudge(base.BaseSuiteEvaluator):
         try:
             return await self._agenerate_and_parse(input=input, output=output)
         except LLMJudgeParseError as e:
+            LOGGER.warning(
+                "LLMJudge async scoring failed after retries: %s", e, exc_info=True
+            )
             return e.results
 
     @_RETRY_POLICY
