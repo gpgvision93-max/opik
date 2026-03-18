@@ -130,16 +130,19 @@ class TraceThreadDAOImpl implements TraceThreadDAO {
             """;
 
     private static final String FIND_THREADS_BY_PROJECT_SQL = """
-            SELECT *
-            FROM trace_threads
-            WHERE workspace_id = :workspace_id
-            <if(project_ids)>AND project_id IN :project_ids<endif>
+            SELECT * FROM (
+                SELECT *
+                FROM trace_threads
+                WHERE workspace_id = :workspace_id
+                <if(project_ids)>AND project_id IN :project_ids<endif>
+                <if(ids)> AND id IN :ids <endif>
+                <if(thread_ids)> AND thread_id IN :thread_ids <endif>
+                ORDER BY (workspace_id, project_id, thread_id, id) DESC, last_updated_at DESC
+                LIMIT 1 BY id
+            )
+            WHERE 1=1
             <if(status)> AND status = :status <endif>
-            <if(ids)> AND id IN :ids <endif>
-            <if(thread_ids)> AND thread_id IN :thread_ids <endif>
             <if(scored_at_empty)> AND scored_at IS NULL <endif>
-            ORDER BY (workspace_id, project_id, thread_id, id) DESC, last_updated_at DESC
-            LIMIT 1 BY id
             <if(limit)> LIMIT :limit <endif> <if(offset)> OFFSET :offset <endif>
             """;
 
@@ -147,10 +150,20 @@ class TraceThreadDAOImpl implements TraceThreadDAO {
             SELECT DISTINCT
                 tt.workspace_id,
                 tt.project_id
-            FROM trace_threads tt final
-            LEFT JOIN workspace_configurations wc final ON tt.workspace_id = wc.workspace_id
-            WHERE tt.status = 'active'
-            AND tt.last_updated_at < parseDateTime64BestEffort(:now, 6) - INTERVAL IF(wc.timeout_mark_thread_as_inactive > 0 , wc.timeout_mark_thread_as_inactive, :default_timeout_seconds) SECOND
+            FROM (
+                SELECT workspace_id, project_id, last_updated_at
+                FROM trace_threads
+                WHERE status = 'active'
+                ORDER BY (workspace_id, project_id, thread_id, id) DESC, last_updated_at DESC
+                LIMIT 1 BY (workspace_id, project_id, thread_id, id)
+            ) tt
+            LEFT JOIN (
+                SELECT workspace_id, timeout_mark_thread_as_inactive
+                FROM workspace_configurations
+                ORDER BY workspace_id DESC, last_updated_at DESC
+                LIMIT 1 BY workspace_id
+            ) wc ON tt.workspace_id = wc.workspace_id
+            WHERE tt.last_updated_at < parseDateTime64BestEffort(:now, 6) - INTERVAL IF(wc.timeout_mark_thread_as_inactive > 0 , wc.timeout_mark_thread_as_inactive, :default_timeout_seconds) SECOND
             ORDER BY tt.last_updated_at
             LIMIT :limit
             """;
@@ -159,11 +172,16 @@ class TraceThreadDAOImpl implements TraceThreadDAO {
             INSERT INTO trace_threads(workspace_id, project_id, thread_id, id, status, created_by, last_updated_by, created_at, last_updated_at, tags, sampling_per_rule, scored_at)
             SELECT
                 workspace_id, project_id, thread_id, id, :status AS new_status, created_by, :user_name, created_at, now64(6), tags, sampling_per_rule, NULL
-            FROM trace_threads tt final
-            WHERE tt.workspace_id = :workspace_id
-            AND tt.project_id = :project_id
-            AND tt.status != :status
-            <if(thread_ids)>AND tt.thread_id IN :thread_ids<endif>
+            FROM (
+                SELECT *
+                FROM trace_threads
+                WHERE workspace_id = :workspace_id
+                AND project_id = :project_id
+                <if(thread_ids)>AND thread_id IN :thread_ids<endif>
+                ORDER BY (workspace_id, project_id, thread_id, id) DESC, last_updated_at DESC
+                LIMIT 1 BY (workspace_id, project_id, thread_id, id)
+            ) tt
+            WHERE tt.status != :status
             ;
             """;
 

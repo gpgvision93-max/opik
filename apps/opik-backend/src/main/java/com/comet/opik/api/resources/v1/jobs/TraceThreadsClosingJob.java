@@ -22,6 +22,8 @@ import ru.vyarus.dropwizard.guice.module.yaml.bind.Config;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.comet.opik.infrastructure.lock.LockService.Lock;
 
@@ -30,6 +32,8 @@ import static com.comet.opik.infrastructure.lock.LockService.Lock;
 @DisallowConcurrentExecution
 public class TraceThreadsClosingJob extends Job implements InterruptableJob {
 
+    private static final int MAX_BACKOFF_EXPONENT = 5; // max backoff = base_interval * 2^5 = ~96s at 3s interval
+
     private final TraceThreadService traceThreadService;
     private final LockService lockService;
     private final TraceThreadConfig traceThreadConfig;
@@ -37,6 +41,8 @@ public class TraceThreadsClosingJob extends Job implements InterruptableJob {
     private final JobTimeoutConfig jobTimeoutConfig;
 
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
+    private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
+    private final AtomicLong backoffUntilMillis = new AtomicLong(0);
 
     @Inject
     public TraceThreadsClosingJob(@NonNull TraceThreadService traceThreadService,
@@ -59,6 +65,14 @@ public class TraceThreadsClosingJob extends Job implements InterruptableJob {
             return;
         }
 
+        // Skip execution if still in backoff period
+        long backoffUntil = backoffUntilMillis.get();
+        if (backoffUntil > 0 && System.currentTimeMillis() < backoffUntil) {
+            log.info("Trace threads closing job in backoff period (consecutive failures: {}), skipping execution",
+                    consecutiveFailures.get());
+            return;
+        }
+
         var lock = new Lock("job", TraceThreadsClosingJob.class.getSimpleName());
         var defaultTimeoutToMarkThreadAsInactive = traceThreadConfig
                 .getTimeoutToMarkThreadAsInactive().toJavaDuration(); // This is the default timeout to mark threads as inactive when workspace config is not set
@@ -69,6 +83,8 @@ public class TraceThreadsClosingJob extends Job implements InterruptableJob {
                 .subscribe(
                         __ -> {
                             if (!interrupted.get()) {
+                                consecutiveFailures.set(0);
+                                backoffUntilMillis.set(0);
                                 log.info("Successfully started closing trace threads process");
                             } else {
                                 log.info(
@@ -79,7 +95,9 @@ public class TraceThreadsClosingJob extends Job implements InterruptableJob {
                             if (interrupted.get()) {
                                 log.warn("Closing of trace threads was interrupted", error);
                             } else {
-                                log.error("Error processing closing of trace threads", error);
+                                applyBackoff();
+                                log.error("Error processing closing of trace threads (consecutive failures: {})",
+                                        consecutiveFailures.get(), error);
                             }
                         });
     }
@@ -148,6 +166,15 @@ public class TraceThreadsClosingJob extends Job implements InterruptableJob {
                     }
                 })
                 .then();
+    }
+
+    private void applyBackoff() {
+        int failures = consecutiveFailures.incrementAndGet();
+        int exponent = Math.min(failures, MAX_BACKOFF_EXPONENT);
+        long intervalMs = traceThreadConfig.getCloseTraceThreadJobInterval().toJavaDuration().toMillis();
+        long backoffMs = intervalMs * (1L << exponent);
+        backoffUntilMillis.set(System.currentTimeMillis() + backoffMs);
+        log.warn("Applying exponential backoff: next execution in {}ms (failure #{})", backoffMs, failures);
     }
 
     private void errorLog(Throwable throwable) {
