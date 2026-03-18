@@ -3,7 +3,6 @@ import { persist } from "zustand/middleware";
 import pick from "lodash/pick";
 
 import { LogExperiment, PlaygroundPromptType } from "@/types/playground";
-import { JsonObject } from "@/components/shared/JsonTreePopover";
 import { Filters } from "@/types/filters";
 import isUndefined from "lodash/isUndefined";
 import get from "lodash/get";
@@ -92,7 +91,7 @@ export type PlaygroundStore = {
   promptMap: Record<string, PlaygroundPromptType>;
   outputMap: PlaygroundOutputMap;
   datasetVariables: string[];
-  datasetSampleData: JsonObject | null;
+  datasetSampleData: Record<string, unknown> | null;
   providerValidationTrigger: number;
   selectedRuleIds: string[] | null;
   createdExperiments: LogExperiment[];
@@ -125,7 +124,7 @@ export type PlaygroundStore = {
     traceId: string,
   ) => void;
   setDatasetVariables: (variables: string[]) => void;
-  setDatasetSampleData: (data: JsonObject | null) => void;
+  setDatasetSampleData: (data: Record<string, unknown> | null) => void;
   triggerProviderValidation: () => void;
   setSelectedRuleIds: (ruleIds: string[] | null) => void;
   setCreatedExperiments: (experiments: LogExperiment[]) => void;

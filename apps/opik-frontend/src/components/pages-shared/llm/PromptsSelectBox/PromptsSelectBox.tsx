@@ -153,7 +153,7 @@ const PromptsSelectBox: React.FC<PromptsSelectBoxProps> = ({
           >
             <div className="flex min-w-0 items-center gap-1">
               <FileTerminal className="size-3.5 shrink-0 text-[#b8e54a]" />
-              <span className="comet-body-xs-accented truncate">
+              <span className="comet-body-xs-accented truncate text-light-slate">
                 {displayName}
               </span>
               {hasUnsavedChanges && (
@@ -164,9 +164,9 @@ const PromptsSelectBox: React.FC<PromptsSelectBoxProps> = ({
           {onClear && (
             <TooltipWrapper content="Detach loaded prompt">
               <Button
-                variant="ghost"
+                variant="minimal"
                 size="icon-xs"
-                className="shrink-0 text-muted-slate hover:text-primary-hover"
+                className="shrink-0"
                 onClick={onClear}
               >
                 <XCircle />
@@ -194,12 +194,7 @@ const PromptsSelectBox: React.FC<PromptsSelectBoxProps> = ({
         trigger={
           <div>
             <TooltipWrapper content="Load prompt">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-inherit"
-                disabled={disabled}
-              >
+              <Button variant="minimal" size="icon-sm" disabled={disabled}>
                 <FileTerminal />
               </Button>
             </TooltipWrapper>

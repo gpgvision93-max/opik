@@ -25,7 +25,7 @@ export const codeMirrorPromptTheme = EditorView.theme({
     color: "var(--codemirror-gutter)",
     fontWeight: 300,
   },
-  ".opik-variable-hint": {
+  ".comet-variable-hint": {
     color: "var(--color-green)",
     background: "color-mix(in srgb, var(--color-green) 12%, transparent)",
     opacity: "0.6",
@@ -33,7 +33,7 @@ export const codeMirrorPromptTheme = EditorView.theme({
     padding: "1px 5px 1px 0",
     pointerEvents: "none",
   },
-  ".opik-variable-brace": {
+  ".comet-variable-brace": {
     color: "var(--color-green)",
     background: "color-mix(in srgb, var(--color-green) 12%, transparent)",
     borderRadius: "4px 0 0 4px",
@@ -98,7 +98,7 @@ class VariableHintWidget extends WidgetType {
   toDOM() {
     const span = document.createElement("span");
     span.textContent = this.text;
-    span.className = "opik-variable-hint";
+    span.className = "comet-variable-hint";
     return span;
   }
   ignoreEvent() {
@@ -106,7 +106,7 @@ class VariableHintWidget extends WidgetType {
   }
 }
 
-const braceMark = Decoration.mark({ class: "opik-variable-brace" });
+const braceMark = Decoration.mark({ class: "comet-variable-brace" });
 
 const variableHintPlugin = ViewPlugin.fromClass(
   class {

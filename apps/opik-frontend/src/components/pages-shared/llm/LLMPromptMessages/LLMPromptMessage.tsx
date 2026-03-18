@@ -136,6 +136,7 @@ const LLMPromptMessage = forwardRef<
     ref,
   ) => {
     const [isHoldActionsVisible, setIsHoldActionsVisible] = useState(false);
+    const [isMediaPopoverOpen, setIsMediaPopoverOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [focusedVariableKey, setFocusedVariableKey] = useState<string | null>(
       null,
@@ -243,18 +244,21 @@ const LLMPromptMessage = forwardRef<
           onClick={() => {
             editorViewRef.current?.focus();
           }}
-          className={cn("group p-2 [&:focus-within]:border-primary", {
-            "pb-0": showMediaActions || hasJsonData,
-            "z-10": id === active?.id,
-            "border-destructive": Boolean(errorText),
-          })}
+          className={cn(
+            "group p-2 shadow-none [&:focus-within]:border-primary",
+            {
+              "pb-0": showMediaActions || hasJsonData,
+              "z-10 shadow-sm": id === active?.id,
+              "border-destructive": Boolean(errorText),
+            },
+          )}
         >
           <CardContent className="p-0">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center">
                 <span
                   className={cn(
-                    "-ml-[7px] py-2 flex cursor-move items-center text-muted-slate invisible [&>svg]:size-3.5",
+                    "-ml-[7px] py-2 flex cursor-move items-center text-light-slate invisible [&>svg]:size-3.5",
                     !hideDragButton &&
                       "group-hover:visible [.group:focus-within_&]:visible",
                   )}
@@ -269,7 +273,10 @@ const LLMPromptMessage = forwardRef<
                       <ChevronDown className="ml-1 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
+                  <DropdownMenuContent
+                    align="start"
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                  >
                     {possibleTypes.map(({ label, value }) => {
                       return (
                         <DropdownMenuCheckboxItem
@@ -286,7 +293,7 @@ const LLMPromptMessage = forwardRef<
               </div>
               <div
                 className={cn(
-                  "flex items-center text-muted-slate invisible group-hover:visible [.group:focus-within_&]:visible",
+                  "flex items-center invisible group-hover:visible [.group:focus-within_&]:visible",
                   (showAlwaysActionsPanel || isHoldActionsVisible) && "visible",
                 )}
               >
@@ -307,7 +314,7 @@ const LLMPromptMessage = forwardRef<
                 {!hideRemoveButton && (
                   <TooltipWrapper content="Remove message">
                     <Button
-                      variant="ghost"
+                      variant="minimal"
                       size="icon-sm"
                       onClick={onRemoveMessage}
                       type="button"
@@ -318,7 +325,7 @@ const LLMPromptMessage = forwardRef<
                 )}
                 <TooltipWrapper content="Duplicate message">
                   <Button
-                    variant="ghost"
+                    variant="minimal"
                     size="icon-sm"
                     onClick={onDuplicateMessage}
                     type="button"
@@ -411,8 +418,11 @@ const LLMPromptMessage = forwardRef<
             {!isLoading && (showMediaActions || hasJsonData) && (
               <div
                 className={cn(
-                  "flex min-h-8 items-center text-muted-slate invisible group-hover:visible [.group:focus-within_&]:visible",
-                  (showAlwaysActionsPanel || isHoldActionsVisible) && "visible",
+                  "flex min-h-8 items-center invisible group-hover:visible [.group:focus-within_&]:visible",
+                  (showAlwaysActionsPanel ||
+                    isHoldActionsVisible ||
+                    isMediaPopoverOpen) &&
+                    "visible",
                 )}
               >
                 {showMediaActions && (
@@ -422,9 +432,10 @@ const LLMPromptMessage = forwardRef<
                       items={images}
                       setItems={setImages}
                       promptVariables={promptVariables}
+                      onOpenChange={setIsMediaPopoverOpen}
                     >
                       <TooltipWrapper content="Add image">
-                        <Button variant="ghost" size="icon-sm" type="button">
+                        <Button variant="minimal" size="icon-sm" type="button">
                           <Image />
                         </Button>
                       </TooltipWrapper>
@@ -434,9 +445,10 @@ const LLMPromptMessage = forwardRef<
                       items={audios}
                       setItems={setAudios}
                       promptVariables={promptVariables}
+                      onOpenChange={setIsMediaPopoverOpen}
                     >
                       <TooltipWrapper content="Add audio">
-                        <Button variant="ghost" size="icon-sm" type="button">
+                        <Button variant="minimal" size="icon-sm" type="button">
                           <Music />
                         </Button>
                       </TooltipWrapper>
@@ -446,9 +458,10 @@ const LLMPromptMessage = forwardRef<
                       items={videos}
                       setItems={setVideos}
                       promptVariables={promptVariables}
+                      onOpenChange={setIsMediaPopoverOpen}
                     >
                       <TooltipWrapper content="Add video">
-                        <Button variant="ghost" size="icon-sm" type="button">
+                        <Button variant="minimal" size="icon-sm" type="button">
                           <Video />
                         </Button>
                       </TooltipWrapper>
@@ -459,10 +472,11 @@ const LLMPromptMessage = forwardRef<
                   <Separator orientation="vertical" className="mx-0.5 h-4" />
                 )}
                 {hasJsonData && (
-                  <TooltipWrapper content="Add variable">
+                  <TooltipWrapper content="Type {{ or click here to add variable">
                     <Button
-                      variant="ghost"
+                      variant="minimal"
                       size="icon-sm"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => {
                         e.stopPropagation();
                         triggerVariableSearch();

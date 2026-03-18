@@ -333,7 +333,9 @@ export const useJsonPopover = ({
     const view = editorViewRef.current;
     if (!view) return;
 
-    const cursorPos = view.state.selection.main.head;
+    const cursorPos = view.hasFocus
+      ? view.state.selection.main.head
+      : view.state.doc.length;
     const newCursorPos = cursorPos + MUSTACHE_OPEN_LEN;
 
     view.dispatch({
