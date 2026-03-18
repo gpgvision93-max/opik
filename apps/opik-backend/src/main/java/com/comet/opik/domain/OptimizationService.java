@@ -138,14 +138,26 @@ class OptimizationServiceImpl implements OptimizationService {
             return searchCriteria;
         }
 
-        var datasetIds = datasetService.findIdsByPartialName(workspaceId, searchCriteria.datasetName());
+        var resolvedIds = datasetService.findIdsByPartialName(workspaceId, searchCriteria.datasetName());
 
-        if (datasetIds.isEmpty()) {
+        if (resolvedIds.isEmpty()) {
             return null;
         }
 
+        // If an explicit dataset_id filter was already set, intersect with name-resolved IDs
+        var existingIds = searchCriteria.datasetIds();
+        if (existingIds != null && !existingIds.isEmpty()) {
+            var intersection = resolvedIds.stream()
+                    .filter(existingIds::contains)
+                    .toList();
+            if (intersection.isEmpty()) {
+                return null;
+            }
+            resolvedIds = intersection;
+        }
+
         return searchCriteria.toBuilder()
-                .datasetIds(datasetIds)
+                .datasetIds(resolvedIds)
                 .build();
     }
 

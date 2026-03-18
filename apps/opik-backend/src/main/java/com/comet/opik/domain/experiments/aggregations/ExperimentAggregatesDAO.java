@@ -1618,24 +1618,16 @@ class ExperimentAggregatesDAOImpl implements ExperimentAggregatesDAO {
     }
 
     private Mono<Long> getExperimentItemsCount(UUID experimentId) {
-        return asyncTemplate.nonTransaction(connection -> makeFluxContextAware((userName, workspaceId) -> {
-            var template = getSTWithLogComment(GET_EXPERIMENT_ITEMS_COUNT,
-                    "getExperimentItemsCount", workspaceId, experimentId.toString());
-
-            var statement = connection.createStatement(template.render())
-                    .bind("workspace_id", workspaceId)
-                    .bind("experiment_id", experimentId);
-
-            return Flux.from(statement.execute())
-                    .flatMap(result -> result.map((row, metadata) -> row.get("count", Long.class)));
-        }).singleOrEmpty()
-                .defaultIfEmpty(0L));
+        return queryExperimentCount(GET_EXPERIMENT_ITEMS_COUNT, "getExperimentItemsCount", experimentId);
     }
 
     private Mono<Long> getDatasetItemCount(UUID experimentId) {
+        return queryExperimentCount(GET_DATASET_ITEM_COUNT, "getDatasetItemCount", experimentId);
+    }
+
+    private Mono<Long> queryExperimentCount(String query, String logName, UUID experimentId) {
         return asyncTemplate.nonTransaction(connection -> makeFluxContextAware((userName, workspaceId) -> {
-            var template = getSTWithLogComment(GET_DATASET_ITEM_COUNT,
-                    "getDatasetItemCount", workspaceId, experimentId.toString());
+            var template = getSTWithLogComment(query, logName, workspaceId, experimentId.toString());
 
             var statement = connection.createStatement(template.render())
                     .bind("workspace_id", workspaceId)
