@@ -190,6 +190,38 @@ def test_opik_usage__from_unknown_usage_dict__invalid_token_values__total_is_non
     assert usage.total_tokens is None
 
 
+def test_opik_usage__from_anthropic_dict__with_compaction_iterations__sums_all_iterations():
+    # When compaction fires, top-level input/output_tokens exclude the compaction
+    # iteration. The true billed cost must be summed across all iterations.
+    usage_data = {
+        "input_tokens": 45000,
+        "output_tokens": 1234,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "iterations": [
+            {"type": "compaction", "input_tokens": 180000, "output_tokens": 3500},
+            {"type": "message", "input_tokens": 23000, "output_tokens": 1000},
+        ],
+    }
+    usage = OpikUsage.from_anthropic_dict(usage_data)
+    assert usage.prompt_tokens == 203000  # 180000 + 23000
+    assert usage.completion_tokens == 4500  # 3500 + 1000
+    assert usage.total_tokens == 207500
+
+
+def test_opik_usage__from_anthropic_dict__no_compaction__uses_top_level_tokens():
+    usage_data = {
+        "input_tokens": 200,
+        "output_tokens": 100,
+        "cache_creation_input_tokens": 50,
+        "cache_read_input_tokens": 30,
+    }
+    usage = OpikUsage.from_anthropic_dict(usage_data)
+    assert usage.prompt_tokens == 230  # 200 + 30 cache_read
+    assert usage.completion_tokens == 150  # 100 + 50 cache_creation
+    assert usage.total_tokens == 380
+
+
 def test_opik_usage__invalid_data_passed__validation_error_is_raised():
     usage_data = {"a": 123}
     with pytest.raises(pydantic.ValidationError):
