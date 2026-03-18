@@ -104,8 +104,8 @@ def test_opik_usage__to_backend_compatible_full_usage_dict__anthropic_source():
     usage = OpikUsage.from_anthropic_dict(usage_data)
     full_dict = usage.to_backend_compatible_full_usage_dict()
     assert full_dict == {
-        "completion_tokens": 150,
-        "prompt_tokens": 230,
+        "completion_tokens": 100,
+        "prompt_tokens": 280,  # 200 + 30 cache_read + 50 cache_creation
         "total_tokens": 380,
         "original_usage.input_tokens": 200,
         "original_usage.output_tokens": 100,
@@ -252,8 +252,8 @@ def test_opik_usage__from_anthropic_dict__compaction_with_caching__includes_cach
         ],
     }
     usage = OpikUsage.from_anthropic_dict(usage_data)
-    assert usage.prompt_tokens == 218000  # (180000+10000) + (23000+5000)
-    assert usage.completion_tokens == 7000  # (3500+2000) + (1000+500)
+    assert usage.prompt_tokens == 220500  # (180000+10000+2000) + (23000+5000+500)
+    assert usage.completion_tokens == 4500  # 3500 + 1000
     assert usage.total_tokens == 225000
 
 
@@ -265,8 +265,8 @@ def test_opik_usage__from_anthropic_dict__no_compaction__uses_top_level_tokens()
         "cache_read_input_tokens": 30,
     }
     usage = OpikUsage.from_anthropic_dict(usage_data)
-    assert usage.prompt_tokens == 230  # 200 + 30 cache_read
-    assert usage.completion_tokens == 150  # 100 + 50 cache_creation
+    assert usage.prompt_tokens == 280  # 200 + 30 cache_read + 50 cache_creation
+    assert usage.completion_tokens == 100
     assert usage.total_tokens == 380
 
 

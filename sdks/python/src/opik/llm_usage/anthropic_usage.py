@@ -31,18 +31,19 @@ class AnthropicUsage(base_original_provider_usage.BaseOriginalProviderUsage):
             prompt = sum(
                 (it.get("input_tokens", 0) or 0)
                 + (it.get("cache_read_input_tokens", 0) or 0)
-                for it in self.iterations
-            )
-            completion = sum(
-                (it.get("output_tokens", 0) or 0)
                 + (it.get("cache_creation_input_tokens", 0) or 0)
                 for it in self.iterations
             )
+            completion = sum(it.get("output_tokens", 0) or 0 for it in self.iterations)
             return prompt, completion
 
+        # total_input = input_tokens + cache_read_input_tokens + cache_creation_input_tokens
+        # https://platform.claude.com/docs/en/build-with-claude/prompt-caching#tracking-cache-performance
         return (
-            self.input_tokens + (self.cache_read_input_tokens or 0),
-            self.output_tokens + (self.cache_creation_input_tokens or 0),
+            self.input_tokens
+            + (self.cache_read_input_tokens or 0)
+            + (self.cache_creation_input_tokens or 0),
+            self.output_tokens,
         )
 
     def to_backend_compatible_flat_dict(self, parent_key_prefix: str) -> Dict[str, int]:
