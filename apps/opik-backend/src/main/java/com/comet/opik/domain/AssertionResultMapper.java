@@ -5,21 +5,66 @@ import com.comet.opik.api.ExecutionPolicy;
 import com.comet.opik.api.ExperimentItem;
 import com.comet.opik.api.ExperimentRunSummary;
 import com.comet.opik.api.RunStatus;
+import com.fasterxml.jackson.core.type.TypeReference;
+import jakarta.annotation.Nullable;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
-import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @UtilityClass
+@Slf4j
 class AssertionResultMapper {
 
-    static final String SUITE_ASSERTION_CATEGORY = "suite_assertion";
+    private static final TypeReference<List<AssertionResultRow>> ASSERTION_LIST_TYPE = new TypeReference<>() {
+    };
 
+    record AssertionResultRow(String value, int passed, String reason) {
+    }
+
+    static ExperimentItem enrichWithAssertions(@NonNull ExperimentItem item, @Nullable String assertionsJson) {
+        if (StringUtils.isBlank(assertionsJson)) {
+            return item;
+        }
+
+        List<AssertionResultRow> rows;
+        try {
+            rows = com.comet.opik.utils.JsonUtils.getMapper().readValue(assertionsJson, ASSERTION_LIST_TYPE);
+        } catch (Exception e) {
+            log.warn("Failed to parse assertions_array JSON", e);
+            return item;
+        }
+
+        if (CollectionUtils.isEmpty(rows)) {
+            return item;
+        }
+
+        var assertionResults = rows.stream()
+                .map(row -> AssertionResult.builder()
+                        .value(row.value())
+                        .passed(row.passed() >= 1)
+                        .reason(row.reason())
+                        .build())
+                .toList();
+
+        boolean allPassed = assertionResults.stream().allMatch(AssertionResult::passed);
+
+        return item.toBuilder()
+                .assertionResults(assertionResults)
+                .status(allPassed ? RunStatus.PASSED : RunStatus.FAILED)
+                .build();
+    }
+
+    /**
+     * Legacy overload: partitions assertions from feedback scores by category_name.
+     * Used by DatasetItemResultMapper which doesn't yet read from assertion_results table.
+     */
     static ExperimentItem enrichWithAssertions(@NonNull ExperimentItem item) {
         var feedbackScores = item.feedbackScores();
         if (CollectionUtils.isEmpty(feedbackScores)) {
@@ -28,7 +73,7 @@ class AssertionResultMapper {
 
         var partitioned = feedbackScores.stream()
                 .collect(Collectors.partitioningBy(
-                        fs -> SUITE_ASSERTION_CATEGORY.equals(fs.categoryName())));
+                        fs -> "suite_assertion".equals(fs.categoryName())));
 
         var assertions = partitioned.get(true);
         var regularScores = partitioned.get(false);
@@ -40,7 +85,7 @@ class AssertionResultMapper {
         var assertionResults = assertions.stream()
                 .map(fs -> AssertionResult.builder()
                         .value(fs.name())
-                        .passed(fs.value().compareTo(BigDecimal.ONE) >= 0)
+                        .passed(fs.value().compareTo(java.math.BigDecimal.ONE) >= 0)
                         .reason(fs.reason())
                         .build())
                 .toList();

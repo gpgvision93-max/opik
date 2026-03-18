@@ -71,6 +71,8 @@ public interface FeedbackScoreDAO {
 @Slf4j
 class FeedbackScoreDAOImpl implements FeedbackScoreDAO {
 
+    static final String SUITE_ASSERTION_CATEGORY = "suite_assertion";
+
     private static final String BULK_INSERT_FEEDBACK_SCORE = """
             INSERT INTO <if(author)>authored_feedback_scores<else>feedback_scores<endif>(
                 entity_type,
@@ -303,6 +305,7 @@ class FeedbackScoreDAOImpl implements FeedbackScoreDAO {
             """;
 
     private final @NonNull TransactionTemplateAsync asyncTemplate;
+    private final @NonNull AssertionResultDAO assertionResultDAO;
 
     @Override
     @WithSpan
@@ -331,6 +334,26 @@ class FeedbackScoreDAOImpl implements FeedbackScoreDAO {
 
         Preconditions.checkArgument(CollectionUtils.isNotEmpty(scores), "Argument 'scores' must not be empty");
 
+        var partitioned = scores.stream()
+                .collect(Collectors.partitioningBy(
+                        s -> SUITE_ASSERTION_CATEGORY.equals(s.categoryName())));
+
+        var assertionScores = partitioned.get(true);
+        var regularScores = partitioned.get(false);
+
+        Mono<Long> insertRegular = CollectionUtils.isEmpty(regularScores)
+                ? Mono.just(0L)
+                : insertFeedbackScores(entityType, regularScores, author);
+
+        Mono<Long> insertAssertions = CollectionUtils.isEmpty(assertionScores)
+                ? Mono.just(0L)
+                : assertionResultDAO.insertBatch(entityType, assertionScores);
+
+        return Mono.zip(insertRegular, insertAssertions, Long::sum);
+    }
+
+    private Mono<Long> insertFeedbackScores(@NonNull EntityType entityType,
+            @NonNull List<? extends FeedbackScoreItem> scores, @Nullable String author) {
         return asyncTemplate.nonTransaction(connection -> makeMonoContextAware((userName, workspaceId) -> {
 
             var logComment = getLogComment("bulk_insert_feedback_score", workspaceId, scores.size());
