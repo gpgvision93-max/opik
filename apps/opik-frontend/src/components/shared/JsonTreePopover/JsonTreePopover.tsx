@@ -10,7 +10,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { JsonTreePopoverProps, JsonValue } from "./types";
+import { JsonValue } from "@/types/shared";
+import { JsonTreePopoverProps } from "./types";
 import {
   getVisiblePaths,
   parseSearchQuery,

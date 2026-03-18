@@ -5,7 +5,7 @@ import PlaygroundOutputTable from "@/components/pages/PlaygroundPage/PlaygroundO
 import PlaygroundOutputActions from "@/components/pages/PlaygroundPage/PlaygroundOutputs/PlaygroundOutputActions/PlaygroundOutputActions";
 import PlaygroundOutput from "@/components/pages/PlaygroundPage/PlaygroundOutputs/PlaygroundOutput";
 import StatusMessage from "@/components/shared/StatusMessage/StatusMessage";
-import { JsonObject } from "@/components/shared/JsonTreePopover";
+import { JsonObject } from "@/types/shared";
 import {
   usePromptIds,
   useSetDatasetVariables,

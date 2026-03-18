@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { LLM_MESSAGE_ROLE, LLMMessage } from "@/types/llm";
 import { DropdownOption } from "@/types/shared";
 import { ImprovePromptConfig } from "@/components/pages-shared/llm/LLMPromptMessages/LLMPromptMessageActions";
-import { JsonObject } from "@/components/shared/JsonTreePopover";
+import { JsonObject } from "@/types/shared";
 
 interface MessageValidationError {
   content?: {

@@ -34,7 +34,7 @@ import {
 
 import TooltipWrapper from "@/components/shared/TooltipWrapper/TooltipWrapper";
 import Loader from "@/components/shared/Loader/Loader";
-import { JsonObject, JsonValue } from "@/components/shared/JsonTreePopover";
+import { JsonObject, JsonValue } from "@/types/shared";
 import JsonTreePopover from "@/components/shared/JsonTreePopover/JsonTreePopover";
 import LLMPromptMessageActions, {
   ImprovePromptConfig,
