@@ -196,6 +196,39 @@ class WorkspacesResourceTest {
                             .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
                                     equalTo(WorkspaceUserPermission.WORKSPACE_SETTINGS_CONFIGURE.getValue()))));
         }
+
+        @Test
+        @DisplayName("Upsert workspace configuration returns 403 when permission is denied")
+        void upsertWorkspaceConfigurationReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.WORKSPACE_SETTINGS_CONFIGURE.getValue());
+
+            var configuration = WorkspaceConfiguration.builder()
+                    .timeoutToMarkThreadAsInactive(Duration.ofHours(1))
+                    .build();
+
+            try (var response = workspaceResourceClient.callUpsertWorkspaceConfiguration(configuration, apiKey,
+                    workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
+
+        @Test
+        @DisplayName("Delete workspace configuration returns 403 when permission is denied")
+        void deleteWorkspaceConfigurationReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.WORKSPACE_SETTINGS_CONFIGURE.getValue());
+
+            try (var response = workspaceResourceClient.callDeleteWorkspaceConfiguration(apiKey, workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
     }
 
     @Nested

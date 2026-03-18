@@ -194,6 +194,57 @@ class LlmProviderApiKeyResourceTest {
                             .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
                                     equalTo(WorkspaceUserPermission.AI_PROVIDER_UPDATE.getValue()))));
         }
+
+        @Test
+        @DisplayName("Store LLM provider API key returns 403 when permission is denied")
+        void storeLlmProviderApiKeyReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.AI_PROVIDER_UPDATE.getValue());
+
+            var providerApiKey = createProviderApiKey();
+
+            try (var response = llmProviderApiKeyResourceClient.callCreateProviderApiKey(providerApiKey, apiKey,
+                    workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
+
+        @Test
+        @DisplayName("Update LLM provider API key returns 403 when permission is denied")
+        void updateLlmProviderApiKeyReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.AI_PROVIDER_UPDATE.getValue());
+
+            var update = ProviderApiKeyUpdate.builder()
+                    .apiKey(UUID.randomUUID().toString())
+                    .build();
+
+            try (var response = llmProviderApiKeyResourceClient.callUpdateProviderApiKey(UUID.randomUUID(), update,
+                    apiKey, workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
+
+        @Test
+        @DisplayName("Delete LLM provider API keys returns 403 when permission is denied")
+        void deleteLlmProviderApiKeysReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.AI_PROVIDER_UPDATE.getValue());
+
+            try (var response = llmProviderApiKeyResourceClient.callDeleteProviderApiKeys(
+                    Set.of(UUID.randomUUID()), apiKey, workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
     }
 
     @Test

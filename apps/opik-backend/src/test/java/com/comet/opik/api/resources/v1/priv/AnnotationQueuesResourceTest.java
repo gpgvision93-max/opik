@@ -244,6 +244,51 @@ class AnnotationQueuesResourceTest {
                             .withRequestBody(matchingJsonPath("$.requiredPermissions[0]",
                                     equalTo(WorkspaceUserPermission.ANNOTATION_QUEUE_ANNOTATE.getValue()))));
         }
+
+        @Test
+        @DisplayName("Delete annotation queue batch returns 403 when permission is denied")
+        void deleteAnnotationQueueBatchReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.ANNOTATION_QUEUE_DELETE.getValue());
+
+            try (var response = annotationQueuesResourceClient.callDeleteAnnotationQueueBatch(
+                    Set.of(UUID.randomUUID()), apiKey, workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
+
+        @Test
+        @DisplayName("Remove items from annotation queue returns 403 when permission is denied")
+        void removeItemsFromAnnotationQueueReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.ANNOTATION_QUEUE_DELETE.getValue());
+
+            try (var response = annotationQueuesResourceClient.callRemoveItemsFromAnnotationQueue(
+                    UUID.randomUUID(), Set.of(UUID.randomUUID()), apiKey, workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
+
+        @Test
+        @DisplayName("Add items to annotation queue returns 403 when permission is denied")
+        void addItemsToAnnotationQueueReturnsForbiddenWhenPermissionDenied() {
+            String apiKey = UUID.randomUUID().toString();
+            String workspaceName = "test-workspace-" + UUID.randomUUID();
+
+            AuthTestUtils.mockTargetWorkspaceDenyPermission(wireMock.server(), apiKey, workspaceName,
+                    WorkspaceUserPermission.ANNOTATION_QUEUE_ANNOTATE.getValue());
+
+            try (var response = annotationQueuesResourceClient.callAddItemsToAnnotationQueue(
+                    UUID.randomUUID(), Set.of(UUID.randomUUID()), apiKey, workspaceName)) {
+                assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_FORBIDDEN);
+            }
+        }
     }
 
     @Nested
