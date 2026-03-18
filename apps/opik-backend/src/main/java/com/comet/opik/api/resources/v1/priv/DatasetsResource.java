@@ -20,7 +20,6 @@ import com.comet.opik.api.DatasetUpdate;
 import com.comet.opik.api.DatasetVersion;
 import com.comet.opik.api.ExperimentItem;
 import com.comet.opik.api.PageColumns;
-import com.comet.opik.api.Project;
 import com.comet.opik.api.Visibility;
 import com.comet.opik.api.filter.DatasetFilter;
 import com.comet.opik.api.filter.DatasetItemFilter;
@@ -83,7 +82,6 @@ import jakarta.ws.rs.core.UriInfo;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.ContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.glassfish.jersey.server.ChunkedOutput;
@@ -787,13 +785,7 @@ public class DatasetsResource {
     }
 
     private UUID resolveProjectIdByName(String projectName, String workspaceId) {
-        if (StringUtils.isBlank(projectName)) {
-            return null;
-        }
-        return projectService.findByNames(workspaceId, List.of(projectName))
-                .stream().findFirst()
-                .map(Project::id)
-                .orElse(null);
+        return projectService.findProjectIdByName(workspaceId, projectName).orElse(null);
     }
 
     /**
