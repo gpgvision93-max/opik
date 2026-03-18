@@ -24,6 +24,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -211,6 +212,24 @@ public class AgentConfigsResource {
                 envName, request.blueprintName(), projectId);
 
         agentConfigService.setEnvByBlueprintName(projectId, envName, request.blueprintName());
+
+        return Response.noContent().build();
+    }
+
+    @DELETE
+    @Path("/blueprints/environments/{env_name}/projects/{project_id}")
+    @Operation(operationId = "deleteEnv", summary = "Delete environment", description = "Soft-deletes an environment by setting its ended_at timestamp", responses = {
+            @ApiResponse(responseCode = "204", description = "Environment deleted"),
+            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(implementation = ErrorMessage.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorMessage.class)))
+    })
+    public Response deleteEnv(
+            @PathParam("env_name") String envName,
+            @Parameter(required = true) @PathParam("project_id") UUID projectId) {
+
+        log.info("Deleting environment '{}' for project '{}'", envName, projectId);
+
+        agentConfigService.deleteEnv(projectId, envName);
 
         return Response.noContent().build();
     }
