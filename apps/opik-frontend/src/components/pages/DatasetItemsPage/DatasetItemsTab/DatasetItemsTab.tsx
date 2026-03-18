@@ -62,6 +62,7 @@ import {
 } from "@/components/shared/DataTable/utils";
 import { DATASET_ITEM_DATA_PREFIX } from "@/constants/datasets";
 import { useDatasetItemsWithDraft } from "./hooks/useMergedDatasetItems";
+import { usePermissions } from "@/contexts/PermissionsContext";
 import {
   useIsDraftMode,
   useIsAllItemsSelected,
@@ -122,6 +123,10 @@ const DatasetItemsTab: React.FC<DatasetItemsTabProps> = ({
   datasetName,
   datasetStatus,
 }) => {
+  const {
+    permissions: { canEditDatasets },
+  } = usePermissions();
+
   const { isProcessing, showSuccessMessage } = useDatasetLoadingStatus({
     datasetStatus,
   });
@@ -471,15 +476,22 @@ const DatasetItemsTab: React.FC<DatasetItemsTabProps> = ({
           return getDraftStatusBorderClass(item);
         },
       }),
-      ...injectColumnCallback(convertedColumns, COLUMN_ID_ID, handleRowClick),
-      generateActionsColumDef({
-        cell: DatasetItemRowActionsCell,
-      }),
+      ...(canEditDatasets
+        ? injectColumnCallback(convertedColumns, COLUMN_ID_ID, handleRowClick)
+        : convertedColumns),
+      ...(canEditDatasets
+        ? [
+            generateActionsColumDef({
+              cell: DatasetItemRowActionsCell,
+            }),
+          ]
+        : []),
     ];
   }, [
     columnsData,
     columnsOrder,
     selectedColumns,
+    canEditDatasets,
     getDraftStatusBorderClass,
     handleRowClick,
   ]);
@@ -591,13 +603,15 @@ const DatasetItemsTab: React.FC<DatasetItemsTabProps> = ({
             order={columnsOrder}
             onOrderChange={setColumnsOrder}
           ></ColumnsButton>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleNewDatasetItemClick}
-          >
-            Create dataset item
-          </Button>
+          {canEditDatasets && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleNewDatasetItemClick}
+            >
+              Create dataset item
+            </Button>
+          )}
         </div>
       </div>
       {isProcessing && (
@@ -628,7 +642,7 @@ const DatasetItemsTab: React.FC<DatasetItemsTabProps> = ({
       <DataTable
         columns={columns}
         data={rows}
-        onRowClick={handleRowClick}
+        onRowClick={canEditDatasets ? handleRowClick : undefined}
         activeRowId={activeRowId ?? ""}
         resizeConfig={resizeConfig}
         showLoadingOverlay={isPlaceholderData && isFetching}

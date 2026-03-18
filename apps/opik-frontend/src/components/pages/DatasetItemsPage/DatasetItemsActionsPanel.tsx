@@ -23,6 +23,7 @@ import {
 } from "@/store/DatasetDraftStore";
 import { useToast } from "@/components/ui/use-toast";
 import { DATASET_ITEM_SOURCE } from "@/types/datasets";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 type DatasetItemsActionsPanelProps = {
   getDataForExport: () => Promise<DatasetItem[]>;
@@ -66,6 +67,10 @@ const DatasetItemsActionsPanel: React.FunctionComponent<
   const bulkAddItems = useBulkAddItems();
   const isAllItemsSelected = useIsAllItemsSelected();
   const { toast } = useToast();
+
+  const {
+    permissions: { canEditDatasets },
+  } = usePermissions();
 
   const deleteDatasetItemsHandler = useCallback(() => {
     if (!isAllItemsSelected) {
@@ -180,33 +185,34 @@ const DatasetItemsActionsPanel: React.FunctionComponent<
         search={search}
         totalCount={totalCount}
       />
-
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => {
-          setExpansionDialogOpen(true);
-          resetKeyRef.current = resetKeyRef.current + 1;
-        }}
-      >
-        <Sparkles className="mr-2 size-4" />
-        Expand with AI
-      </Button>
-
-      <TooltipWrapper content="Manage tags">
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={() => {
-            setAddTagDialogOpen(true);
-            resetKeyRef.current = resetKeyRef.current + 1;
-          }}
-          disabled={disabled}
-        >
-          <Tag />
-        </Button>
-      </TooltipWrapper>
-
+      {canEditDatasets && (
+        <>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setExpansionDialogOpen(true);
+              resetKeyRef.current = resetKeyRef.current + 1;
+            }}
+          >
+            <Sparkles className="mr-2 size-4" />
+            Expand with AI
+          </Button>
+          <TooltipWrapper content="Manage tags">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => {
+                setAddTagDialogOpen(true);
+                resetKeyRef.current = resetKeyRef.current + 1;
+              }}
+              disabled={disabled}
+            >
+              <Tag />
+            </Button>
+          </TooltipWrapper>
+        </>
+      )}
       <ExportToButton
         disabled={
           disabled ||
@@ -222,16 +228,18 @@ const DatasetItemsActionsPanel: React.FunctionComponent<
             : undefined
         }
       />
-      <TooltipWrapper content="Delete">
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={deleteDatasetItemsHandler}
-          disabled={disabled}
-        >
-          <Trash />
-        </Button>
-      </TooltipWrapper>
+      {canEditDatasets && (
+        <TooltipWrapper content="Delete">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={deleteDatasetItemsHandler}
+            disabled={disabled}
+          >
+            <Trash />
+          </Button>
+        </TooltipWrapper>
+      )}
     </div>
   );
 };
