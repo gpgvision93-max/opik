@@ -1,7 +1,7 @@
 package com.comet.opik.domain.ollie;
 
+import com.comet.opik.domain.attachment.FileService;
 import com.comet.opik.infrastructure.OllieStateConfig;
-import com.comet.opik.infrastructure.S3Config;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,27 +11,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,24 +33,20 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class OllieStateServiceTest {
 
-    private static final String BUCKET = "test-bucket";
     private static final String USER_NAME = "testuser@example.com";
     private static final byte[] GZIP_HEADER = {(byte) 0x1f, (byte) 0x8b};
 
     @Mock
-    private S3Client s3Client;
+    private FileService fileService;
 
     private OllieStateServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        S3Config s3Config = new S3Config();
-        s3Config.setS3BucketName(BUCKET);
-
         OllieStateConfig ollieStateConfig = new OllieStateConfig();
         ollieStateConfig.setMaxUploadSizeBytes(1024);
 
-        service = new OllieStateServiceImpl(s3Client, s3Config, ollieStateConfig);
+        service = new OllieStateServiceImpl(fileService, ollieStateConfig);
     }
 
     private static byte[] gzipData(int size) {
@@ -67,10 +56,11 @@ class OllieStateServiceTest {
         return data;
     }
 
-    private static String sha256Hex(String input) throws Exception {
+    private static String expectedKey(String userName) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-        return HexFormat.of().formatHex(hash);
+        byte[] hash = digest.digest(userName.getBytes(StandardCharsets.UTF_8));
+        String userHash = HexFormat.of().formatHex(hash);
+        return "ollie-state/%s/ollie.db.gz".formatted(userHash);
     }
 
     @Nested
@@ -78,21 +68,14 @@ class OllieStateServiceTest {
     class Upload {
 
         @Test
-        @DisplayName("uploads valid gzip data to correct S3 key")
+        @DisplayName("uploads valid gzip data to correct key via FileService")
         void uploadsToCorrectKey() throws Exception {
             byte[] data = gzipData(100);
             InputStream input = new ByteArrayInputStream(data);
 
             service.upload(USER_NAME, input);
 
-            ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
-            verify(s3Client).putObject(captor.capture(), any(RequestBody.class));
-
-            PutObjectRequest request = captor.getValue();
-            String expectedKey = "ollie-state/%s/ollie.db.gz".formatted(sha256Hex(USER_NAME));
-            assertThat(request.bucket()).isEqualTo(BUCKET);
-            assertThat(request.key()).isEqualTo(expectedKey);
-            assertThat(request.contentType()).isEqualTo("application/gzip");
+            verify(fileService).upload(eq(expectedKey(USER_NAME)), any(byte[].class), eq("application/gzip"));
         }
 
         @Test
@@ -125,7 +108,7 @@ class OllieStateServiceTest {
 
             service.upload(USER_NAME, input);
 
-            verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+            verify(fileService).upload(any(String.class), any(byte[].class), any(String.class));
         }
 
         @Test
@@ -166,34 +149,25 @@ class OllieStateServiceTest {
     class Download {
 
         @Test
-        @DisplayName("returns S3 stream for existing state")
+        @DisplayName("returns stream from FileService for existing state")
         void returnsStream() throws Exception {
-            @SuppressWarnings("unchecked")
-            ResponseInputStream<GetObjectResponse> responseStream = mock(ResponseInputStream.class);
-            String expectedKey = "ollie-state/%s/ollie.db.gz".formatted(sha256Hex(USER_NAME));
-
-            when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(responseStream);
+            InputStream responseStream = mock(InputStream.class);
+            when(fileService.download(expectedKey(USER_NAME))).thenReturn(responseStream);
 
             InputStream result = service.download(USER_NAME);
 
             assertThat(result).isSameAs(responseStream);
-
-            ArgumentCaptor<GetObjectRequest> captor = ArgumentCaptor.forClass(GetObjectRequest.class);
-            verify(s3Client).getObject(captor.capture());
-            assertThat(captor.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(captor.getValue().key()).isEqualTo(expectedKey);
+            verify(fileService).download(expectedKey(USER_NAME));
         }
 
         @Test
         @DisplayName("throws NotFoundException when no state exists")
-        void throwsNotFoundForMissing() {
-            when(s3Client.getObject(any(GetObjectRequest.class)))
-                    .thenThrow(NoSuchKeyException.builder().message("not found").build());
+        void throwsNotFoundForMissing() throws Exception {
+            when(fileService.download(expectedKey(USER_NAME)))
+                    .thenThrow(new NotFoundException("File not found for key: " + expectedKey(USER_NAME)));
 
             assertThatThrownBy(() -> service.download(USER_NAME))
-                    .isInstanceOf(NotFoundException.class)
-                    .hasMessageContaining("No stored state found")
-                    .hasCauseInstanceOf(NoSuchKeyException.class);
+                    .isInstanceOf(NotFoundException.class);
         }
 
         @ParameterizedTest
@@ -211,16 +185,11 @@ class OllieStateServiceTest {
     class Delete {
 
         @Test
-        @DisplayName("deletes correct S3 key")
+        @DisplayName("deletes correct key via FileService")
         void deletesCorrectKey() throws Exception {
             service.delete(USER_NAME);
 
-            ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
-            verify(s3Client).deleteObject(captor.capture());
-
-            String expectedKey = "ollie-state/%s/ollie.db.gz".formatted(sha256Hex(USER_NAME));
-            assertThat(captor.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(captor.getValue().key()).isEqualTo(expectedKey);
+            verify(fileService).deleteObjects(Set.of(expectedKey(USER_NAME)));
         }
 
         @ParameterizedTest
@@ -245,11 +214,8 @@ class OllieStateServiceTest {
             service.upload("user-a", new ByteArrayInputStream(data));
             service.upload("user-b", new ByteArrayInputStream(data));
 
-            ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
-            verify(s3Client, times(2)).putObject(captor.capture(), any(RequestBody.class));
-
-            assertThat(captor.getAllValues().get(0).key())
-                    .isNotEqualTo(captor.getAllValues().get(1).key());
+            verify(fileService).upload(eq(expectedKey("user-a")), any(byte[].class), any(String.class));
+            verify(fileService).upload(eq(expectedKey("user-b")), any(byte[].class), any(String.class));
         }
 
         @Test
@@ -260,11 +226,7 @@ class OllieStateServiceTest {
             service.upload(USER_NAME, new ByteArrayInputStream(data));
             service.upload(USER_NAME, new ByteArrayInputStream(data));
 
-            ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
-            verify(s3Client, times(2)).putObject(captor.capture(), any(RequestBody.class));
-
-            assertThat(captor.getAllValues().get(0).key())
-                    .isEqualTo(captor.getAllValues().get(1).key());
+            verify(fileService, times(2)).upload(eq(expectedKey(USER_NAME)), any(byte[].class), any(String.class));
         }
     }
 }

@@ -15,7 +15,7 @@ import jakarta.inject.Provider;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
@@ -39,12 +39,12 @@ public class OllieStateResource {
     private final @NonNull OllieStateService ollieStateService;
     private final @NonNull Provider<RequestContext> requestContext;
 
-    @POST
+    @PUT
     @Consumes("*/*")
     @Produces(MediaType.APPLICATION_JSON)
     @RateLimited(value = OLLIE_STATE_UPLOAD
             + ":{apiKey}", shouldAffectWorkspaceLimit = false, shouldAffectUserGeneralLimit = false)
-    @Operation(operationId = "uploadOllieState", summary = "Upload ollie state", description = "Upload gzip-compressed SQLite DB file", responses = {
+    @Operation(operationId = "replaceOllieState", summary = "Replace ollie state", description = "Upload gzip-compressed SQLite DB file, replacing any existing state", responses = {
             @ApiResponse(responseCode = "204", description = "No content"),
             @ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(schema = @Schema(implementation = ErrorMessage.class))),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorMessage.class))),
@@ -63,7 +63,7 @@ public class OllieStateResource {
     @GET
     @Produces("application/gzip")
     @Operation(operationId = "downloadOllieState", summary = "Download ollie state", description = "Download stored ollie state file", responses = {
-            @ApiResponse(responseCode = "200", description = "Ollie state file", content = @Content(schema = @Schema(type = "string", format = "binary"))),
+            @ApiResponse(responseCode = "200", description = "Ollie state file", content = @Content(mediaType = "application/gzip", schema = @Schema(type = "string", format = "binary"))),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorMessage.class))),
             @ApiResponse(responseCode = "404", description = "Not found", content = @Content(schema = @Schema(implementation = ErrorMessage.class)))
     })

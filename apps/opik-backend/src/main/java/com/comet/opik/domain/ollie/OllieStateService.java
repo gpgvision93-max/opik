@@ -1,23 +1,16 @@
 package com.comet.opik.domain.ollie;
 
+import com.comet.opik.domain.attachment.FileService;
 import com.comet.opik.infrastructure.OllieStateConfig;
-import com.comet.opik.infrastructure.S3Config;
 import com.google.inject.ImplementedBy;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.NotFoundException;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ru.vyarus.dropwizard.guice.module.yaml.bind.Config;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Set;
 
 @ImplementedBy(OllieStateServiceImpl.class)
 public interface OllieStateService {
@@ -44,8 +38,7 @@ class OllieStateServiceImpl implements OllieStateService {
 
     private static final byte[] GZIP_MAGIC = {(byte) 0x1f, (byte) 0x8b};
 
-    private final @NonNull S3Client s3Client;
-    private final @NonNull @Config("s3Config") S3Config s3Config;
+    private final @NonNull FileService fileService;
     private final @NonNull @Config("ollieStateConfig") OllieStateConfig ollieStateConfig;
 
     @Override
@@ -66,13 +59,7 @@ class OllieStateServiceImpl implements OllieStateService {
 
         log.debug("Uploading ollie state for user '{}', size {} bytes, key '{}'", userName, data.length, key);
 
-        PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(s3Config.getS3BucketName())
-                .key(key)
-                .contentType(CONTENT_TYPE)
-                .build();
-
-        s3Client.putObject(request, RequestBody.fromBytes(data));
+        fileService.upload(key, data, CONTENT_TYPE);
     }
 
     @Override
@@ -83,17 +70,7 @@ class OllieStateServiceImpl implements OllieStateService {
 
         log.debug("Downloading ollie state for user '{}', key '{}'", userName, key);
 
-        GetObjectRequest request = GetObjectRequest.builder()
-                .bucket(s3Config.getS3BucketName())
-                .key(key)
-                .build();
-
-        try {
-            return s3Client.getObject(request);
-        } catch (NoSuchKeyException e) {
-            log.warn("No ollie state found for user '{}', key '{}'", userName, key);
-            throw new NotFoundException("No stored state found", e);
-        }
+        return fileService.download(key);
     }
 
     @Override
@@ -104,12 +81,7 @@ class OllieStateServiceImpl implements OllieStateService {
 
         log.debug("Deleting ollie state for user '{}', key '{}'", userName, key);
 
-        DeleteObjectRequest request = DeleteObjectRequest.builder()
-                .bucket(s3Config.getS3BucketName())
-                .key(key)
-                .build();
-
-        s3Client.deleteObject(request);
+        fileService.deleteObjects(Set.of(key));
     }
 
     private String buildKey(String userName) {
