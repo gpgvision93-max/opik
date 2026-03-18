@@ -218,8 +218,10 @@ public class LocalRunnersResource {
         String workspaceId = requestContext.get().getWorkspaceId();
         String userName = requestContext.get().getUserName();
         runnerService.nextJob(runnerId, workspaceId, userName)
+                .map(job -> Response.ok(job).build())
+                .defaultIfEmpty(Response.noContent().build())
                 .subscribe(
-                        job -> asyncResponse.resume(Response.ok(job).build()),
+                        asyncResponse::resume,
                         error -> {
                             if (error instanceof WebApplicationException wae) {
                                 asyncResponse.resume(wae);
@@ -228,8 +230,7 @@ public class LocalRunnersResource {
                                         workspaceId, error);
                                 asyncResponse.resume(Response.serverError().build());
                             }
-                        },
-                        () -> asyncResponse.resume(Response.noContent().build()));
+                        });
     }
 
     @GET
