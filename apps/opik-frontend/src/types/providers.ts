@@ -435,7 +435,7 @@ export interface LLMOpenAIConfigsType {
   topP: number;
   frequencyPenalty: number;
   presencePenalty: number;
-  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  reasoningEffort: "minimal" | "low" | "medium" | "high";
 }
 
 export interface LLMAnthropicConfigsType {
